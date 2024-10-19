@@ -186,3 +186,25 @@ Catatan: Perlu dibuat panduan detail untuk kurir mengenai jenis barang yang dapa
       - Sistem deteksi fraud
 
 Catatan: Perlu dilakukan penelitian lebih lanjut tentang regulasi fintech dan keamanan data untuk implementasi pembayaran digital.
+
+6. Keamanan dan Privasi Data:
+   a. Enkripsi Data:
+      - Enkripsi end-to-end untuk komunikasi antara aplikasi dan server
+      - Enkripsi data sensitif pengguna (seperti informasi pembayaran) saat disimpan di database
+   
+   b. Autentikasi Dua Faktor:
+      - Menggunakan nomor WhatsApp pengguna untuk verifikasi
+      - Implementasi sistem OTP (One-Time Password) melalui WhatsApp
+
+   c. Kebijakan Privasi:
+      - Penyusunan kebijakan privasi yang komprehensif
+      - Fitur persetujuan pengguna untuk pengumpulan dan penggunaan data
+
+   d. Keamanan Akun:
+      - Sistem deteksi dan pencegahan akses tidak sah
+      - Fitur log aktivitas akun yang dapat diakses oleh pengguna
+
+   e. Kepatuhan Regulasi:
+      - Memastikan kepatuhan terhadap regulasi perlindungan data yang berlaku di Indonesia
+
+Catatan: Perlu dilakukan konsultasi dengan ahli keamanan siber untuk implementasi yang tepat dan aman.
