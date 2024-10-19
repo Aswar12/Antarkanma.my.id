@@ -24,3 +24,9 @@ Catatan: Setiap kali ada pembaruan catatan, lakukan push ke repositori.
 
 Jawaban 1: Saya akan mengembangkan ketiga jenis pengguna (pelanggan, pemilik usaha/kedai, dan kurir) secara bersamaan untuk MVP.
 Catatan tambahan: Pengembangan akan menggunakan Flutter untuk ketiga jenis aplikasi.
+
+Jawaban 2: Untuk soft launch, kami akan memilih Kecamatan Rappocini di Kota Makassar. Alasannya adalah:
+1. Populasi yang cukup besar dan beragam, mencakup berbagai segmen pengguna potensial.
+2. Infrastruktur internet yang relatif baik untuk mendukung penggunaan aplikasi.
+3. Keberadaan banyak usaha kuliner, dari warung kecil hingga restoran, yang bisa menjadi mitra.
+4. Aksesibilitas yang baik untuk tim pengembang dalam melakukan monitoring dan penyesuaian cepat.
