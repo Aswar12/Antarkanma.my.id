@@ -8,8 +8,8 @@
 ## 2. Ruang Lingkup Proyek
 - Pengembangan aplikasi mobile untuk 3 jenis pengguna: pelanggan, pemilik usaha, dan kurir
 - Implementasi fitur utama: pemesanan, pembayaran, pelacakan pesanan, dan manajemen pesanan
-- Cakupan geografis awal: Kecamatan Segeri, Ma'rang, dan Mandalle
-- Rencana ekspansi: Akan dievaluasi setelah 3 bulan soft launch, dengan potensi ekspansi ke kecamatan terdekat
+- Cakupan geografis: Fokus pada Kecamatan Segeri, Ma'rang, dan Mandalle
+- Rencana ekspansi jangka panjang: Potensi ekspansi ke tingkat kabupaten setelah evaluasi keberhasilan di 3 kecamatan awal
 - Integrasi sistem pembayaran COD dengan sistem deposit untuk kurir
 
 ## 3. Stakeholder
@@ -46,11 +46,11 @@
   Mitigasi: Engagement awal dengan pemilik usaha lokal dan penawaran insentif khusus
 
 ## 7. Metrik Keberhasilan
-- Jumlah pengguna aktif dalam 1 bulan pertama
-- Jumlah transaksi per hari
-- Rating kepuasan pengguna
-- Waktu rata-rata pengantaran
-- Jumlah pemilik usaha yang bergabung
+- Jumlah pengguna aktif dalam 1 bulan pertama: Target 1000 pengguna
+- Jumlah transaksi per hari: Target 50 transaksi
+- Rating kepuasan pengguna: Target 4.5/5
+- Waktu rata-rata pengantaran: Target maksimal 45 menit
+- Jumlah pemilik usaha yang bergabung: Target 50 pemilik usaha dalam 3 bulan pertama
 
 ## 8. Metodologi Pengembangan
 - Agile Scrum dengan sprint 2 mingguan
