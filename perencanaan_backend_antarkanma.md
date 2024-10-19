@@ -60,3 +60,18 @@ Catatan: Implementasi akan dilakukan setelah persetujuan dan mungkin memerlukan 
    - Penggunaan WebSockets untuk pembaruan real-time ke aplikasi pelanggan
 
 Catatan: Implementasi awal akan fokus pada status dasar, dengan rencana untuk menambahkan pelacakan real-time di fase pengembangan selanjutnya.
+
+## Rangkuman dan Poin Penting:
+1. Target awal: 3 kecamatan (Segeri, Ma'rang, dan Mandalle)
+2. Sistem pembayaran: COD dengan sistem deposit untuk kurir
+3. Keuntungan platform: 2000 rupiah per transaksi
+4. Sistem pelacakan: Implementasi awal dengan status dasar, rencana pengembangan real-time di masa depan
+5. Fitur berbagi menu ke WhatsApp akan dipertimbangkan
+
+Catatan: Prioritas fitur chat in-app masih perlu ditentukan dalam diskusi selanjutnya.
+
+Langkah selanjutnya:
+1. Finalisasi desain database dan struktur API
+2. Mulai pengembangan MVP (Minimum Viable Product)
+3. Uji coba di skala kecil di salah satu kecamatan target
+4. Evaluasi dan iterasi berdasarkan umpan balik pengguna
