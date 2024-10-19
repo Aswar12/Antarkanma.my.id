@@ -164,3 +164,25 @@ Catatan: Pengembangan selanjutnya dapat mempertimbangkan perluasan wilayah layan
       - Opsi untuk memilih jenis kendaraan saat pemesanan (setelah bentor ditambahkan)
 
 Catatan: Perlu dibuat panduan detail untuk kurir mengenai jenis barang yang dapat diantarkan dan prosedur penanganan barang.
+
+5. Sistem Pembayaran:
+   a. Metode Pembayaran Saat Ini:
+      - COD (Cash on Delivery)
+      - Sistem deposit untuk kurir
+   
+   b. Rencana Integrasi Pembayaran Digital:
+      - E-wallet
+      - Transfer bank
+
+   c. Implementasi:
+      - Integrasi API dengan penyedia layanan e-wallet
+      - Integrasi dengan sistem perbankan untuk verifikasi transfer
+      - Sistem manajemen saldo untuk e-wallet dalam aplikasi
+      - Fitur pemilihan metode pembayaran saat checkout
+
+   d. Keamanan:
+      - Enkripsi data pembayaran
+      - Verifikasi dua faktor untuk transaksi digital
+      - Sistem deteksi fraud
+
+Catatan: Perlu dilakukan penelitian lebih lanjut tentang regulasi fintech dan keamanan data untuk implementasi pembayaran digital.
