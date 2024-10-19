@@ -59,3 +59,13 @@
 - Penggunaan Trello untuk manajemen tugas dan progres
 
 Catatan: Dokumen ini bersifat hidup dan akan diperbarui secara berkala sesuai dengan perkembangan proyek.
+
+## 8. Risiko dan Mitigasi
+1. Risiko: Kurangnya partisipasi pemilik usaha lokal
+   Mitigasi: Melakukan sosialisasi dan edukasi intensif, menawarkan insentif untuk bergabung
+
+2. Risiko: Masalah keamanan data pengguna
+   Mitigasi: Implementasi enkripsi end-to-end, audit keamanan berkala, dan pelatihan tim tentang praktik keamanan terbaik
+
+3. Risiko: Keterlambatan dalam pengembangan fitur kunci
+   Mitigasi: Penerapan metodologi Agile dengan sprint review reguler, prioritisasi fitur berdasarkan nilai bisnis
