@@ -1,0 +1,31 @@
+{
+  "users": {
+    "GET /api/users": "Mendapatkan daftar pengguna",
+    "GET /api/users/{id}": "Mendapatkan detail pengguna",
+    "POST /api/users": "Membuat pengguna baru",
+    "PUT /api/users/{id}": "Memperbarui data pengguna",
+    "DELETE /api/users/{id}": "Menghapus pengguna"
+  },
+  "stores": {
+    "GET /api/stores": "Mendapatkan daftar kedai",
+    "GET /api/stores/{id}": "Mendapatkan detail kedai",
+    "POST /api/stores": "Membuat kedai baru",
+    "PUT /api/stores/{id}": "Memperbarui data kedai",
+    "DELETE /api/stores/{id}": "Menghapus kedai",
+    "GET /api/stores/{id}/menus": "Mendapatkan daftar menu kedai"
+  },
+  "menus": {
+    "GET /api/menus": "Mendapatkan daftar menu",
+    "GET /api/menus/{id}": "Mendapatkan detail menu",
+    "POST /api/menus": "Membuat menu baru",
+    "PUT /api/menus/{id}": "Memperbarui data menu",
+    "DELETE /api/menus/{id}": "Menghapus menu"
+  },
+  "orders": {
+    "GET /api/orders": "Mendapatkan daftar pesanan",
+    "GET /api/orders/{id}": "Mendapatkan detail pesanan",
+    "POST /api/orders": "Membuat pesanan baru",
+    "PUT /api/orders/{id}": "Memperbarui status pesanan",
+    "DELETE /api/orders/{id}": "Membatalkan pesanan"
+  }
+}

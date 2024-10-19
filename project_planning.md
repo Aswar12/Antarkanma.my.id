@@ -58,12 +58,20 @@ Catatan: Anggaran ini adalah estimasi awal dan dapat disesuaikan seiring berjala
 
 
 ## 6. Risiko dan Mitigasi
-- Risiko 1: Adopsi yang lambat oleh pengguna
-  Mitigasi: Strategi pemasaran yang agresif dan program insentif untuk pengguna awal
-- Risiko 2: Masalah teknis saat soft launch
-  Mitigasi: Pengujian menyeluruh dan persiapan tim support yang siap 24/7 selama periode soft launch
-- Risiko 3: Kurangnya pemilik usaha yang berpartisipasi
-  Mitigasi: Engagement awal dengan pemilik usaha lokal dan penawaran insentif khusus
+1. Risiko: Adopsi yang lambat oleh pengguna
+   Mitigasi: Strategi pemasaran yang agresif dan program insentif untuk pengguna awal
+
+2. Risiko: Masalah teknis saat soft launch
+   Mitigasi: Pengujian menyeluruh dan persiapan tim support yang siap 24/7 selama periode soft launch
+
+3. Risiko: Kurangnya pemilik usaha yang berpartisipasi
+   Mitigasi: Engagement awal dengan pemilik usaha lokal dan penawaran insentif khusus
+
+4. Risiko: Masalah keamanan data pengguna
+   Mitigasi: Implementasi enkripsi end-to-end, audit keamanan berkala, dan pelatihan tim tentang praktik keamanan terbaik
+
+5. Risiko: Keterlambatan dalam pengembangan fitur kunci
+   Mitigasi: Penerapan metodologi Agile dengan sprint review reguler, prioritisasi fitur berdasarkan nilai bisnis
 
 ## 7. Metrik Keberhasilan
 - Jumlah pengguna aktif dalam 1 bulan pertama: Target 1000 pengguna
@@ -79,8 +87,6 @@ Catatan: Anggaran ini adalah estimasi awal dan dapat disesuaikan seiring berjala
 - Penggunaan Trello untuk manajemen tugas dan progres
 
 Catatan: Dokumen ini bersifat hidup dan akan diperbarui secara berkala sesuai dengan perkembangan proyek.
-
-## 8. Risiko dan Mitigasi
 1. Risiko: Kurangnya partisipasi pemilik usaha lokal
    Mitigasi: Melakukan sosialisasi dan edukasi intensif, menawarkan insentif untuk bergabung
 
@@ -1339,54 +1345,28 @@ Catatan: Fokus pada membangun komunitas pengguna yang loyal melalui interaksi pe
    - Pertimbangkan penyesuaian di masa depan berdasarkan feedback pengguna dan kondisi pasar
 
 4. Insentif Volume:
-   - Pertimbangkan untuk memberikan diskon atau cashback untuk pengguna yang sering bertransaksi
+   - Berikan diskon atau cashback untuk pengguna yang sering bertransaksi
    - Misalnya, setelah 10 transaksi, berikan cashback sebesar 5000 rupiah
 
-5. Alokasi Pendapatan:
-   - Gunakan pendapatan dari biaya layanan ini untuk:
+5. Strategi Monetisasi Tambahan (untuk pengembangan masa depan):
+   a. Langganan Premium untuk Pemilik Usaha:
+      - Tawarkan fitur tambahan seperti analitik lanjutan, prioritas dalam pencarian, dan promosi khusus
+   b. Iklan dalam Aplikasi:
+      - Tampilkan iklan lokal yang relevan dalam aplikasi
+   c. Layanan Pengiriman Premium:
+      - Tawarkan opsi pengiriman ekspres dengan biaya tambahan
+   d. Program Loyalitas:
+      - Implementasikan sistem poin loyalitas untuk meningkatkan retensi pengguna
+   e. Fitur Promosi untuk Pemilik Usaha:
+      - Jual slot promosi khusus atau fitur "Pilihan Hari Ini" kepada pemilik usaha
+
+6. Alokasi Pendapatan:
+   - Gunakan pendapatan dari biaya layanan untuk:
      a. Pengembangan dan pemeliharaan aplikasi
      b. Peningkatan layanan pelanggan
      c. Ekspansi ke area baru
 
-Catatan: Fokus pada memberikan nilai tambah kepada pengguna dan pemilik usaha untuk memastikan mereka merasa biaya layanan ini sepadan dengan manfaat yang diterima.
-
-1. Komisi dari Transaksi:
-   - Ambil persentase kecil (misalnya 5-10%) dari setiap transaksi pemesanan
-   - Terapkan secara bertahap, mulai dengan persentase rendah untuk menarik lebih banyak pemilik usaha
-
-2. Langganan Premium untuk Pemilik Usaha:
-   - Tawarkan fitur tambahan seperti analitik lanjutan, prioritas dalam pencarian, dan promosi khusus
-   - Buat beberapa tier langganan dengan harga yang berbeda
-
-3. Iklan dalam Aplikasi:
-   - Tampilkan iklan lokal yang relevan dalam aplikasi
-   - Tawarkan opsi berbayar untuk pemilik usaha yang ingin menonjolkan bisnis mereka
-
-4. Layanan Pengiriman Premium:
-   - Tawarkan opsi pengiriman ekspres dengan biaya tambahan
-   - Bagi hasil dengan kurir untuk layanan pengiriman premium
-
-5. Program Loyalitas:
-   - Jual poin loyalitas kepada pemilik usaha untuk diberikan kepada pelanggan mereka
-   - Tawarkan penukaran poin dengan diskon atau produk gratis
-
-6. Fitur Promosi untuk Pemilik Usaha:
-   - Jual slot promosi khusus atau fitur "Pilihan Hari Ini" kepada pemilik usaha
-
-7. Kemitraan dan Affiliate Marketing:
-   - Kerjasama dengan bisnis lokal lainnya untuk promosi bersama
-   - Implementasikan program affiliate untuk produk atau layanan terkait
-
-8. Layanan Konsultasi Digital:
-   - Tawarkan layanan konsultasi digital berbayar untuk pemilik usaha kecil
-
-9. Monetisasi Data (dengan izin):
-   - Jual insight pasar anonim kepada bisnis lokal atau peneliti pasar
-
-10. Integrasi Layanan Tambahan:
-    - Tambahkan layanan terkait seperti reservasi meja atau katering dengan biaya tambahan
-
-Catatan: Mulai dengan 1-2 strategi monetisasi yang paling sesuai dengan pengguna dan pasar lokal. Evaluasi dan sesuaikan strategi secara berkala berdasarkan feedback dan performa.
+Catatan: Fokus pada memberikan nilai tambah kepada pengguna dan pemilik usaha. Mulai dengan strategi biaya layanan per transaksi dan evaluasi penerapan strategi tambahan seiring pertumbuhan aplikasi.
 
 ## 36. Key Performance Indicators (KPI)
 
@@ -1461,3 +1441,14 @@ Langkah-langkah selanjutnya:
 6. Terus evaluasi dan sesuaikan rencana berdasarkan feedback dan perkembangan proyek
 
 Dengan perencanaan yang telah dibuat, Antarkanma memiliki fondasi yang kuat untuk memulai pengembangan dan peluncuran. Penting untuk tetap fleksibel dan responsif terhadap perubahan kebutuhan pasar dan feedback pengguna selama proses pengembangan.
+
+
+## 38. Referensi Dokumen Terkait
+- Analisis Kebutuhan dan Persyaratan: Lihat file docs/combined_requirements.md
+- Perencanaan Backend: Lihat file docs/combined_backend_plan.md
+- Strategi Pengujian dan Pengembangan MVP: Lihat file docs/combined_strategy_and_mvp.md
+- Arsitektur dan Kerangka Kerja SDLC: Lihat file docs/combined_architecture_and_sdlc.md
+- Struktur API: Lihat file docs/api_structure.json
+- Struktur Database: Lihat file docs/database_structure.json
+- Analisis Kebutuhan Tim: Lihat file docs/analisis_kebutuhan_tim.md
+- Pertanyaan Wawancara: Lihat file docs/interview_questions.txt

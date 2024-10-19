@@ -1,0 +1,33 @@
+{
+  "users": {
+    "id": "bigIncrements",
+    "name": "string",
+    "email": "string",
+    "password": "string",
+    "role": "enum:pelanggan,pemilik_usaha,kurir",
+    "phone_number": "string",
+    "address": "text",
+    "created_at": "timestamp",
+    "updated_at": "timestamp"
+  },
+  "stores": {
+    "id": "bigIncrements",
+    "name": "string",
+    "owner_id": "unsignedBigInteger",
+    "address": "text",
+    "description": "text",
+    "operating_hours": "json",
+    "created_at": "timestamp",
+    "updated_at": "timestamp"
+  },
+  "menus": {
+    "id": "bigIncrements",
+    "store_id": "unsignedBigInteger",
+    "name": "string",
+    "description": "text",
+    "price": "decimal:8,2",
+    "is_available": "boolean",
+    "created_at": "timestamp",
+    "updated_at": "timestamp"
+  }
+}
