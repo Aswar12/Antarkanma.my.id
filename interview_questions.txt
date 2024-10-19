@@ -1,0 +1,23 @@
+
+1. Bagaimana rencana Anda untuk memulai pengembangan MVP? Apakah Anda akan fokus pada satu jenis pengguna terlebih dahulu atau mengembangkan ketiganya secara bersamaan?
+
+2. Dalam rencana pengembangan MVP, disebutkan bahwa soft launch akan dilakukan di satu kecamatan. Kecamatan mana yang akan Anda pilih untuk soft launch dan mengapa?
+
+3. Bagaimana strategi Anda untuk merekrut pemilik usaha/kedai dan kurir pada tahap awal peluncuran aplikasi?
+
+4. Apakah Anda sudah memiliki rencana untuk menangani masalah konektivitas internet yang mungkin terjadi di daerah target?
+
+5. Bagaimana Anda berencana untuk mengedukasi pengguna, terutama pemilik usaha dan kurir, tentang penggunaan aplikasi?
+
+6. Apakah Anda sudah mempertimbangkan regulasi atau izin yang mungkin diperlukan untuk menjalankan layanan pesan antar makanan di daerah target?
+
+7. Bagaimana rencana Anda untuk menangani potensi konflik atau masalah yang mungkin timbul antara pelanggan, pemilik usaha, dan kurir?
+
+8. Apakah Anda memiliki rencana untuk mengimplementasikan sistem reward atau loyalitas untuk pengguna setia?
+
+9. Bagaimana strategi Anda untuk bersaing dengan layanan pesan antar makanan yang mungkin sudah ada di daerah target?
+
+10. Apakah Anda memiliki rencana untuk mengembangkan fitur offline mode untuk situasi di mana koneksi internet tidak stabil?
+
+
+Catatan: Setiap kali ada pembaruan catatan, lakukan push ke repositori.
