@@ -99,3 +99,19 @@ Catatan: Implementasi awal akan mencakup rating bintang dan ulasan tertulis. Kat
    - Notifikasi kepada pengguna tentang sisa jumlah pesanan gratis ongkir
 
 Catatan: Sistem ini dapat dikembangkan lebih lanjut di masa depan untuk mencakup jenis promosi lain seperti kupon atau diskon persentase.
+
+## Fitur Notifikasi
+1. Notifikasi Status Pesanan:
+   - Pesanan diterima
+   - Pesanan sedang diproses
+   - Kurir dalam perjalanan
+   - Pesanan telah tiba
+   
+2. Notifikasi Promosi:
+   - Pemberitahuan ketika pengguna mendapatkan 1 kali pesanan gratis ongkir setelah melakukan 15 kali pesanan
+
+Implementasi:
+- Sistem push notification untuk aplikasi mobile
+- Integrasi dengan sistem manajemen pesanan dan sistem promosi
+
+Catatan: Sistem notifikasi ini dapat dikembangkan lebih lanjut di masa depan untuk mencakup jenis notifikasi lain seperti promosi khusus atau pengingat.
