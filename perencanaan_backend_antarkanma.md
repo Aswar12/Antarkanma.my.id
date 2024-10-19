@@ -148,3 +148,19 @@ Mari kita bahas lebih detail tentang layanan yang akan disediakan:
    - Penilaian dan ulasan untuk kedai dan kurir
 
 Catatan: Pengembangan selanjutnya dapat mempertimbangkan perluasan wilayah layanan atau penambahan jenis layanan baru.
+
+4. Batasan dan Aturan Pengantaran Barang:
+   a. Kendaraan:
+      - Utama: Motor
+      - Rencana pengembangan: Bentor (becak motor)
+   
+   b. Batasan:
+      - Ukuran: Barang harus dapat dimuat di motor atau bentor
+      - Berat: Sesuai dengan kapasitas motor atau bentor (perlu ditentukan batas spesifik)
+      - Jenis barang: Tidak diizinkan untuk barang berbahaya, ilegal, atau mudah rusak
+
+   c. Fleksibilitas:
+      - Sistem harus dapat mengakomodasi penambahan jenis kendaraan di masa depan
+      - Opsi untuk memilih jenis kendaraan saat pemesanan (setelah bentor ditambahkan)
+
+Catatan: Perlu dibuat panduan detail untuk kurir mengenai jenis barang yang dapat diantarkan dan prosedur penanganan barang.
