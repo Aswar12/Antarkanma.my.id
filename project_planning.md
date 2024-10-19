@@ -69,3 +69,48 @@ Catatan: Dokumen ini bersifat hidup dan akan diperbarui secara berkala sesuai de
 
 3. Risiko: Keterlambatan dalam pengembangan fitur kunci
    Mitigasi: Penerapan metodologi Agile dengan sprint review reguler, prioritisasi fitur berdasarkan nilai bisnis
+
+## 9. Strategi Pemasaran dan Akuisisi Pengguna
+1. Kemitraan dengan pemilik usaha lokal: Melakukan sosialisasi dan memberikan insentif untuk bergabung
+2. Kampanye media sosial: Memanfaatkan platform seperti Instagram dan Facebook untuk menjangkau calon pengguna
+3. Program referral: Memberikan reward kepada pengguna yang mengajak teman untuk menggunakan aplikasi
+4. Event launching: Mengadakan acara peluncuran di setiap kecamatan target
+5. Kerjasama dengan influencer lokal: Memanfaatkan influencer untuk mempromosikan aplikasi
+
+## 10. Kebutuhan Sumber Daya Manusia
+1. Project Manager (1 orang): Bertanggung jawab atas keseluruhan proyek
+2. Backend Developer (2 orang): Mengembangkan dan mengelola server dan database
+3. Frontend Developer (2 orang): Mengembangkan antarmuka pengguna untuk aplikasi mobile
+4. UI/UX Designer (1 orang): Merancang pengalaman pengguna dan antarmuka aplikasi
+5. Quality Assurance Tester (1 orang): Melakukan pengujian dan memastikan kualitas aplikasi
+6. Marketing Specialist (1 orang): Mengelola strategi pemasaran dan akuisisi pengguna
+7. Customer Support (2 orang): Menangani pertanyaan dan masalah pengguna
+
+## 11. Rencana Pengembangan Jangka Panjang dan Pemeliharaan
+1. Pembaruan Berkala:
+   - Rilis pembaruan minor setiap 2 minggu untuk perbaikan bug dan peningkatan kinerja
+   - Rilis pembaruan mayor setiap 3 bulan untuk penambahan fitur baru
+
+2. Pengembangan Fitur:
+   - Integrasi sistem pembayaran online (e-wallet, transfer bank)
+   - Fitur pelacakan real-time untuk pesanan
+   - Sistem penilaian dan ulasan yang lebih komprehensif
+
+3. Skalabilitas:
+   - Peningkatan infrastruktur server untuk menangani peningkatan jumlah pengguna
+   - Optimisasi database untuk kinerja yang lebih baik
+
+4. Keamanan:
+   - Audit keamanan berkala setiap 6 bulan
+   - Pembaruan protokol keamanan sesuai dengan standar industri terbaru
+
+5. Dukungan Pengguna:
+   - Pengembangan sistem tiket untuk penanganan masalah yang lebih efisien
+   - Pelatihan berkala untuk tim dukungan pelanggan
+
+6. Analisis Data:
+   - Implementasi sistem analitik yang lebih canggih untuk insight bisnis
+   - Penggunaan machine learning untuk personalisasi pengalaman pengguna
+
+7. Ekspansi:
+   - Evaluasi dan perencanaan untuk ekspansi ke kabupaten lain setelah 1 tahun operasi
