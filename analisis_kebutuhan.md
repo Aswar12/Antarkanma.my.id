@@ -35,7 +35,7 @@
 - Notifikasi real-time untuk semua pengguna
 - Chat in-app antara pelanggan, pemilik usaha, dan kurir
 - Sistem rating dan review
-- Pembatasan layanan untuk 3 kecamatan yang ditentukan
+- Pembatasan layanan untuk 3 kecamatan yang ditentukan: Segeri, Ma'rang, dan Mandalle
 
 ## Pertimbangan Teknis:
 - Penggunaan GPS untuk pelacakan lokasi
