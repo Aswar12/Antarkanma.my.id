@@ -23,13 +23,92 @@
 - Durasi total: 20 minggu (5 bulan)
 - Breakdown per sprint (2 minggu per sprint):
   - Sprint 1-2: Perencanaan dan Analisis Kebutuhan
+    - Finalisasi spesifikasi teknis
+    - Pembuatan prototipe UI/UX
   - Sprint 3-4: Desain Sistem dan Prototipe
+    - Desain arsitektur sistem
+    - Pembuatan prototipe interaktif
   - Sprint 5-7: Pengembangan Backend
+    - Implementasi API dan database
+    - Integrasi dengan layanan pihak ketiga
   - Sprint 8-10: Pengembangan Frontend
+    - Implementasi UI untuk pelanggan, pemilik usaha, dan kurir
+    - Integrasi dengan backend API
   - Sprint 11-13: Integrasi dan Pengujian
+    - Pengujian fungsional dan performa
+    - Perbaikan bug dan optimisasi
   - Sprint 14-15: Persiapan Deployment
+    - Konfigurasi server dan infrastruktur
+    - Pengujian keamanan
   - Sprint 16-17: Soft Launch
+    - Peluncuran terbatas di satu kecamatan
+    - Pengumpulan umpan balik pengguna
   - Sprint 18-20: Evaluasi dan Penyesuaian
+    - Analisis data penggunaan
+    - Implementasi perbaikan berdasarkan umpan balik
+
+## 5. Teknologi Stack
+- Frontend: React Native
+- Backend: Node.js dengan Express.js
+- Database: PostgreSQL dengan Redis untuk caching
+- Layanan Pihak Ketiga:
+  - Autentikasi: Firebase Authentication
+  - Notifikasi: Firebase Cloud Messaging
+  - Peta dan Geolokasi: Google Maps API
+  - Pembayaran: Midtrans atau Xendit (untuk implementasi masa depan)
+
+## 6. Keamanan
+- Implementasi HTTPS untuk semua komunikasi
+- Enkripsi data sensitif menggunakan AES-256
+- Penggunaan JSON Web Tokens (JWT) untuk autentikasi
+- Implementasi rate limiting untuk mencegah abuse
+- Validasi input yang ketat di sisi server dan klien
+- Audit keamanan berkala
+
+## 7. Fitur MVP (Minimum Viable Product)
+- Registrasi dan login untuk pelanggan, pemilik usaha, dan kurir
+- Pencarian dan pemesanan makanan
+- Manajemen menu untuk pemilik usaha
+- Sistem pembayaran COD dengan deposit untuk kurir
+- Pelacakan pesanan dengan status dasar
+- Penilaian dan ulasan untuk kedai dan kurir
+- Notifikasi push untuk pembaruan status pesanan
+- Manajemen profil pengguna
+- Riwayat pesanan untuk pelanggan dan pemilik usaha
+- Dasbor sederhana untuk pemilik usaha dan kurir
+
+## 8. Integrasi Layanan Pihak Ketiga
+- Firebase Authentication untuk manajemen pengguna
+- Firebase Cloud Messaging untuk notifikasi push
+- Google Maps API untuk geolokasi dan pemetaan
+- (Rencana masa depan) Integrasi gateway pembayaran Midtrans atau Xendit
+
+## 9. Rencana Pengujian
+- Pengujian unit untuk komponen backend dan frontend
+- Pengujian integrasi untuk API dan layanan pihak ketiga
+- Pengujian penerimaan pengguna (UAT) dengan sampel pengguna dari setiap kategori
+- Pengujian keamanan dan penetrasi
+- Pengujian performa dan skalabilitas
+
+## 10. Strategi Pemasaran
+- Kemitraan dengan pemilik usaha kuliner lokal
+- Kampanye media sosial di platform populer
+- Program rujukan untuk pengguna
+- Acara peluncuran di setiap kecamatan target
+- Kerjasama dengan influencer lokal
+
+## 11. Rencana Ekspansi
+- Evaluasi kinerja setelah 6 bulan operasi di 3 kecamatan awal
+- Analisis pasar untuk kecamatan sekitar
+- Penyesuaian fitur berdasarkan umpan balik pengguna
+- Perencanaan ekspansi bertahap ke kecamatan lain di kabupaten
+
+## 12. Pemantauan dan Evaluasi
+- Implementasi sistem analitik untuk melacak metrik kunci
+- Survei kepuasan pengguna berkala
+- Analisis data penggunaan untuk perbaikan berkelanjutan
+- Pertemuan evaluasi tim bulanan untuk meninjau kemajuan dan tantangan
+
 
 
 ## 12. Anggaran Proyek (Estimasi per Bulan)
