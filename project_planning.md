@@ -1387,3 +1387,55 @@ Catatan: Fokus pada memberikan nilai tambah kepada pengguna dan pemilik usaha un
     - Tambahkan layanan terkait seperti reservasi meja atau katering dengan biaya tambahan
 
 Catatan: Mulai dengan 1-2 strategi monetisasi yang paling sesuai dengan pengguna dan pasar lokal. Evaluasi dan sesuaikan strategi secara berkala berdasarkan feedback dan performa.
+
+## 36. Key Performance Indicators (KPI)
+
+1. Pertumbuhan Pengguna:
+   - Jumlah pengguna aktif bulanan (MAU)
+   - Target: Peningkatan 20% setiap bulan dalam 6 bulan pertama
+
+2. Retensi Pengguna:
+   - Tingkat retensi pengguna setelah 30 hari
+   - Target: 60% pengguna kembali menggunakan aplikasi dalam 30 hari
+
+3. Volume Transaksi:
+   - Jumlah transaksi per hari
+   - Target: Rata-rata 50 transaksi per hari dalam 3 bulan pertama
+
+4. Pendapatan:
+   - Total pendapatan bulanan dari biaya layanan (Rp 2.000 per transaksi)
+   - Target: Rp 3.000.000 per bulan setelah 6 bulan
+
+5. Kepuasan Pengguna:
+   - Rating aplikasi di Play Store
+   - Target: Mempertahankan rating 4.5/5 atau lebih tinggi
+
+6. Waktu Pengiriman:
+   - Rata-rata waktu dari pemesanan hingga pengiriman
+   - Target: 90% pesanan diantar dalam 45 menit
+
+7. Jumlah Mitra Usaha:
+   - Jumlah pemilik usaha/kedai yang bergabung
+   - Target: 50 mitra usaha dalam 3 bulan pertama
+
+8. Tingkat Konversi:
+   - Persentase pengunjung aplikasi yang melakukan pemesanan
+   - Target: 5% tingkat konversi dalam 3 bulan pertama
+
+9. Efektivitas Pemasaran:
+   - Jumlah unduhan aplikasi dari kampanye media sosial dan grup WhatsApp
+   - Target: 1000 unduhan dalam 1 bulan pertama
+
+10. Performa Teknis:
+    - Uptime aplikasi
+    - Target: 99.9% uptime setiap bulan
+
+11. Engagement Pengguna:
+    - Frekuensi penggunaan aplikasi per pengguna per bulan
+    - Target: Rata-rata 3 kali penggunaan per pengguna per bulan
+
+12. Efisiensi Operasional:
+    - Jumlah tiket dukungan pelanggan yang diselesaikan per hari
+    - Target: 90% tiket diselesaikan dalam 24 jam
+
+Catatan: Evaluasi dan sesuaikan KPI ini secara berkala berdasarkan perkembangan proyek dan feedback pengguna. Gunakan data ini untuk membuat keputusan yang diinformasikan tentang pengembangan dan pemasaran Antarkanma.
