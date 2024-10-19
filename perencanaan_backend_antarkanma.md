@@ -115,3 +115,36 @@ Implementasi:
 - Integrasi dengan sistem manajemen pesanan dan sistem promosi
 
 Catatan: Sistem notifikasi ini dapat dikembangkan lebih lanjut di masa depan untuk mencakup jenis notifikasi lain seperti promosi khusus atau pengingat.
+
+## Manajemen Menu
+1. Fitur Kategori Menu:
+   - Pemilik usaha dapat membuat dan mengelola kategori menu (misalnya: Makanan Utama, Minuman, Cemilan, dll.)
+   - Setiap item menu dapat dikaitkan dengan satu atau lebih kategori
+
+2. Implementasi:
+   - CRUD (Create, Read, Update, Delete) operasi untuk kategori menu
+   - Asosiasi item menu dengan kategori
+   - Fitur pencarian dan filter berdasarkan kategori
+
+Catatan: Fitur ini dapat dikembangkan lebih lanjut di masa depan untuk mencakup variasi produk atau opsi tambahan (add-ons).
+
+## Layanan Aplikasi Antarkanma
+Mari kita bahas lebih detail tentang layanan yang akan disediakan:
+
+1. Jenis Layanan Utama:
+   a. Pengantaran Makanan:
+      - Menghubungkan pelanggan dengan restoran/kedai lokal
+      - Pemesanan dan pengantaran makanan
+   
+   b. Pengantaran Barang:
+      - Layanan kurir untuk pengantaran barang antar lokasi dalam 3 kecamatan
+
+2. Cakupan Wilayah:
+   - Terbatas pada 3 kecamatan: Segeri, Ma'rang, dan Mandalle
+
+3. Fitur Khusus:
+   - Sistem pemesanan yang terintegrasi untuk makanan dan barang
+   - Pelacakan pesanan real-time (untuk pengembangan masa depan)
+   - Penilaian dan ulasan untuk kedai dan kurir
+
+Catatan: Pengembangan selanjutnya dapat mempertimbangkan perluasan wilayah layanan atau penambahan jenis layanan baru.
