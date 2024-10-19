@@ -21,3 +21,6 @@
 
 
 Catatan: Setiap kali ada pembaruan catatan, lakukan push ke repositori.
+
+Jawaban 1: Saya akan mengembangkan ketiga jenis pengguna (pelanggan, pemilik usaha/kedai, dan kurir) secara bersamaan untuk MVP.
+Catatan tambahan: Pengembangan akan menggunakan Flutter untuk ketiga jenis aplikasi.
