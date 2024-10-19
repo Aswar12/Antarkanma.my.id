@@ -8,7 +8,8 @@
 ## 2. Ruang Lingkup Proyek
 - Pengembangan aplikasi mobile untuk 3 jenis pengguna: pelanggan, pemilik usaha, dan kurir
 - Implementasi fitur utama: pemesanan, pembayaran, pelacakan pesanan, dan manajemen pesanan
-- Cakupan geografis: Kecamatan Segeri, Ma'rang, dan Mandalle
+- Cakupan geografis awal: Kecamatan Segeri, Ma'rang, dan Mandalle
+- Rencana ekspansi: Akan dievaluasi setelah 3 bulan soft launch, dengan potensi ekspansi ke kecamatan terdekat
 - Integrasi sistem pembayaran COD dengan sistem deposit untuk kurir
 
 ## 3. Stakeholder
@@ -19,21 +20,22 @@
 - Pemerintah daerah (untuk perizinan dan regulasi)
 
 ## 4. Timeline Proyek
-- Durasi total: 12 minggu (3 bulan)
+- Durasi total: 20 minggu (5 bulan)
 - Breakdown per sprint (2 minggu per sprint):
   - Sprint 1-2: Perencanaan dan Analisis Kebutuhan
   - Sprint 3-4: Desain Sistem dan Prototipe
-  - Sprint 5-6: Pengembangan Backend
-  - Sprint 7-8: Pengembangan Frontend
-  - Sprint 9-10: Integrasi dan Pengujian
-  - Sprint 11: Persiapan Deployment
-  - Sprint 12: Soft Launch dan Evaluasi Awal
+  - Sprint 5-7: Pengembangan Backend
+  - Sprint 8-10: Pengembangan Frontend
+  - Sprint 11-13: Integrasi dan Pengujian
+  - Sprint 14-15: Persiapan Deployment
+  - Sprint 16-17: Soft Launch
+  - Sprint 18-20: Evaluasi dan Penyesuaian
 
 ## 5. Anggaran (Estimasi)
-- Biaya pengembangan: Rp X
-- Biaya infrastruktur dan hosting: Rp Y
-- Biaya pemasaran dan akuisisi pengguna awal: Rp Z
-- Total estimasi anggaran: Rp (X + Y + Z)
+- Biaya pengembangan: Belum ditentukan
+- Biaya infrastruktur dan hosting: Rp 200.000 per bulan untuk sewa server
+- Biaya pemasaran dan akuisisi pengguna awal: Belum ditentukan
+- Total estimasi anggaran: Belum dapat dihitung
 
 ## 6. Risiko dan Mitigasi
 - Risiko 1: Adopsi yang lambat oleh pengguna
