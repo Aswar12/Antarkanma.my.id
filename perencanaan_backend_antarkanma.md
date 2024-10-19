@@ -88,3 +88,14 @@ Langkah selanjutnya:
    - Kategori penilaian: kecepatan pengiriman, keramahan, ketepatan
 
 Catatan: Implementasi awal akan mencakup rating bintang dan ulasan tertulis. Kategori penilaian dapat ditambahkan dalam pengembangan selanjutnya.
+
+## Fitur Promosi dan Diskon
+1. Promosi Awal:
+   - Gratis ongkir untuk 15 kali pesanan pertama per pengguna
+   
+2. Implementasi:
+   - Sistem penghitungan jumlah pesanan per pengguna
+   - Penerapan ongkir gratis secara otomatis untuk 15 pesanan pertama
+   - Notifikasi kepada pengguna tentang sisa jumlah pesanan gratis ongkir
+
+Catatan: Sistem ini dapat dikembangkan lebih lanjut di masa depan untuk mencakup jenis promosi lain seperti kupon atau diskon persentase.
