@@ -1,0 +1,62 @@
+# Catatan Perencanaan Implementasi Backend Antarkanma
+
+## Fokus Implementasi
+1. Manajemen pengguna (pelanggan, pemilik usaha, kurir)
+2. Manajemen kedai/usaha dan menu
+
+## Rencana Implementasi
+
+### 1. Manajemen Pengguna
+- Model User:
+  - Atribut: id, name, email, password, role (enum: pelanggan, pemilik_usaha, kurir), phone_number, address, created_at, updated_at
+- Resource Filament untuk User
+- CRUD operations untuk User
+- Filter berdasarkan role
+
+### 2. Manajemen Kedai/Usaha dan Menu
+- Model Store:
+  - Atribut: id, name, owner_id (foreign key ke User), address, description, operating_hours, created_at, updated_at
+- Model Menu:
+  - Atribut: id, store_id (foreign key ke Store), name, description, price, is_available, created_at, updated_at
+- Resource Filament untuk Store dan Menu
+- CRUD operations untuk Store dan Menu
+- Relasi antara Store dan Menu di Filament
+
+## Langkah-langkah Implementasi
+1. Siapkan proyek Laravel baru
+2. Instal Filament
+3. Konfigurasi database
+4. Buat migrasi untuk tabel users, stores, dan menus
+5. Buat model User, Store, dan Menu
+6. Buat Filament resources untuk User, Store, dan Menu
+7. Implementasi logika bisnis dan validasi
+8. Kustomisasi tampilan Filament sesuai kebutuhan
+
+Catatan: Implementasi akan dilakukan setelah persetujuan dan mungkin memerlukan penyesuaian berdasarkan kebutuhan spesifik proyek.
+
+## Sistem Pembayaran dan Keuangan
+- Implementasi sistem deposit untuk kurir
+- Pembayaran menggunakan metode COD (Cash on Delivery)
+- Kurir menggunakan saldo deposit untuk membayar pesanan terlebih dahulu
+- Pelanggan membayar harga produk + ongkos kirim kepada kurir
+- Platform mengambil keuntungan 2000 rupiah per transaksi
+
+### Fitur Sistem Deposit
+- Manajemen saldo deposit untuk setiap kurir
+- Sistem top-up saldo deposit
+- Pencatatan penggunaan saldo untuk setiap transaksi
+- Pelaporan dan ringkasan keuangan untuk kurir dan admin
+
+## Sistem Pelacakan Pesanan
+1. Status Dasar:
+   - Pesanan Diterima
+   - Dalam Perjalanan
+   - Terkirim
+
+2. Pelacakan Real-time (untuk implementasi di masa depan):
+   - Menggunakan GPS pada perangkat kurir
+   - Pengiriman data lokasi secara berkala ke server
+   - Penyimpanan dan pembaruan lokasi terkini di database
+   - Penggunaan WebSockets untuk pembaruan real-time ke aplikasi pelanggan
+
+Catatan: Implementasi awal akan fokus pada status dasar, dengan rencana untuk menambahkan pelacakan real-time di fase pengembangan selanjutnya.
