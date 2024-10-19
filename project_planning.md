@@ -1326,6 +1326,30 @@ Catatan: Fokus pada membangun komunitas pengguna yang loyal melalui interaksi pe
 
 ## 35. Strategi Monetisasi
 
+1. Biaya Layanan per Transaksi:
+   - Ambil profit 2000 rupiah untuk setiap transaksi yang terjadi melalui aplikasi
+   - Terapkan secara konsisten untuk semua transaksi, terlepas dari nilai pesanan
+
+2. Transparansi Biaya:
+   - Komunikasikan dengan jelas kepada pengguna dan pemilik usaha tentang biaya layanan ini
+   - Jelaskan bagaimana biaya ini membantu dalam pemeliharaan dan pengembangan aplikasi
+
+3. Evaluasi Berkala:
+   - Lakukan evaluasi secara berkala untuk memastikan biaya ini tetap kompetitif dan menguntungkan
+   - Pertimbangkan penyesuaian di masa depan berdasarkan feedback pengguna dan kondisi pasar
+
+4. Insentif Volume:
+   - Pertimbangkan untuk memberikan diskon atau cashback untuk pengguna yang sering bertransaksi
+   - Misalnya, setelah 10 transaksi, berikan cashback sebesar 5000 rupiah
+
+5. Alokasi Pendapatan:
+   - Gunakan pendapatan dari biaya layanan ini untuk:
+     a. Pengembangan dan pemeliharaan aplikasi
+     b. Peningkatan layanan pelanggan
+     c. Ekspansi ke area baru
+
+Catatan: Fokus pada memberikan nilai tambah kepada pengguna dan pemilik usaha untuk memastikan mereka merasa biaya layanan ini sepadan dengan manfaat yang diterima.
+
 1. Komisi dari Transaksi:
    - Ambil persentase kecil (misalnya 5-10%) dari setiap transaksi pemesanan
    - Terapkan secara bertahap, mulai dengan persentase rendah untuk menarik lebih banyak pemilik usaha
