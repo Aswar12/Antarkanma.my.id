@@ -75,3 +75,16 @@ Langkah selanjutnya:
 2. Mulai pengembangan MVP (Minimum Viable Product)
 3. Uji coba di skala kecil di salah satu kecamatan target
 4. Evaluasi dan iterasi berdasarkan umpan balik pengguna
+
+## Fitur Penilaian dan Ulasan
+1. Untuk Kedai:
+   - Rating bintang (misalnya 1-5)
+   - Ulasan tertulis
+   - Kategori penilaian: kualitas makanan, harga, pelayanan
+
+2. Untuk Kurir:
+   - Rating bintang (misalnya 1-5)
+   - Ulasan tertulis
+   - Kategori penilaian: kecepatan pengiriman, keramahan, ketepatan
+
+Catatan: Implementasi awal akan mencakup rating bintang dan ulasan tertulis. Kategori penilaian dapat ditambahkan dalam pengembangan selanjutnya.
