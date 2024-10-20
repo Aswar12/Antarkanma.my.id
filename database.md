@@ -12,7 +12,7 @@ Product_Categories id (Primary Key) name softDeletes created_at updated_at
 
 Product_Galleries id (Primary Key) products_id (Foreign Key ke Products) url softDeletes created_at updated_at
 
-Product_Variants id (Primary Key) product_id (Foreign Key ke Products) name value price_adjustment stock created_at updated_at
+Product_Variants id (Primary Key) product_id (Foreign Key ke Products) name value price_adjustment status created_at updated_at
 
 Orders id (Primary Key) user_id (Foreign Key ke Users) total_amount payment_status order_status (PENDING, COMPLETED, CANCELED) created_at updated_at
 
