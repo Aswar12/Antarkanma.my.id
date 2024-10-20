@@ -4,9 +4,9 @@ Entitas dan Atribut:
 
 Users id (Primary Key) name email (unique) password roles (USER, MERCHANT, COURIER) username phone_number created_at updated_at
 
-Merchants id (Primary Key) name owner_id (Foreign Key ke Users) address phone_number created_at updated_at
+Merchants id (Primary Key) name owner_id (Foreign Key ke Users) address phone_number created_at updated_at ('status', ['active', 'inactive']) description logo
 
-Products id (Primary Key) merchant_id (Foreign Key ke Merchants) category_id (Foreign Key ke Product_Categories) name description price stock status (ACTIVE, INACTIVE, OUT_OF_STOCK) created_at updated_at
+Products id (Primary Key) merchant_id (Foreign Key ke Merchants) category_id (Foreign Key ke Product_Categories) name description price  status (ACTIVE, INACTIVE, OUT_OF_STOCK) created_at updated_at
 
 Product_Categories id (Primary Key) name softDeletes created_at updated_at
 
