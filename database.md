@@ -1,5 +1,6 @@
 Rangkuman Database Antarkanma
 Entitas dan Atribut
+
 Users
 
 id (Primary Key)
@@ -11,6 +12,7 @@ username
 phone_number
 created_at
 updated_at
+
 Merchants
 
 id (Primary Key)
@@ -20,6 +22,7 @@ address
 phone_number
 created_at
 updated_at
+
 Products
 
 id (Primary Key)
@@ -30,6 +33,7 @@ description
 price
 created_at
 updated_at
+
 Product_Categories
 
 id (Primary Key)
@@ -37,6 +41,7 @@ name
 softDeletes
 created_at
 updated_at
+
 Product_Galleries
 
 id (Primary Key)
@@ -45,6 +50,7 @@ url
 softDeletes
 created_at
 updated_at
+
 Orders
 
 id (Primary Key)
@@ -55,6 +61,7 @@ payment_status
 order_status (PENDING, COMPLETED, CANCELED)
 created_at
 updated_at
+
 Order_Items
 
 id (Primary Key)
@@ -63,12 +70,14 @@ product_id (Foreign Key ke Products)
 quantity
 created_at
 updated_at
+
 Loyalty_Points
 
 id (Primary Key)
 user_id (Foreign Key ke Users)
 points
 created_at
+
 Couriers
 
 id (Primary Key)
@@ -77,6 +86,8 @@ vehicle_type
 license_plate
 created_at
 updated_at
+
+
 Transactions
 
 id (Primary Key)
@@ -93,6 +104,7 @@ rating
 note
 created_at
 updated_at
+
 Transaction_Items
 
 id (Primary Key)
@@ -101,6 +113,7 @@ product_id (Foreign Key ke Products)
 quantity
 created_at
 updated_at
+
 User _Locations
 
 id (Primary Key)
@@ -113,6 +126,7 @@ address_type
 phone_number
 created_at
 updated_at
+
 Delivery
 
 id (Primary Key)
@@ -123,6 +137,7 @@ estimated_delivery_time
 actual_delivery_time
 created_at
 updated_at
+
 Relasi Antar Tabel
 Users
 
