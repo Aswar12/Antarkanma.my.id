@@ -77,6 +77,7 @@ vehicle_type
 license_plate
 created_at
 updated_at
+
 Transactions
 
 id (Primary Key)
@@ -88,11 +89,12 @@ status (PENDING, COMPLETED, CANCELED)
 payment (MANUAL, ONLINE)
 payment_status (PENDING, COMPLETED, FAILED)
 user_location_id (Foreign Key ke User_Locations)
-kurir_id (Foreign Key ke Couriers)
+courier_id (Foreign Key ke Couriers)
 rating
 note
 created_at
 updated_at
+
 Transaction_Items
 
 id (Primary Key)
@@ -101,6 +103,7 @@ product_id (Foreign Key ke Products)
 quantity
 created_at
 updated_at
+
 User _Locations
 
 id (Primary Key)
