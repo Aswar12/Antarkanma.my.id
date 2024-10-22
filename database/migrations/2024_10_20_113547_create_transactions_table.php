@@ -13,15 +13,15 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('address');
+            $table->foreignId('order_id')->constrained('orders');
+            $table->foreignId('user_id')->constrained('users');
+            $table->foreignId('user_location_id')->constrained('user_locations');
             $table->decimal('total_price', 10, 2);
-            $table->decimal('shipping_price', 8, 2);
-            $table->enum('status', ['PENDING', 'COMPLETED', 'CANCELED'])->default('PENDING');
-            $table->enum('payment', ['MANUAL', 'ONLINE']);
-            $table->enum('payment_status', ['PENDING', 'COMPLETED', 'FAILED'])->default('PENDING');
-            $table->foreignId('user_location_id')->onDelete('cascade');
-            $table->foreignId('courier_id')->nullable()->constrained('couriers')->onDelete('set null');
+            $table->decimal('shipping_price', 10, 2);
+            $table->dateTime('payment_date')->nullable();
+            $table->enum('status', ['PENDING', 'COMPLETED', 'CANCELED']);
+            $table->enum('payment_method', ['MANUAL', 'ONLINE']);
+            $table->enum('payment_status', ['PENDING', 'COMPLETED', 'FAILED']);
             $table->integer('rating')->nullable();
             $table->text('note')->nullable();
             $table->timestamps();

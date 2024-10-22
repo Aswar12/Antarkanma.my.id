@@ -3,7 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\UserController;
-
+use App\Http\Controllers\API\MerchantController;
 
 // Grup rute untuk pengguna dengan middleware auth:sanctum
 Route::middleware('auth:sanctum')->group(function () {
@@ -18,6 +18,67 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rute untuk memperbarui foto profil pengguna
     Route::post('/user/profile/photo', [UserController::class, 'updatePhoto']);
+    Route::post('/merchant', [MerchantController::class, 'create']);
+    Route::get('/merchant/{id}', [MerchantController::class, 'get']);
+    Route::put('/merchant/{id}', [MerchantController::class, 'update']);
+    Route::delete('/merchant/{id}', [MerchantController::class, 'delete']);
+    Route::get('/merchant/list', [MerchantController::class, 'list']);
+
+
+    Route::post('/product', [ProductController::class, 'create']);
+    Route::get('products', [ProductController::class, 'all']);
+    Route::post('products', [ProductController::class, 'create']);
+    Route::put('products/{id}', [ProductController::class, 'update']);
+    Route::delete('products/{id}', [ProductController::class, 'destroy']);
+
+    // Product Gallery routes
+    Route::post('products/{id}/gallery', [ProductController::class, 'addGallery']);
+    Route::delete('galleries/{id}', [ProductController::class, 'deleteGallery']);
+
+    // Product Variant routes
+    Route::post('products/{productId}/variants', [ProductController::class, 'addVariant']);
+    Route::put('variants/{variantId}', [ProductController::class, 'updateVariant']);
+    Route::delete('variants/{variantId}', [ProductController::class, 'deleteVariant']);
+    Route::get('products/{productId}/variants', [ProductController::class, 'getProductVariants']);
+    Route::get('variants/{variantId}', [ProductController::class, 'getVariant']);
+
+    // Additional Product routes
+    Route::get('merchants/{merchantId}/products', [ProductController::class, 'getByMerchant']);
+    Route::get('categories/{categoryId}/products', [ProductController::class, 'getByCategory']);
+    Route::get('products/search', [ProductController::class, 'search']);
+
+
+    Route::post('/product-category', [ProductCategoryController::class, 'create']);
+    Route::get('/product-category/{id}', [ProductCategoryController::class, 'get']);
+    Route::put('/product-category/{id}', [ProductCategoryController::class, 'update']);
+    Route::delete('/product-category/{id}', [ProductCategoryController::class, 'delete']);
+    Route::get('/product-categories', [ProductCategoryController::class, 'list']);
+
+    Route::get('product-reviews', [ProductReviewController::class, 'index']);
+    Route::post('product-reviews', [ProductReviewController::class, 'store']);
+    Route::put('product-reviews/{id}', [ProductReviewController::class, 'update']);
+    Route::delete('product-reviews/{id}', [ProductReviewController::class, 'destroy']);
+
+    Route::post('/orders', [OrderController::class, 'createOrder']);
+
+    // Delivery routes
+    Route::post('/deliveries/assign-courier', [DeliveryController::class, 'assignCourier']);
+    Route::put('/deliveries/{deliveryId}/status', [DeliveryController::class, 'updateDeliveryStatus']);
+    Route::put('/delivery-items/{deliveryItemId}/pickup-status', [DeliveryController::class, 'updatePickupStatus']);
+    Route::get('/couriers/{courierId}/deliveries', [DeliveryController::class, 'getCourierDeliveries']);
+    // Order routes
+    Route::post('orders', [OrderController::class, 'create']);
+    Route::get('orders', [OrderController::class, 'list']);
+    Route::get('orders/{id}', [OrderController::class, 'get']);
+    Route::post('orders/{id}/cancel', [OrderController::class, 'cancel']);
+    Route::put('orders/{id}/status', [OrderController::class, 'updateStatus']);
+    Route::get('merchant/orders', [OrderController::class, 'getMerchantOrders']);
+    Route::get('orders/statistics', [OrderController::class, 'getOrderStatistics']);
+    Route::get('/couriers', [CourierController::class, 'index']);
+    Route::post('/couriers', [CourierController::class, 'store']);
+    Route::get('/couriers/{id}', [CourierController::class, 'show']);
+    Route::put('/couriers/{id}', [CourierController::class, 'update']);
+    Route::delete('/couriers/{id}', [CourierController::class, 'destroy']);
 });
 
 // Rute untuk registrasi pengguna
