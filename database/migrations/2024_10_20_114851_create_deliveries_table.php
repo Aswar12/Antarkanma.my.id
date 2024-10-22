@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::create('deliveries', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('transaction_id')->constrained()->onDelete('cascade');
-            $table->string('tracking_number')->nullable();
-            $table->enum('status', ['PENDING', 'SHIPPING', 'DELIVERED'])->default('PENDING');
-            $table->timestamp('estimated_arrival')->nullable();
-            $table->timestamp('actual_arrival')->nullable();
+            $table->foreignId('transaction_id')->constrained('transactions');
+            $table->foreignId('courier_id')->constrained('couriers');
+            $table->enum('delivery_status', ['PENDING', 'IN_PROGRESS', 'DELIVERED', 'CANCELED']);
+            $table->dateTime('estimated_delivery_time');
+            $table->dateTime('actual_delivery_time')->nullable();
             $table->timestamps();
         });
     }

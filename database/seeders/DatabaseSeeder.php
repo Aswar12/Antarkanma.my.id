@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             TransactionItemSeeder::class,
             DeliverySeeder::class,
             UserLocationSeeder::class,
+            ProductReviewSeeder::class,
         ]);
     }
 }
