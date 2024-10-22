@@ -1,66 +1,183 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Antarkanma
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Antarkanma adalah aplikasi e-commerce yang mendukung multi-merchant, memungkinkan pengguna untuk memesan makanan dan barang dari berbagai merchant dengan mudah. Sistem ini dirancang untuk memberikan pengalaman pengguna yang optimal melalui fitur-fitur yang lengkap dan intuitif.
 
-## About Laravel
+## Rangkuman Database
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### Entitas dan Atribut
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+#### Users
+- `id` (Primary Key)
+- `name`
+- `email` (unique)
+- `password`
+- `roles` (USER, MERCHANT, COURIER)
+- `username`
+- `phone_number`
+- `created_at`
+- `updated_at`
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+#### Merchants
+- `id` (Primary Key)
+- `name`
+- `owner_id` (Foreign Key ke Users)
+- `address`
+- `phone_number`
+- `created_at`
+- `updated_at`
 
-## Learning Laravel
+#### Products
+- `id` (Primary Key)
+- `merchant_id` (Foreign Key ke Merchants)
+- `category_id` (Foreign Key ke Product_Categories)
+- `name`
+- `description`
+- `price`
+- `created_at`
+- `updated_at`
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+#### Product_Categories
+- `id` (Primary Key)
+- `name`
+- `softDeletes`
+- `created_at`
+- `updated_at`
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+#### Product_Galleries
+- `id` (Primary Key)
+- `products_id` (Foreign Key ke Products)
+- `url`
+- `softDeletes`
+- `created_at`
+- `updated_at`
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+#### Orders
+- `id` (Primary Key)
+- `user_id` (Foreign Key ke Users)
+- `total_amount`
+- `order_status` (PENDING, PROCESSING, COMPLETED, CANCELED)
+- `created_at`
+- `updated_at`
 
-## Laravel Sponsors
+#### Order_Items
+- `id` (Primary Key)
+- `order_id` (Foreign Key ke Orders)
+- `product_id` (Foreign Key ke Products)
+- `merchant_id` (Foreign Key ke Merchants)
+- `quantity`
+- `price`
+- `created_at`
+- `updated_at`
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+#### Loyalty_Points
+- `id` (Primary Key)
+- `user_id` (Foreign Key ke Users)
+- `points`
+- `created_at`
 
-### Premium Partners
+#### Couriers
+- `id` (Primary Key)
+- `user_id` (Foreign Key ke Users)
+- `vehicle_type`
+- `license_plate`
+- `created_at`
+- `updated_at`
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+#### Transactions
+- `id` (Primary Key)
+- `order_id` (Foreign Key ke Orders)
+- `user_id` (Foreign Key ke Users)
+- `user_location_id` (Foreign Key ke User_Locations)
+- `total_price`
+- `shipping_price`
+- `payment_date`
+- `status` (PENDING, COMPLETED, CANCELED)
+- `payment_method` (MANUAL, ONLINE)
+- `payment_status` (PENDING, COMPLETED, FAILED)
+- `rating`
+- `note`
+- `created_at`
+- `updated_at`
 
-## Contributing
+#### User_Locations
+- `id` (Primary Key)
+- `customer_name`
+- `user_id` (Foreign Key ke Users)
+- `address`
+- `longitude`
+- `latitude`
+- `address_type`
+- `phone_number`
+- `created_at`
+- `updated_at`
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+#### Delivery
+- `id` (Primary Key)
+- `transaction_id` (Foreign Key ke Transactions)
+- `courier_id` (Foreign Key ke Couriers)
+- `delivery_status` (PENDING, IN_PROGRESS, DELIVERED, CANCELED)
+- `estimated_delivery_time`
+- `actual_delivery_time`
+- `created_at`
+- `updated_at`
 
-## Code of Conduct
+#### Product_Reviews
+- `id` (Primary Key)
+- `user_id` (Foreign Key ke Users)
+- `product_id` (Foreign Key ke Products)
+- `rating`
+- `comment`
+- `created_at`
+- `updated_at`
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+#### Delivery_Items
+- `id` (Primary Key)
+- `delivery_id` (Foreign Key ke Deliveries)
+- `order_item_id` (Foreign Key ke Order_Items)
+- `pickup_status` (ENUM: 'PENDING', 'PICKED_UP')
+- `pickup_time` (DATETIME, nullable)
+- `created_at`
+- `updated_at`
 
-## Security Vulnerabilities
+#### Courier_Batches
+- `id` (Primary Key)
+- `courier_id` (Foreign Key ke Couriers)
+- `status` (ENUM: 'PREPARING', 'IN_PROGRESS', 'COMPLETED')
+- `start_time` (DATETIME)
+- `end_time` (DATETIME)
+- `created_at`
+- `updated_at`
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Relasi Antar Tabel
+- **Users** memiliki banyak **Merchants**, **Orders**, **Loyalty_Points**, ****User _Locations**, **Product_Reviews**, dan **Transactions**.
+- **Merchants** terkait dengan satu **User ** dan memiliki banyak **Products** serta **Order_Items**.
+- **Products** terkait dengan satu **Merchant** dan satu **Product_Category**, serta memiliki banyak **Order_Items**, **Product_Galleries**, dan **Product_Reviews**.
+- **Product_Categories** memiliki banyak **Products**.
+- **Orders** terkait dengan satu **User ** dan memiliki banyak **Order_Items** serta satu **Transaction**.
+- **Order_Items** terkait dengan satu **Order**, satu **Product**, dan satu **Merchant**, serta memiliki satu **Delivery_Item**.
+- **Loyalty_Points** terkait dengan satu **User **.
+- **Couriers** terkait dengan satu **User ** dan memiliki banyak **Deliveries** serta **Courier_Batches**.
+- **Transactions** terkait dengan satu **Order**, satu **User **, dan satu **User _Location**, serta memiliki satu **Delivery**.
+- **User _Locations** terkait dengan satu **User **.
+- **Deliveries** terkait dengan satu **Transaction**, satu **Courier**, dan memiliki banyak **Delivery_Items**.
+- **Product_Reviews** terkait dengan satu **User ** dan satu **Product**.
+- **Delivery_Items** terkait dengan satu **Delivery** dan satu **Order_Item**.
+- **Courier_Batches** terkait dengan satu **Courier** dan memiliki banyak **Deliveries**.
 
-## License
+### Kesimpulan dan Fitur Utama
+- **Multi-Merchant Support**: Sistem mendukung multi-merchant, memungkinkan satu pesanan mencakup produk dari berbagai merchant.
+- **Manajemen Produk**: Produk terkait dengan kategori dan merchant, serta galeri produk memungkinkan penambahan gambar multiple untuk setiap produk.
+- **Sistem Pemesanan**: Orders menyimpan informasi pesanan keseluruhan, sedangkan Order_Items menyimpan detail item dalam pesanan.
+- **Transaksi dan Pembayaran**: Transactions menyimpan informasi pembayaran dan status, mendukung berbagai metode pembayaran (manual dan online).
+- **Sistem Pengiriman**: Deliveries melacak status pengiriman untuk setiap transaksi, dengan Courier_Batches memungkinkan pengelompokan pengiriman untuk efisiensi.
+- **Manajemen Pengguna**: Users dapat memiliki peran berbeda (USER, MERCHANT, COURIER), dengan User_Locations mendukung penyimpanan beberapa alamat untuk setiap pengguna.
+- **Sistem Loyalitas**: Loyalty_Points memungkinkan implementasi sistem loyalitas pelanggan.
+- **Ulasan Produk**: Product_Reviews memungkinkan pengguna memberikan ulasan dan rating untuk produk.
+- **Manajemen Kurir**: Couriers terkait dengan Users, memungkinkan pengelolaan informasi kurir.
+- **Fleksibilitas Lokasi**: User_Locations memungkinkan pengguna menyimpan beberapa alamat.
+- **Pelacakan Pengiriman Detail**: Delivery_Items memungkinkan pelacakan status pickup untuk setiap item dalam pengiriman.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Struktur database ini memberikan fondasi yang kuat untuk aplikasi Antarkanma, mendukung berbagai fitur e-commerce dan manajemen pengiriman. Sistem ini memungkinkan skalabilitas dan fleksibilitas untuk pengembangan fitur lebih lanjut di masa depan.
+
+## Spesifikasi Teknis
+Untuk informasi lebih lanjut tentang spesifikasi teknis, API, dan integrasi pihak ketiga, silakan lihat bagian berikutnya dalam dokumentasi ini.
