@@ -4,6 +4,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\MerchantController;
+use App\Http\Controllers\API\ProductController;
+
+use App\Http\Controllers\API\OrderController;
 
 // Grup rute untuk pengguna dengan middleware auth:sanctum
 Route::middleware('auth:sanctum')->group(function () {
@@ -26,7 +29,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     Route::post('/product', [ProductController::class, 'create']);
-    Route::get('products', [ProductController::class, 'all']);
+
     Route::post('products', [ProductController::class, 'create']);
     Route::put('products/{id}', [ProductController::class, 'update']);
     Route::delete('products/{id}', [ProductController::class, 'destroy']);
@@ -82,7 +85,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // Rute untuk registrasi pengguna
-Route::post('/register', [UserController::class, 'register']);
-
+Route::post('register', [UserController::class, 'register']);
+Route::get('products', [ProductController::class, 'all']);
 // Rute untuk login pengguna
 Route::post('/login', [UserController::class, 'login']);
