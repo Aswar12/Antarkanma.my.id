@@ -23,11 +23,12 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'phone_number' => 'required|string|max:15|unique:users', // Validasi nomor telepon
             'email' => 'required|string|unique:users|email',
-            'password' => $this->PasswordValidationRules,
+            'password' => 'required|min:8|confirmed',
+            'password_confirmation' => 'required',
         ]);
 
         if ($validator->fails()) {
-            return ResponseFormatter::validationError($validator->errors());
+            return ResponseFormatter::error($validator->errors());
         }
 
         try {
@@ -62,7 +63,7 @@ class UserController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return ResponseFormatter::validationError($validator->errors());
+            return ResponseFormatter::error($validator->errors());
         }
 
         try {

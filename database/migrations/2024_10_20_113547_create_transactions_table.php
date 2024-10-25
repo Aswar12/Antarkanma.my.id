@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('order_id')->constrained('orders');
+            $table->foreignId('order_id');
             $table->foreignId('user_id')->constrained('users');
-            $table->foreignId('user_location_id')->constrained('user_locations');
+            $table->foreignId('user_location_id');
             $table->decimal('total_price', 10, 2);
             $table->decimal('shipping_price', 10, 2);
             $table->dateTime('payment_date')->nullable();
