@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
@@ -16,10 +17,11 @@ class Product extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'merchant_id',
+        'category_id',
         'name',
         'description',
         'price',
-        // tambahkan atribut lain yang diperlukan
     ];
 
     /**
@@ -29,17 +31,56 @@ class Product extends Model
      */
     protected $casts = [
         'price' => 'decimal:2',
-        // tambahkan casting lain jika diperlukan
     ];
 
     /**
-     * Get the variants for the product.
+     * Get the merchant that owns the product.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function merchant(): BelongsTo
+    {
+        return $this->belongsTo(Merchant::class);
+    }
+
+    /**
+     * Get the category of the product.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(ProductCategory::class, 'category_id');
+    }
+
+    /**
+     * Get the order items for the product.
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
-    public function variants(): HasMany
+    public function orderItems(): HasMany
     {
-        return $this->hasMany(ProductVariant::class);
+        return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * Get the galleries for the product.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function galleries(): HasMany
+    {
+        return $this->hasMany(ProductGallery::class, 'products_id');
+    }
+
+    /**
+     * Get the reviews for the product.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(ProductReview::class);
     }
 
     /**
@@ -52,6 +93,4 @@ class Product extends Model
     {
         return $query->where('is_active', true);
     }
-
-    // Tambahkan metode atau relasi lain yang diperlukan
 }
