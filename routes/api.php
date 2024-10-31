@@ -82,6 +82,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/couriers/{id}', [CourierController::class, 'show']);
     Route::put('/couriers/{id}', [CourierController::class, 'update']);
     Route::delete('/couriers/{id}', [CourierController::class, 'destroy']);
+
+
+
+
+    // Tambahkan rute-rute berikut untuk UserLocation
+    Route::get('/user-locations', [UserLocationController::class, 'index']);
+    Route::post('/user-locations', [UserLocationController::class, 'store']);
+    Route::get('/user-locations/{id}', [UserLocationController::class, 'show']);
+    Route::put('/user-locations/{id}', [UserLocationController::class, 'update']);
+    Route::delete('/user-locations/{id}', [UserLocationController::class, 'destroy']);
+    Route::post('/user-locations/{id}/set-default', [UserLocationController::class, 'setDefault']);
 });
 
 // Rute untuk registrasi pengguna
