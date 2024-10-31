@@ -107,19 +107,25 @@ updated_at
 
 
 
-User _Locations
+User_Locations
 
 id (Primary Key)
-customer_name
 user_id (Foreign Key ke Users)
-address
-longitude
-latitude
-address_type
+customer_name (nullable)
+address (text)
+city
+district (nullable)
+postal_code
+latitude (decimal, nullable)
+longitude (decimal, nullable)
+address_type (ENUM: 'HOME', 'OFFICE', 'STORE', 'OTHER')
 phone_number
+is_default (boolean)
+notes (text, nullable)
+is_active (boolean)
+deleted_at (timestamp, nullable - untuk soft delete)
 created_at
 updated_at
-
 Delivery
 
 id (Primary Key)

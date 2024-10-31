@@ -62,12 +62,13 @@ class ProductGallery extends Model
     }
 
     /**
-     * Get the full URL of the gallery image.
+     * Get/Set the URL of the gallery image.
      *
+     * @param  string  $value
      * @return string
      */
-    public function getFullUrlAttribute(): string
+    public function getUrlAttribute($value): string
     {
-        return asset('storage/' . $this->url);
+        return asset('storage/' . $value);
     }
 }
