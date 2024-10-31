@@ -22,7 +22,7 @@ class ProductController extends Controller
         $merchant_id = $request->input('merchant_id');
         $category_id = $request->input('category_id');
 
-        $product = Product::with(['merchant', 'category', 'galleries']);
+        $product = Product::with(['merchant', 'category', 'galleries', 'reviews.user', 'variants']);
 
         if ($id) {
             $product = $product->find($id);
