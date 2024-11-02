@@ -40,7 +40,7 @@ class UserLocationController extends Controller
             'postal_code' => 'required|string',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
-            'address_type' => 'required|in:HOME,OFFICE,STORE,OTHER',
+            'address_type' => 'required|in:RUMAH,KANTOR,TOKO,LAINNYA',
             'phone_number' => 'required|string',
             'is_default' => 'boolean',
             'notes' => 'nullable|string'
@@ -73,7 +73,8 @@ class UserLocationController extends Controller
             'phone_number' => $request->phone_number,
             'is_default' => $request->is_default ?? false,
             'notes' => $request->notes,
-            'is_active' => true
+            'is_active' => true,
+            'country' => $request->country ?? 'Indonesia'
         ]);
 
         return ResponseFormatter::success(

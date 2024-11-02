@@ -23,7 +23,8 @@ class UserLocation extends Model
         'phone_number',
         'is_default',
         'notes',
-        'is_active'
+        'is_active',
+        'country'
     ];
 
     protected $casts = [
