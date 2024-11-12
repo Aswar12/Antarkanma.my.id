@@ -19,22 +19,6 @@ class OrderResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    public static function form(Form $form): Form
-    {
-        return $form
-            ->schema([
-                Forms\Components\TextInput::make('user_id')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('total_amount')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('payment_status')
-                    ->required(),
-                Forms\Components\TextInput::make('order_status')
-                    ->required(),
-            ]);
-    }
 
     public static function table(Table $table): Table
     {

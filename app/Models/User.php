@@ -28,9 +28,6 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
-        'roles',
-        'username',
-        'phone_number',
         'password',
     ];
 
@@ -66,29 +63,5 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
-    }
-    public function merchants()
-    {
-        return $this->hasMany(Merchant::class, 'owner_id');
-    }
-
-    public function orders()
-    {
-        return $this->hasMany(Order::class);
-    }
-
-    public function loyaltyPoints()
-    {
-        return $this->hasMany(LoyaltyPoint::class);
-    }
-
-    public function courier()
-    {
-        return $this->hasOne(Courier::class);
-    }
-
-    public function userLocations()
-    {
-        return $this->hasMany(UserLocation::class);
     }
 }

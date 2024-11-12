@@ -120,15 +120,15 @@ class UserLocationController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'customer_name' => 'string|max:255',
-            'address' => 'string',
-            'city' => 'string',
+            'customer_name' => 'required|string|max:255',
+            'address' => 'required|string',
+            'city' => 'required|string',
             'district' => 'nullable|string',
-            'postal_code' => 'string',
+            'postal_code' => 'required|string',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
-            'address_type' => 'in:HOME,OFFICE,STORE,OTHER',
-            'phone_number' => 'string',
+            'address_type' => 'required|in:RUMAH,KANTOR,TOKO,LAINNYA',
+            'phone_number' => 'required|string',
             'is_default' => 'boolean',
             'notes' => 'nullable|string'
         ]);
