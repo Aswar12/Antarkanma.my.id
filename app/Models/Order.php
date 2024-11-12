@@ -12,15 +12,15 @@ class Order extends Model
     protected $fillable = [
         'user_id',
         'total_amount',
-        'payment_status',
-        'order_status',
+        'order_status'
     ];
 
     protected $casts = [
         'order_status' => 'string',
-        'payment_status' => 'string',
+        'total_amount' => 'decimal:2'
     ];
 
+    // Relasi untuk mendukung multi-merchant
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -29,5 +29,37 @@ class Order extends Model
     public function orderItems()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function transaction()
+    {
+        return $this->hasOne(Transaction::class);
+    }
+
+    // Metode untuk mendapatkan merchant unik dalam order
+    public function getUniqueMerchants()
+    {
+        return $this->orderItems->pluck('merchant_id')->unique();
+    }
+
+    // Metode untuk menghitung total amount
+    public function calculateTotalAmount()
+    {
+        return $this->orderItems->sum(function ($item) {
+            return $item->quantity * $item->price;
+        });
+    }
+
+    // Metode untuk mengelompokkan item berdasarkan merchant
+    public function getItemsByMerchant()
+    {
+        return $this->orderItems->groupBy('merchant_id');
+    }
+
+    protected static function booted()
+    {
+        static::saving(function ($order) {
+            $order->total_amount = $order->calculateTotalAmount();
+        });
     }
 }

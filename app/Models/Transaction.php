@@ -7,21 +7,34 @@ use Illuminate\Database\Eloquent\Model;
 
 class Transaction extends Model
 {
-    /** @use HasFactory<\Database\Factories\TransactionFactory> */
     use HasFactory;
+
     protected $fillable = [
+        'order_id',
         'user_id',
-        'address',
+        'user_location_id',
         'total_price',
         'shipping_price',
+        'payment_date',
         'status',
-        'payment',
+        'payment_method',
         'payment_status',
-        'user_location_id',
-        'courier_id',
         'rating',
         'note'
     ];
+
+    protected $casts = [
+        'total_price' => 'decimal:2',
+        'shipping_price' => 'decimal:2',
+        'payment_date' => 'datetime',
+        'rating' => 'integer'
+    ];
+
+    // Relasi untuk mendukung multi-merchant
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
+    }
 
     public function user()
     {
@@ -33,18 +46,44 @@ class Transaction extends Model
         return $this->belongsTo(UserLocation::class);
     }
 
-    public function courier()
+    // Metode untuk menghitung biaya pengiriman multi-merchant
+    public function calculateShippingPrice()
     {
-        return $this->belongsTo(Courier::class);
+        $order = $this->order;
+        $merchantGroups = $order->getItemsByMerchant();
+
+        $totalShippingPrice = 0;
+        foreach ($merchantGroups as $merchantId => $items) {
+            $merchant = Merchant::find($merchantId);
+            // Misalkan setiap merchant memiliki biaya kirim berbeda
+            $totalShippingPrice += $merchant->shipping_price;
+        }
+
+        return $totalShippingPrice;
     }
 
-    public function items()
+    // Metode untuk memproses transaksi multi-merchant
+    public function processMultiMerchantOrder()
     {
-        return $this->hasMany(TransactionItem::class);
+        $order = $this->order;
+        $merchantGroups = $order->getItemsByMerchant();
+
+        foreach ($merchantGroups as $merchantId => $items) {
+            // Proses setiap kelompok item per merchant
+            $this->processmerchantItems($merchantId, $items);
+        }
     }
 
-    public function delivery()
+    protected function processmerchantItems($merchantId, $items)
     {
-        return $this->hasOne(Delivery::class);
+        // Logika untuk memproses item per merchant
+        // Misalnya: 
+        // - Kurangi stok produk
+        // - Buat catatan penjualan per merchant
+        foreach ($items as $item) {
+            $product = $item->product;
+            $product->stock -= $item->quantity;
+            $product->save();
+        }
     }
 }

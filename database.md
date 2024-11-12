@@ -118,7 +118,7 @@ district (nullable)
 postal_code
 latitude (decimal, nullable)
 longitude (decimal, nullable)
-address_type (ENUM: 'HOME', 'OFFICE', 'STORE', 'OTHER')
+address_type (ENUM: 'RUMAH', 'KANTOR', 'TOKO', 'LAINNYA')
 phone_number
 is_default (boolean)
 notes (text, nullable)

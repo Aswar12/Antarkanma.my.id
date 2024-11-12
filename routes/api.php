@@ -83,7 +83,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/couriers/{id}', [CourierController::class, 'update']);
     Route::delete('/couriers/{id}', [CourierController::class, 'destroy']);
 
+    Route::post('/transactions', [TransactionController::class, 'create']);
 
+    // Rute untuk mengambil transaksi berdasarkan ID
+    Route::get('/transactions/{id}', [TransactionController::class, 'get']);
+
+    // Rute untuk mengambil daftar transaksi
+    Route::get('/transactions', [TransactionController::class, 'list']);
+
+    // Rute untuk memperbarui transaksi
+    Route::put('/transactions/{id}', [TransactionController::class, 'update']);
+
+    // Rute untuk membatalkan transaksi
+    Route::post('/transactions/{id}/cancel', [TransactionController::class, 'cancel']);
+
+    // Rute untuk mengambil transaksi berdasarkan merchant
+    Route::get('/merchants/{merchantId}/transactions', [TransactionController::class, 'getByMerchant']);
 
 
     // Tambahkan rute-rute berikut untuk UserLocation
