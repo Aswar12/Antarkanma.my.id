@@ -7,7 +7,7 @@ use App\Http\Controllers\API\MerchantController;
 use App\Http\Controllers\API\ProductController;
 use App\Http\Controllers\API\UserLocationController;
 use App\Http\Controllers\API\OrderController;
-
+use App\Http\Controllers\API\TransactionController;
 // Grup rute untuk pengguna dengan middleware auth:sanctum
 Route::middleware('auth:sanctum')->group(function () {
     // Rute untuk logout pengguna
