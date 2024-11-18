@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Helpers\ResponseFormatter;
+use App\Models\Product;
 use App\Models\Transaction;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -25,7 +26,6 @@ class TransactionController extends Controller
             'payment_method' => 'required|in:MANUAL,ONLINE',
             'items' => 'required|array',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.merchant_id' => 'required|exists:merchants,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric',
         ]);
@@ -45,10 +45,11 @@ class TransactionController extends Controller
 
             // Create Order Items
             foreach ($request->items as $item) {
+                $product = Product::findOrFail($item['product_id']);
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
-                    'merchant_id' => $item['merchant_id'],
+                    'merchant_id' => $product->merchant_id,
                     'quantity' => $item['quantity'],
                     'price' => $item['price'],
                 ]);
