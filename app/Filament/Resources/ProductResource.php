@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ProductResource\Pages;
 use App\Filament\Resources\ProductResource\RelationManagers;
+use App\Filament\Resources\ProductResource\RelationManagers\ProductCategoriesRelationManager;
 use App\Models\Product;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -15,22 +16,37 @@ class ProductResource extends Resource
 {
     protected static ?string $model = Product::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
+
+protected static ?string $navigationGroup = 'Produk';
+
+public static function getNavigationBadge(): ?string
+{
+    return static::getModel()::count();
+}
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Group::make()
-                    ->schema([
-                        Forms\Components\Section::make('Informasi Produk')
+                Forms\Components\Tabs::make('Produk')
+                    ->tabs([
+                        Forms\Components\Tabs\Tab::make('Informasi Produk')
                             ->schema([
                                 Forms\Components\Select::make('merchant_id')
                                     ->relationship('merchant', 'name')
                                     ->required()
                                     ->searchable(),
-                                Forms\Components\Select::make('category_id')
-                                    ->relationship('category', 'name')
+                                FormsComponentsSelect::make("category_id")
+                                    ->relationship("category", "name")
+                                    ->searchable()
+                                    ->preload()
+                                    ->createOptionForm([
+                                        FormsComponentsTextInput::make("name")
+                                            ->required(),
+                                        FormsComponentsTextarea::make("description")
+                                    ])
+                                    ->required()
                                     ->required()
                                     ->searchable(),
                                 Forms\Components\TextInput::make('name')
@@ -51,8 +67,7 @@ class ProductResource extends Resource
                                     ->required(),
                             ])
                             ->columns(2),
-
-                        Forms\Components\Section::make('Galeri Produk')
+                        Forms\Components\Tabs\Tab::make('Galeri Produk')
                             ->schema([
                                 Forms\Components\FileUpload::make('galleries')
                                     ->multiple()
@@ -65,8 +80,7 @@ class ProductResource extends Resource
                                     ->visibility('public')
                                     ->downloadable(),
                             ]),
-
-                        Forms\Components\Section::make('Varian Produk')
+                        Forms\Components\Tabs\Tab::make('Varian Produk')
                             ->schema([
                                 Forms\Components\Repeater::make('variants')
                                     ->relationship()
@@ -96,8 +110,6 @@ class ProductResource extends Resource
                             ]),
                     ])
                     ->columnSpan(['lg' => 2]),
-
-                Forms\Components\Group::make()
                     ->schema([
                         Forms\Components\Section::make('Status')
                             ->schema([
@@ -126,8 +138,9 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('merchant.name')
                     ->sortable()
                     ->searchable(),
-                Tables\Columns\TextColumn::make('category.name')
+                TablesColumnsTextColumn::make("category.name")
                     ->sortable()
+                    ->searchable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
@@ -159,6 +172,7 @@ class ProductResource extends Resource
         return [
             RelationManagers\VariantsRelationManager::class,
             RelationManagers\GalleriesRelationManager::class,
+            ProductCategoriesRelationManager::class,
         ];
     }
 

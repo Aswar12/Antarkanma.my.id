@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Helpers\ResponseFormatter;
+use App\Models\Product;
 use App\Models\Transaction;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -16,22 +17,66 @@ use Illuminate\Support\Facades\Auth;
 
 class TransactionController extends Controller
 {
+
+
     public function create(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'user_location_id' => 'required|exists:user_locations,id',
-            'total_price' => 'required|numeric',
-            'shipping_price' => 'required|numeric',
+            'user_location_id' => [
+                'required',
+                'exists:user_locations,id',
+                function ($attribute, $value, $fail) {
+                    $userLocation = UserLocation::find($value);
+                    if ($userLocation->user_id !== Auth::id()) {
+                        $fail('The selected user location does not belong to the authenticated user.');
+                    }
+                },
+            ],
+            'total_price' => [
+                'required',
+                'numeric',
+                'min:0',
+                function ($attribute, $value, $fail) use ($request) {
+                    $calculatedTotal = collect($request->items)->sum(function ($item) {
+                        return $item['price'] * $item['quantity'];
+                    });
+                    if ($value != $calculatedTotal) {
+                        $fail('The total price does not match the sum of item prices.');
+                    }
+                },
+            ],
+            'shipping_price' => 'required|numeric|min:0',
             'payment_method' => 'required|in:MANUAL,ONLINE',
-            'items' => 'required|array',
+            'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.merchant_id' => 'required|exists:merchants,id',
             'items.*.quantity' => 'required|integer|min:1',
-            'items.*.price' => 'required|numeric',
+            'items.*.price' => 'required|numeric|min:0',
+        ], [
+            'user_location_id.required' => 'Lokasi pengiriman harus dipilih',
+            'user_location_id.exists' => 'Lokasi pengiriman tidak valid',
+            'total_price.required' => 'Total harga harus diisi',
+            'total_price.numeric' => 'Total harga harus berupa angka',
+            'total_price.min' => 'Total harga tidak boleh negatif',
+            'shipping_price.required' => 'Biaya pengiriman harus diisi',
+            'shipping_price.numeric' => 'Biaya pengiriman harus berupa angka',
+            'shipping_price.min' => 'Biaya pengiriman tidak boleh negatif',
+            'payment_method.required' => 'Metode pembayaran harus dipilih',
+            'payment_method.in' => 'Metode pembayaran tidak valid',
+            'items.required' => 'Daftar item harus diisi',
+            'items.array' => 'Format daftar item tidak valid',
+            'items.min' => 'Minimal harus ada satu item',
+            'items.*.product_id.required' => 'ID produk harus diisi',
+            'items.*.product_id.exists' => 'Produk tidak ditemukan',
+            'items.*.quantity.required' => 'Jumlah item harus diisi',
+            'items.*.quantity.integer' => 'Jumlah item harus berupa angka bulat',
+            'items.*.quantity.min' => 'Jumlah item minimal 1',
+            'items.*.price.required' => 'Harga item harus diisi',
+            'items.*.price.numeric' => 'Harga item harus berupa angka',
+            'items.*.price.min' => 'Harga item tidak boleh negatif',
         ]);
 
         if ($validator->fails()) {
-            return ResponseFormatter::error(null, $validator->errors()->first(), 422);
+            return ResponseFormatter::error($validator->errors(), 'Validation error', 422);
         }
 
         DB::beginTransaction();
@@ -54,7 +99,7 @@ class TransactionController extends Controller
                 $orderItem = OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
-                    'merchant_id' => $item['merchant_id'],
+                    'merchant_id' => $product->merchant_id,
                     'quantity' => $item['quantity'],
                     'price' => $item['price'],
                 ]);
@@ -99,6 +144,8 @@ class TransactionController extends Controller
             return ResponseFormatter::error(null, 'Failed to create transaction: ' . $e->getMessage(), 500);
         }
     }
+
+
 
     public function get($id)
     {
