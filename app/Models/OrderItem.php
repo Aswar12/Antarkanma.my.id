@@ -43,11 +43,4 @@ class OrderItem extends Model
     {
         return $this->quantity * $this->price;
     }
-
-    // Metode untuk validasi stok
-    public function checkStock()
-    {
-        $product = $this->product;
-        return $this->quantity <= $product->stock;
-    }
 }

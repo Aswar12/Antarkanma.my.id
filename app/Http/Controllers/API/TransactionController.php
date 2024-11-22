@@ -36,22 +36,29 @@ class TransactionController extends Controller
 
         DB::beginTransaction();
         try {
+            // Hitung total harga dari items
+            $totalPrice = collect($request->items)->sum(function ($item) {
+                return $item['quantity'] * $item['price'];
+            });
+
             // Create Order
             $order = Order::create([
                 'user_id' => Auth::id(),
-                'total_amount' => $request->total_price,
+                'total_amount' => $totalPrice,
                 'order_status' => 'PENDING',
             ]);
 
             // Create Order Items
+            $orderItems = [];
             foreach ($request->items as $item) {
-                OrderItem::create([
+                $orderItem = OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
                     'merchant_id' => $item['merchant_id'],
                     'quantity' => $item['quantity'],
                     'price' => $item['price'],
                 ]);
+                $orderItems[] = $orderItem;
             }
 
             // Create Transaction
@@ -59,17 +66,36 @@ class TransactionController extends Controller
                 'order_id' => $order->id,
                 'user_id' => Auth::id(),
                 'user_location_id' => $request->user_location_id,
-                'total_price' => $request->total_price,
+                'total_price' => $totalPrice,
                 'shipping_price' => $request->shipping_price,
                 'status' => 'PENDING',
                 'payment_method' => $request->payment_method,
                 'payment_status' => 'PENDING',
             ]);
 
+            // Load relationships
+            $transaction->load([
+                'order' => function ($query) {
+                    $query->with([
+                        'orderItems' => function ($q) {
+                            $q->with(['product', 'merchant']);
+                        }
+                    ]);
+                }
+            ]);
+
             DB::commit();
-            return ResponseFormatter::success($transaction->load('order.items.product'), 'Transaction created successfully');
+            return ResponseFormatter::success($transaction, 'Transaction created successfully');
         } catch (Exception $e) {
             DB::rollBack();
+
+            // Log error untuk debugging
+            Log::error('Transaction Creation Error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
+
             return ResponseFormatter::error(null, 'Failed to create transaction: ' . $e->getMessage(), 500);
         }
     }
