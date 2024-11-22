@@ -51,3 +51,36 @@ class OrderItem extends Model
         return $this->quantity <= $product->stock;
     }
 }
+
+    // Accessor untuk formatted price
+    public function getFormattedPriceAttribute()
+    {
+        return number_format($this->price, 2, ',', '.');
+    }
+
+    // Accessor untuk formatted total price
+    public function getFormattedTotalPriceAttribute()
+    {
+        return number_format($this->total_price, 2, ',', '.');
+    }
+
+    // Method untuk mengurangi stok produk
+    public function reduceProductStock()
+    {
+        $product = $this->product;
+        $product->stock -= $this->quantity;
+        $product->save();
+    }
+
+    // Scope untuk item dengan quantity lebih dari X
+    public function scopeQuantityMoreThan($query, $quantity)
+    {
+        return $query->where('quantity', '>', $quantity);
+    }
+
+    // Scope untuk item dari merchant tertentu
+    public function scopeFromMerchant($query, $merchantId)
+    {
+        return $query->where('merchant_id', $merchantId);
+    }
+}

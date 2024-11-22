@@ -42,6 +42,11 @@ class Transaction extends Model
     }
 
     public function userLocation()
+
+    public function courier()
+    {
+        return $this->belongsTo(Courier::class);
+    }
     {
         return $this->belongsTo(UserLocation::class);
     }
@@ -85,5 +90,71 @@ class Transaction extends Model
             $product->stock -= $item->quantity;
             $product->save();
         }
+    }
+}
+
+    // Accessor untuk formatted total price
+    public function getFormattedTotalPriceAttribute()
+    {
+        return number_format($this->total_price, 2, ',', '.');
+    }
+
+    // Accessor untuk formatted shipping price
+    public function getFormattedShippingPriceAttribute()
+    {
+        return number_format($this->shipping_price, 2, ',', '.');
+    }
+
+    // Scope untuk transaksi dengan status tertentu
+    public function scopeWithStatus($query, $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    // Scope untuk transaksi dengan payment status tertentu
+    public function scopeWithPaymentStatus($query, $paymentStatus)
+    {
+        return $query->where('payment_status', $paymentStatus);
+    }
+
+    // Scope untuk transaksi dalam rentang tanggal tertentu
+    public function scopeBetweenDates($query, $startDate, $endDate)
+    {
+        return $query->whereBetween('created_at', [$startDate, $endDate]);
+    }
+
+    // Menyelesaikan method processMultiMerchantOrder
+    public function processMultiMerchantOrder()
+    {
+        $order = $this->order;
+        $merchantGroups = $order->getItemsByMerchant();
+
+        foreach ($merchantGroups as $merchantId => $items) {
+            $merchant = Merchant::find($merchantId);
+            $subTotal = 0;
+
+            foreach ($items as $item) {
+                $subTotal += $item->total_price;
+                $item->reduceProductStock();
+            }
+
+            // Buat sub-transaksi untuk setiap merchant
+            $subTransaction = new Transaction([
+                'order_id' => $order->id,
+                'user_id' => $this->user_id,
+                'user_location_id' => $this->user_location_id,
+                'total_price' => $subTotal,
+                'shipping_price' => $merchant->shipping_price,
+                'status' => 'processing',
+                'payment_method' => $this->payment_method,
+                'payment_status' => $this->payment_status,
+            ]);
+
+            $subTransaction->save();
+        }
+
+        // Update status transaksi utama
+        $this->status = 'processed';
+        $this->save();
     }
 }

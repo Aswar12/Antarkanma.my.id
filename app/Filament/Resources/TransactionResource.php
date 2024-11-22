@@ -17,104 +17,117 @@ class TransactionResource extends Resource
 {
     protected static ?string $model = Transaction::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-currency-dollar';
+
+    protected static ?string $navigationGroup = 'Transaksi';
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('user_id')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('address')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('total_price')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('shipping_price')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('status')
+                FormsComponentsSelect::make('user_id')
+                    ->relationship('user', 'name')
+                    ->searchable()
                     ->required(),
-                Forms\Components\TextInput::make('payment')
+                FormsComponentsSelect::make('user_location_id')
+                    ->relationship('userLocation', 'address')
+                    ->searchable()
                     ->required(),
-                Forms\Components\TextInput::make('payment_status')
-                    ->required(),
-                Forms\Components\TextInput::make('user_location_id')
+                FormsComponentsTextInput::make('total_price')
                     ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('courier_id')
-                    ->numeric(),
-                Forms\Components\TextInput::make('rating')
-                    ->numeric(),
-                Forms\Components\Textarea::make('note')
+                    ->numeric()
+                    ->prefix('Rp'),
+                FormsComponentsTextInput::make('shipping_price')
+                    ->required()
+                    ->numeric()
+                    ->prefix('Rp'),
+                FormsComponentsSelect::make('status')
+                    ->options([
+                        'pending' => 'Pending',
+                        'processing' => 'Processing',
+                        'shipped' => 'Shipped',
+                        'delivered' => 'Delivered',
+                        'cancelled' => 'Cancelled',
+                    ])
+                    ->required(),
+                FormsComponentsSelect::make('payment')
+                    ->options([
+                        'bank_transfer' => 'Bank Transfer',
+                        'credit_card' => 'Credit Card',
+                        'e_wallet' => 'E-Wallet',
+                    ])
+                    ->required(),
+                FormsComponentsSelect::make('payment_status')
+                    ->options([
+                        'pending' => 'Pending',
+                        'paid' => 'Paid',
+                        'failed' => 'Failed',
+                    ])
+                    ->required(),
+                FormsComponentsSelect::make('courier_id')
+                    ->relationship('courier', 'name')
+                    ->searchable(),
+                FormsComponentsTextInput::make('rating')
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue(5),
+                FormsComponentsTextarea::make('note')
                     ->columnSpanFull(),
             ]);
     }
-
-    public static function table(Table $table): Table
-    {
-        return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('user_id')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('address')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('total_price')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('shipping_price')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('status'),
-                Tables\Columns\TextColumn::make('payment'),
-                Tables\Columns\TextColumn::make('payment_status'),
-                Tables\Columns\TextColumn::make('user_location_id')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('courier_id')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('rating')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                //
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
     }
 
-    public static function getRelations(): array
+
+    public static function getActions(): array
     {
         return [
-            //
+            Actions\Action::make('updateStatus')
+                ->label('Update Status')
+                ->form([
+                    Forms\Components\Select::make('status')
+                        ->options([
+                            'pending' => 'Pending',
+                            'processing' => 'Processing',
+                            'shipped' => 'Shipped',
+                            'delivered' => 'Delivered',
+                            'cancelled' => 'Cancelled',
+                        ])
+                        ->required(),
+                ])
+                ->action(function (Transaction $record, array $data): void {
+                    $record->update(['status' => $data['status']]);
+                    Notification::make()
+                        ->title('Transaction status updated successfully')
+                        ->success()
+                        ->send();
+                }),
+            Actions\Action::make('updatePaymentStatus')
+                ->label('Update Payment Status')
+                ->form([
+                    Forms\Components\Select::make('payment_status')
+                        ->options([
+                            'pending' => 'Pending',
+                            'paid' => 'Paid',
+                            'failed' => 'Failed',
+                        ])
+                        ->required(),
+                ])
+                ->action(function (Transaction $record, array $data): void {
+                    $record->update(['payment_status' => $data['payment_status']]);
+                    Notification::make()
+                        ->title('Payment status updated successfully')
+                        ->success()
+                        ->send();
+                }),
+            Actions\Action::make('processMultiMerchantOrder')
+                ->label('Process Multi-Merchant Order')
+                ->action(function (Transaction $record): void {
+                    $record->processMultiMerchantOrder();
+                    Notification::make()
+                        ->title('Multi-merchant order processed successfully')
+                        ->success()
+                        ->send();
+                })
+                ->requiresConfirmation(),
         ];
     }
-
-    public static function getPages(): array
-    {
-        return [
-            'index' => Pages\ListTransactions::route('/'),
-            'create' => Pages\CreateTransaction::route('/create'),
-            'edit' => Pages\EditTransaction::route('/{record}/edit'),
-        ];
-    }
-}

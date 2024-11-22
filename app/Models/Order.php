@@ -12,11 +12,13 @@ class Order extends Model
     protected $fillable = [
         'user_id',
         'total_amount',
-        'order_status'
+        'order_status',
+        'payment_status'
     ];
 
     protected $casts = [
         'order_status' => 'string',
+        'payment_status' => 'string',
         'total_amount' => 'decimal:2'
     ];
 
@@ -63,3 +65,54 @@ class Order extends Model
         });
     }
 }
+
+    public function merchants()
+    {
+        return $this->belongsToMany(Merchant::class, 'order_items');
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('order_status', 'pending');
+    }
+
+    public function scopeProcessing($query)
+    {
+        return $query->where('order_status', 'processing');
+    }
+
+    public function scopeCompleted($query)
+    {
+        return $query->where('order_status', 'completed');
+    }
+
+    public function scopePaid($query)
+    {
+        return $query->where('payment_status', 'paid');
+    }
+}
+
+    public function merchants()
+    {
+        return $this->belongsToMany(Merchant::class, 'order_items');
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('order_status', 'pending');
+    }
+
+    public function scopeProcessing($query)
+    {
+        return $query->where('order_status', 'processing');
+    }
+
+    public function scopeCompleted($query)
+    {
+        return $query->where('order_status', 'completed');
+    }
+
+    public function scopePaid($query)
+    {
+        return $query->where('payment_status', 'paid');
+    }

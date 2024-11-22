@@ -17,56 +17,83 @@ class OrderResource extends Resource
 {
     protected static ?string $model = Order::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
 
+    protected static ?string $navigationGroup = 'Pesanan';
 
-    public static function table(Table $table): Table
+    public static function form(Form $form): Form
     {
-        return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('user_id')
+        return $form
+            ->schema([
+                FormsComponentsSelect::make('user_id')
+                    ->relationship('user', 'name')
+                    ->searchable()
+                    ->required(),
+                FormsComponentsTextInput::make('total_amount')
+                    ->required()
                     ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('total_amount')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('payment_status'),
-                Tables\Columns\TextColumn::make('order_status'),
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                //
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                    ->prefix('Rp'),
+                FormsComponentsSelect::make('payment_status')
+                    ->options([
+                        'pending' => 'Pending',
+                        'paid' => 'Paid',
+                        'failed' => 'Failed',
+                    ])
+                    ->required(),
+                FormsComponentsSelect::make('order_status')
+                    ->options([
+                        'pending' => 'Pending',
+                        'processing' => 'Processing',
+                        'shipped' => 'Shipped',
+                        'delivered' => 'Delivered',
+                        'cancelled' => 'Cancelled',
+                    ])
+                    ->required(),
             ]);
     }
 
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
-    }
 
-    public static function getPages(): array
+
+    public static function getActions(): array
     {
         return [
-            'index' => Pages\ListOrders::route('/'),
-            'create' => Pages\CreateOrder::route('/create'),
-            'edit' => Pages\EditOrder::route('/{record}/edit'),
+            Actions\Action::make('updateStatus')
+                ->label('Update Status')
+                ->form([
+                    Forms\Components\Select::make('status')
+                        ->options([
+                            'pending' => 'Pending',
+                            'processing' => 'Processing',
+                            'shipped' => 'Shipped',
+                            'delivered' => 'Delivered',
+                            'cancelled' => 'Cancelled',
+                        ])
+                        ->required(),
+                ])
+                ->action(function (Order $record, array $data): void {
+                    $record->update(['order_status' => $data['status']]);
+                    Notification::make()
+                        ->title('Order status updated successfully')
+                        ->success()
+                        ->send();
+                }),
+            Actions\Action::make('updatePaymentStatus')
+                ->label('Update Payment Status')
+                ->form([
+                    Forms\Components\Select::make('payment_status')
+                        ->options([
+                            'pending' => 'Pending',
+                            'paid' => 'Paid',
+                            'failed' => 'Failed',
+                        ])
+                        ->required(),
+                ])
+                ->action(function (Order $record, array $data): void {
+                    $record->update(['payment_status' => $data['payment_status']]);
+                    Notification::make()
+                        ->title('Payment status updated successfully')
+                        ->success()
+                        ->send();
+                }),
         ];
     }
-}
