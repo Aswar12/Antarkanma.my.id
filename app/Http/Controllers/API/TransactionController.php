@@ -99,7 +99,7 @@ class TransactionController extends Controller
                 $orderItem = OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
-                    'merchant_id' => $product->merchant_id,
+                    'merchant_id' => $item->merchant_id,
                     'quantity' => $item['quantity'],
                     'price' => $item['price'],
                 ]);
