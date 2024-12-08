@@ -16,14 +16,14 @@ class ProductResource extends Resource
 {
     protected static ?string $model = Product::class;
 
-protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
+    protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
 
-protected static ?string $navigationGroup = 'Produk';
+    protected static ?string $navigationGroup = 'Produk';
 
-public static function getNavigationBadge(): ?string
-{
-    return static::getModel()::count();
-}
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::count();
+    }
 
     public static function form(Form $form): Form
     {
@@ -109,7 +109,7 @@ public static function getNavigationBadge(): ?string
                                     ->collapsible(),
                             ]),
                     ])
-                    ->columnSpan(['lg' => 2]),
+                    ->columnSpan(['lg' => 2])
                     ->schema([
                         Forms\Components\Section::make('Status')
                             ->schema([
