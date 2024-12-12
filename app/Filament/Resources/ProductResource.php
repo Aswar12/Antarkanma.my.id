@@ -37,16 +37,15 @@ class ProductResource extends Resource
                                     ->relationship('merchant', 'name')
                                     ->required()
                                     ->searchable(),
-                                FormsComponentsSelect::make("category_id")
+                                Forms\Components\Select::make("category_id")
                                     ->relationship("category", "name")
                                     ->searchable()
                                     ->preload()
                                     ->createOptionForm([
-                                        FormsComponentsTextInput::make("name")
+                                        Forms\Components\TextInput::make("name")
                                             ->required(),
-                                        FormsComponentsTextarea::make("description")
+                                        Forms\Components\Textarea::make("description")
                                     ])
-                                    ->required()
                                     ->required()
                                     ->searchable(),
                                 Forms\Components\TextInput::make('name')
@@ -109,19 +108,17 @@ class ProductResource extends Resource
                                     ->collapsible(),
                             ]),
                     ])
-                    ->columnSpan(['lg' => 2])
+                    ->columnSpan(['lg' => 2]),
+                Forms\Components\Section::make('Status')
                     ->schema([
-                        Forms\Components\Section::make('Status')
-                            ->schema([
-                                Forms\Components\Placeholder::make('created_at')
-                                    ->label('Created at')
-                                    ->content(fn(?Product $record): string => $record ? $record->created_at->diffForHumans() : '-'),
-                                Forms\Components\Placeholder::make('updated_at')
-                                    ->label('Last modified at')
-                                    ->content(fn(?Product $record): string => $record ? $record->updated_at->diffForHumans() : '-'),
-                            ])
-                            ->columnSpan(['lg' => 1]),
-                    ]),
+                        Forms\Components\Placeholder::make('created_at')
+                            ->label('Created at')
+                            ->content(fn(?Product $record): string => $record ? $record->created_at->diffForHumans() : '-'),
+                        Forms\Components\Placeholder::make('updated_at')
+                            ->label('Last modified at')
+                            ->content(fn(?Product $record): string => $record ? $record->updated_at->diffForHumans() : '-'),
+                    ])
+                    ->columnSpan(['lg' => 1]),
             ])
             ->columns(3);
     }
@@ -138,7 +135,7 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('merchant.name')
                     ->sortable()
                     ->searchable(),
-                TablesColumnsTextColumn::make("category.name")
+                Tables\Columns\TextColumn::make("category.name")
                     ->sortable()
                     ->searchable()
                     ->searchable(),
@@ -172,7 +169,7 @@ class ProductResource extends Resource
         return [
             RelationManagers\VariantsRelationManager::class,
             RelationManagers\GalleriesRelationManager::class,
-            ProductCategoriesRelationManager::class,
+            RelationManagers\ProductCategoriesRelationManager::class,
         ];
     }
 
