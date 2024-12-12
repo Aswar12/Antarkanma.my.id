@@ -30,10 +30,10 @@ class ProductCategoriesRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('name')
             ->columns([
-                TablesColumnsTextColumn::make("name")
+                Tables\Columns\TextColumn::make("name")
                     ->sortable()
                     ->searchable(),
-                TablesColumnsTextColumn::make("description")
+                Tables\Columns\TextColumn::make("description")
                     ->limit(50)
                     ->searchable(),
             ])
