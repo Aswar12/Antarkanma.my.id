@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\Controller;
 use App\Models\Courier;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
@@ -37,7 +38,7 @@ class DeliveryController extends Controller
 
             // Create Delivery Items
             $order = Order::findOrFail($transaction->order_id);
-            foreach ($order->items as $orderItem) {
+            foreach ($order->orderItems as $orderItem) {
                 $deliveryItem = new DeliveryItem();
                 $deliveryItem->delivery_id = $delivery->id;
                 $deliveryItem->order_item_id = $orderItem->id;
@@ -56,7 +57,7 @@ class DeliveryController extends Controller
             DB::commit();
 
             return ResponseFormatter::success([
-                'delivery' => $delivery->load('items', 'courier'),
+                'delivery' => $delivery->load('deliveryItems', 'courier'),
             ], 'Courier assigned successfully');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -125,7 +126,7 @@ class DeliveryController extends Controller
             $deliveryItem->save();
 
             // Check if all items are picked up
-            $allItemsPickedUp = $deliveryItem->delivery->items()->where('pickup_status', '!=', 'PICKED_UP')->count() == 0;
+            $allItemsPickedUp = $deliveryItem->delivery->deliveryItems()->where('pickup_status', '!=', 'PICKED_UP')->count() == 0;
 
             if ($allItemsPickedUp) {
                 $deliveryItem->delivery->delivery_status = 'IN_PROGRESS';
@@ -157,7 +158,7 @@ class DeliveryController extends Controller
             ->when($request->date, function ($query) use ($request) {
                 return $query->whereDate('created_at', $request->date);
             })
-            ->with(['transaction.order', 'items'])
+            ->with(['transaction.order', 'deliveryItems'])
             ->paginate(10);
 
         return ResponseFormatter::success(

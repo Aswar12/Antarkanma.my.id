@@ -17,8 +17,6 @@ use Illuminate\Support\Facades\Auth;
 
 class TransactionController extends Controller
 {
-
-
     public function create(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -133,13 +131,9 @@ class TransactionController extends Controller
             return ResponseFormatter::success($transaction, 'Transaction created successfully');
         } catch (Exception $e) {
             DB::rollBack();
-
-          
             return ResponseFormatter::error(null, 'Failed to create transaction: ' . $e->getMessage(), 500);
         }
     }
-
-
 
     public function get($id)
     {
@@ -245,8 +239,8 @@ class TransactionController extends Controller
         $limit = $request->input('limit', 10);
         $status = $request->input('status');
 
-        $transactionQuery = Transaction::with('order.orderItems.product')
-            ->whereHas('order.orderItems', function ($query) use ($merchantId) {
+        $transactionQuery = Transaction::with('order.items.product')
+            ->whereHas('order.items', function ($query) use ($merchantId) {
                 $query->where('merchant_id', $merchantId);
             });
 
