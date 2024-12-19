@@ -8,6 +8,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class GalleriesRelationManager extends RelationManager
 {
@@ -37,7 +38,12 @@ class GalleriesRelationManager extends RelationManager
                             ->directory('product-galleries')
                             ->disk('public')
                             ->visibility('public')
-                            ->preserveFilenames()
+                            ->storeFileNamesIn('original_filename')
+                            ->getUploadedFileNameForStorageUsing(
+                                function (\Illuminate\Http\UploadedFile $file): string {
+                                    return Str::random(40) . '.' . $file->getClientOriginalExtension();
+                                }
+                            )
                             ->maxSize(5120)
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif']),
                     ])
