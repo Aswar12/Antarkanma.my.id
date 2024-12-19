@@ -9,21 +9,33 @@ class Delivery extends Model
 {
     /** @use HasFactory<\Database\Factories\DeliveryFactory> */
     use HasFactory;
+    
     protected $fillable = [
         'transaction_id',
+        'courier_id',
         'tracking_number',
-        'status',
-        'estimated_arrival',
-        'actual_arrival'
+        'delivery_status',
+        'estimated_delivery_time',
+        'actual_delivery_time'
     ];
 
     protected $casts = [
-        'estimated_arrival' => 'datetime',
-        'actual_arrival' => 'datetime',
+        'estimated_delivery_time' => 'datetime',
+        'actual_delivery_time' => 'datetime',
     ];
 
     public function transaction()
     {
         return $this->belongsTo(Transaction::class);
+    }
+
+    public function courier()
+    {
+        return $this->belongsTo(Courier::class);
+    }
+
+    public function deliveryItems()
+    {
+        return $this->hasMany(DeliveryItem::class);
     }
 }
