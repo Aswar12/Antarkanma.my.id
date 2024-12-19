@@ -144,7 +144,7 @@ class TransactionController extends Controller
     public function get($id)
     {
         try {
-            $transaction = Transaction::with('order.items.product')->findOrFail($id);
+            $transaction = Transaction::with('order.orderItems.product')->findOrFail($id);
             if ($transaction->user_id !== Auth::id()) {
                 return ResponseFormatter::error(null, 'Unauthorized', 403);
             }
@@ -159,7 +159,7 @@ class TransactionController extends Controller
         $limit = $request->input('limit', 10);
         $status = $request->input('status');
 
-        $transactionQuery = Transaction::with('order.items.product')->where('user_id', Auth::id());
+        $transactionQuery = Transaction::with('order.orderItems.product')->where('user_id', Auth::id());
 
         if ($status) {
             $transactionQuery->where('status', $status);
@@ -205,7 +205,7 @@ class TransactionController extends Controller
             }
 
             DB::commit();
-            return ResponseFormatter::success($transaction->load('order.items.product'), 'Transaction updated successfully');
+            return ResponseFormatter::success($transaction->load('order.orderItems.product'), 'Transaction updated successfully');
         } catch (Exception $e) {
             DB::rollBack();
             return ResponseFormatter::error(null, 'Failed to update transaction: ' . $e->getMessage(), 500);
@@ -245,8 +245,8 @@ class TransactionController extends Controller
         $limit = $request->input('limit', 10);
         $status = $request->input('status');
 
-        $transactionQuery = Transaction::with('order.items.product')
-            ->whereHas('order.items', function ($query) use ($merchantId) {
+        $transactionQuery = Transaction::with('order.orderItems.product')
+            ->whereHas('order.orderItems', function ($query) use ($merchantId) {
                 $query->where('merchant_id', $merchantId);
             });
 
