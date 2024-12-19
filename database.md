@@ -87,7 +87,6 @@ license_plate
 created_at
 updated_at
 
-
 Transactions
 
 id (Primary Key)
@@ -104,8 +103,6 @@ rating
 note
 created_at
 updated_at
-
-
 
 User_Locations
 
@@ -126,6 +123,7 @@ is_active (boolean)
 deleted_at (timestamp, nullable - untuk soft delete)
 created_at
 updated_at
+
 Delivery
 
 id (Primary Key)
@@ -138,13 +136,14 @@ created_at
 updated_at
 
 Product_Reviews
-- id (Primary Key)
-- user_id (Foreign Key ke Users)
-- product_id (Foreign Key ke Products)
-- rating
-- comment
-- created_at
-- updated_at
+
+-   id (Primary Key)
+-   user_id (Foreign Key ke Users)
+-   product_id (Foreign Key ke Products)
+-   rating
+-   comment
+-   created_at
+-   updated_at
 
 Delivery_Items
 
@@ -165,23 +164,24 @@ start_time (DATETIME)
 end_time (DATETIME)
 created_at
 updated_at
-Relasi Antar Tabel:
 
-Users:
+**Product_Variants**
 
-Memiliki banyak Merchants (1-to-many)
-Memiliki banyak Orders (1-to-many)
-Memiliki banyak Loyalty_Points (1-to-many)
-Memiliki satu Courier (1-to-1)
-Memiliki banyak User_Locations (1-to-many)
-Memiliki banyak Product_Reviews (1-to-many)
-Memiliki banyak Transactions (1-to-many)
-Merchants:
+-   id (Primary Key)
+-   product_id (Foreign Key to Products)
+-   name
+-   value
+-   price_adjustment (decimal, default 0)
+-   status (ENUM: 'ACTIVE', 'INACTIVE', 'OUT_OF_STOCK', default 'ACTIVE')
+-   created_at
+-   updated_at
 
-Terkait dengan satu User (many-to-1)
-Memiliki banyak Products (1-to-many)
-Memiliki banyak Order_Items (1-to-many)
-Products:
+**Relationships**:
+
+-   **Products**:
+    -   Has many Product_Variants (1-to-many)
+        Memiliki banyak Order_Items (1-to-many)
+        Products:
 
 Terkait dengan satu Merchant (many-to-1)
 Terkait dengan satu Product_Category (many-to-1)

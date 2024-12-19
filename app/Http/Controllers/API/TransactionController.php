@@ -134,13 +134,7 @@ class TransactionController extends Controller
         } catch (Exception $e) {
             DB::rollBack();
 
-            // Log error untuk debugging
-            Log::error('Transaction Creation Error', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
-            ]);
-
+          
             return ResponseFormatter::error(null, 'Failed to create transaction: ' . $e->getMessage(), 500);
         }
     }
