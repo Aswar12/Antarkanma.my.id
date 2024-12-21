@@ -4,10 +4,8 @@ namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use App\Models\Product;
+use Illuminate\Support\Facades\Storage;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\ProductGallery>
- */
 class ProductGalleryFactory extends Factory
 {
     /**
@@ -17,9 +15,12 @@ class ProductGalleryFactory extends Factory
      */
     public function definition(): array
     {
+        // Get list of existing images from storage
+        $images = Storage::disk('public')->files('product-galleries');
+        
         return [
             'product_id' => Product::factory(),
-            'url' => $this->faker->imageUrl(),
+            'url' => $this->faker->randomElement($images)
         ];
     }
 }

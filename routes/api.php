@@ -12,6 +12,7 @@ use App\Http\Controllers\API\ProductCategoryController;
 use App\Http\Controllers\API\ProductReviewController;
 use App\Http\Controllers\API\DeliveryController;
 use App\Http\Controllers\API\CourierController;
+
 // Grup rute untuk pengguna dengan middleware auth:sanctum
 Route::middleware('auth:sanctum')->group(function () {
     // Rute untuk logout pengguna
@@ -30,7 +31,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/merchant/{id}', [MerchantController::class, 'update']);
     Route::delete('/merchant/{id}', [MerchantController::class, 'delete']);
     Route::get('/merchant/list', [MerchantController::class, 'list']);
-
 
     Route::post('/product', [ProductController::class, 'create']);
 
@@ -51,9 +51,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Additional Product routes
     Route::get('merchants/{merchantId}/products', [ProductController::class, 'getByMerchant']);
-    Route::get('categories/{categoryId}/products', [ProductController::class, 'getByCategory']);
     Route::get('products/search', [ProductController::class, 'search']);
 
+    // Popular Products routes
+  
 
     Route::post('/product-category', [ProductCategoryController::class, 'create']);
     Route::get('/product-category/{id}', [ProductCategoryController::class, 'get']);
@@ -73,6 +74,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/deliveries/{deliveryId}/status', [DeliveryController::class, 'updateDeliveryStatus']);
     Route::put('/delivery-items/{deliveryItemId}/pickup-status', [DeliveryController::class, 'updatePickupStatus']);
     Route::get('/couriers/{courierId}/deliveries', [DeliveryController::class, 'getCourierDeliveries']);
+    
     // Order routes
     Route::post('orders', [OrderController::class, 'create']);
     Route::get('orders', [OrderController::class, 'list']);
@@ -81,6 +83,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('orders/{id}/status', [OrderController::class, 'updateStatus']);
     Route::get('merchant/orders', [OrderController::class, 'getMerchantOrders']);
     Route::get('orders/statistics', [OrderController::class, 'getOrderStatistics']);
+
     Route::get('/couriers', [CourierController::class, 'index']);
     Route::post('/couriers', [CourierController::class, 'store']);
     Route::get('/couriers/{id}', [CourierController::class, 'show']);
@@ -88,24 +91,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/couriers/{id}', [CourierController::class, 'destroy']);
 
     Route::post('/transactions', [TransactionController::class, 'create']);
-
-    // Rute untuk mengambil transaksi berdasarkan ID
     Route::get('/transactions/{id}', [TransactionController::class, 'get']);
-
-    // Rute untuk mengambil daftar transaksi
     Route::get('/transactions', [TransactionController::class, 'list']);
-
-    // Rute untuk memperbarui transaksi
     Route::put('/transactions/{id}', [TransactionController::class, 'update']);
-
-    // Rute untuk membatalkan transaksi
     Route::post('/transactions/{id}/cancel', [TransactionController::class, 'cancel']);
-
-    // Rute untuk mengambil transaksi berdasarkan merchant
     Route::get('/merchants/{merchantId}/transactions', [TransactionController::class, 'getByMerchant']);
 
-
-    // Tambahkan rute-rute berikut untuk UserLocation
     Route::get('/user-locations', [UserLocationController::class, 'index']);
     Route::post('/user-locations', [UserLocationController::class, 'store']);
     Route::get('/user-locations/{id}', [UserLocationController::class, 'show']);
@@ -114,8 +105,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/user-locations/{id}/set-default', [UserLocationController::class, 'setDefault']);
 });
 
-// Rute untuk registrasi pengguna
+// Public routes
 Route::post('register', [UserController::class, 'register']);
 Route::get('products', [ProductController::class, 'all']);
-// Rute untuk login pengguna
+Route::get('products/category/{categoryId}', [ProductController::class, 'getByCategory']);
 Route::post('/login', [UserController::class, 'login']);
+
+// Public Product routes
+Route::get('products/popular', [ProductController::class, 'getPopularProducts']);
+Route::get('products/top-by-category', [ProductController::class, 'getTopProductsByCategory']);
+Route::get('products/{id}/with-reviews', [ProductController::class, 'getProductWithReviews']);

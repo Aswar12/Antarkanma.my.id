@@ -2,17 +2,16 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Http\Controllers\Controller;
-use App\Helpers\ResponseFormatter;
-use Illuminate\Http\Request;
+use Exception;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
-
-use App\Actions\Fortify\PasswordValidationRules;
-
-use Exception; // Pastikan untuk mengimpor Exception
+use Illuminate\Http\Request;
+use App\Helpers\ResponseFormatter;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use App\Actions\Fortify\PasswordValidationRules;
 
 class UserController extends Controller
 {
@@ -21,7 +20,7 @@ class UserController extends Controller
         // Validasi input
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'phone_number' => 'required|string|max:15|unique:users', // Validasi nomor telepon
+            'phone_number' => 'required|string|max:15|unique:users',
             'email' => 'required|string|unique:users|email',
             'password' => 'required|min:8|confirmed',
             'password_confirmation' => 'required',
@@ -36,29 +35,26 @@ class UserController extends Controller
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
-                'phone_number' => $request->phone_number, // Menyimpan nomor telepon
+                'phone_number' => $request->phone_number,
                 'password' => Hash::make($request->password),
             ]);
             $user::where('email', $request->email)->first();
             $token = $user->createToken('authToken')->plainTextToken;
 
-            // Mengembalikan respons sukses
             return ResponseFormatter::success([
                 'access_token' => $token,
                 'token_type' => 'Bearer',
                 'user' => $user,
             ], 'Regsitrasi Akun Berhasil', 200);
         } catch (Exception $e) {
-            // Menangani kesalahan
             return ResponseFormatter::error('Registration failed: ' . $e->getMessage(), 500);
         }
     }
 
     public function login(Request $request)
     {
-        // Validasi input
         $validator = Validator::make($request->all(), [
-            'identifier' => 'required|string', // Identifier untuk nomor telepon atau email
+            'identifier' => 'required|string',
             'password' => 'required|string',
         ]);
 
@@ -67,17 +63,14 @@ class UserController extends Controller
         }
 
         try {
-            // Mencari pengguna berdasarkan nomor telepon atau email
             $user = User::where('phone_number', $request->identifier)
                 ->orWhere('email', $request->identifier)
                 ->first();
 
-            // Memeriksa kredensial
             if (!$user || !Hash::check($request->password, $user->password)) {
                 return ResponseFormatter::error('Unauthorized', 401);
             }
 
-            // Mengembalikan respons sukses dengan token
             $token = $user->createToken('authToken')->plainTextToken;
 
             return ResponseFormatter::success([
@@ -86,53 +79,90 @@ class UserController extends Controller
                 'token_type' => 'Bearer',
             ], 'Login successful');
         } catch (Exception $e) {
-            // Menangani kesalahan
             return ResponseFormatter::error('Login failed: ' . $e->getMessage(), 500);
         }
     }
 
-
-
     public function logout(Request $request)
     {
-
         $token = $request->user()->currentAccessToken()->delete();
         return ResponseFormatter::success($token, 'Berhasil Logout', 200);
     }
+
     public function profileUpdate(Request $request)
     {
-        $data = $request->all();
-        $user = auth()->user();
-        $user->update($data);
+        try {
+            $user = Auth::user();
+            
+            $validator = Validator::make($request->all(), [
+                'name' => 'string|max:255',
+                'email' => 'email|unique:users,email,'.$user->id,
+                'phone_number' => 'string|max:15|unique:users,phone_number,'.$user->id,
+            ]);
 
-        return ResponseFormatter::success($user, 'Profile updated successfully', 200);
+            if ($validator->fails()) {
+                return ResponseFormatter::error($validator->errors(), 'Validation Error', 422);
+            }
+
+            User::where('id', $user->id)->update([
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone_number' => $request->phone_number
+            ]);
+
+            $user = User::find($user->id);
+
+            return ResponseFormatter::success($user, 'Profile berhasil diperbarui');
+        } catch (Exception $e) {
+            return ResponseFormatter::error($e->getMessage(), 'Gagal memperbarui profile', 500);
+        }
     }
 
-    public function fetcth(Request $request)
+    public function fetch(Request $request)
     {
         return ResponseFormatter::success(
             $request->user(),
-            'Data Profile User Berhasil di ambil ',
+            'Data Profile User berhasil diambil'
         );
     }
 
-
     public function updatePhoto(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'file' => 'required|image|max:2848'
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'photo' => 'required|image' // Removed size limit, only validating that it's an image
+            ]);
 
-        if ($validator->fails()) {
-            return ResponseFormatter::error('Gagal mengupload foto', 422);
-        }
-        if ($request->file('file')) {
-            $file = $request->file('file')->store('assets/user', 'public');
+            if ($validator->fails()) {
+                return ResponseFormatter::error($validator->errors(), 'Validation Error', 422);
+            }
+
             $user = Auth::user();
-            $user->profile_photo_url = $file;
-            $user->update();
 
-            return ResponseFormatter::success([$file, 'Upload foto berhasil']);
+            if ($request->hasFile('photo')) {
+                // Delete old photo if exists
+                if ($user->profile_photo_path) {
+                    Storage::disk('public')->delete($user->profile_photo_path);
+                }
+
+                // Store new photo without any size restrictions
+                $path = $request->file('photo')->store('profile-photos', 'public');
+                
+                // Update user profile photo and reload data
+                User::where('id', $user->id)->update([
+                    'profile_photo_path' => $path
+                ]);
+                $user = User::find($user->id);
+
+                return ResponseFormatter::success([
+                    'path' => $path,
+                    'url' => $user->profile_photo_url
+                ], 'Foto profile berhasil diupload');
+            }
+
+            return ResponseFormatter::error('No photo uploaded', 'Gagal mengupload foto', 400);
+        } catch (Exception $e) {
+            return ResponseFormatter::error($e->getMessage(), 'Gagal mengupload foto', 500);
         }
     }
 }
