@@ -16,8 +16,19 @@ class ProductCategoryFactory extends Factory
      */
     public function definition(): array
     {
+        $categories = [
+            'Makanan',
+            'Minuman',
+            'Snack',
+            'Buah & Sayur',
+            'Daging & Ikan',
+            'Bumbu Dapur',
+            'Bahan Pokok',
+            'Frozen Food'
+        ];
+        
         return [
-            'name' => $this->faker->word,
+            'name' => $this->faker->unique()->randomElement($categories),
         ];
     }
 }

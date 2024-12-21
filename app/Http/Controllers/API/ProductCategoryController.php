@@ -2,91 +2,121 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Http\Controllers\Controller;
 use App\Helpers\ResponseFormatter;
+use App\Http\Controllers\Controller;
 use App\Models\ProductCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Exception;
 
 class ProductCategoryController extends Controller
 {
-    public function create(Request $request)
+    public function list()
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:product_categories,name',
-            'description' => 'nullable|string',
-        ]);
+        $categories = ProductCategory::all();
 
-        if ($validator->fails()) {
-            return ResponseFormatter::validationError($validator->errors());
-        }
-
-        try {
-            $category = ProductCategory::create($request->all());
-            return ResponseFormatter::success($category, 'Product category created successfully');
-        } catch (Exception $e) {
-            return ResponseFormatter::error('Failed to create product category: ' . $e->getMessage(), 500);
-        }
+        return ResponseFormatter::success(
+            $categories,
+            'Data kategori produk berhasil diambil'
+        );
     }
 
     public function get($id)
     {
-        try {
-            $category = ProductCategory::findOrFail($id);
-            return ResponseFormatter::success($category, 'Product category retrieved successfully');
-        } catch (Exception $e) {
-            return ResponseFormatter::error('Product category not found', 404);
+        $category = ProductCategory::find($id);
+
+        if (!$category) {
+            return ResponseFormatter::error(
+                null,
+                'Data kategori produk tidak ditemukan',
+                404
+            );
         }
+
+        return ResponseFormatter::success(
+            $category,
+            'Data kategori produk berhasil diambil'
+        );
+    }
+
+    public function create(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string'
+        ]);
+
+        if ($validator->fails()) {
+            return ResponseFormatter::error(
+                ['errors' => $validator->errors()],
+                'Validation Error',
+                422
+            );
+        }
+
+        $category = ProductCategory::create([
+            'name' => $request->name,
+            'description' => $request->description
+        ]);
+
+        return ResponseFormatter::success(
+            $category,
+            'Kategori produk berhasil ditambahkan'
+        );
     }
 
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'string|max:255|unique:product_categories,name,' . $id,
-            'description' => 'nullable|string',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string'
         ]);
 
         if ($validator->fails()) {
-            return ResponseFormatter::validationError($validator->errors());
+            return ResponseFormatter::error(
+                ['errors' => $validator->errors()],
+                'Validation Error',
+                422
+            );
         }
 
-        try {
-            $category = ProductCategory::findOrFail($id);
-            $category->update($request->all());
-            return ResponseFormatter::success($category, 'Product category updated successfully');
-        } catch (Exception $e) {
-            return ResponseFormatter::error('Failed to update product category: ' . $e->getMessage(), 500);
+        $category = ProductCategory::find($id);
+
+        if (!$category) {
+            return ResponseFormatter::error(
+                null,
+                'Data kategori produk tidak ditemukan',
+                404
+            );
         }
+
+        $category->update([
+            'name' => $request->name,
+            'description' => $request->description
+        ]);
+
+        return ResponseFormatter::success(
+            $category,
+            'Kategori produk berhasil diperbarui'
+        );
     }
 
     public function delete($id)
     {
-        try {
-            $category = ProductCategory::findOrFail($id);
-            $category->delete();
-            return ResponseFormatter::success(null, 'Product category deleted successfully');
-        } catch (Exception $e) {
-            return ResponseFormatter::error('Failed to delete product category: ' . $e->getMessage(), 500);
-        }
-    }
+        $category = ProductCategory::find($id);
 
-    public function list(Request $request)
-    {
-        $limit = $request->input('limit', 10);
-        $name = $request->input('name');
-
-        $categoryQuery = ProductCategory::query();
-
-        if ($name) {
-            $categoryQuery->where('name', 'like', '%' . $name . '%');
+        if (!$category) {
+            return ResponseFormatter::error(
+                null,
+                'Data kategori produk tidak ditemukan',
+                404
+            );
         }
 
-        $categories = $categoryQuery->paginate($limit);
+        $category->delete();
 
         return ResponseFormatter::success(
-            $categories,
-            'Product categories list retrieved successfully'
+            null,
+            'Kategori produk berhasil dihapus'
         );
     }
 }
