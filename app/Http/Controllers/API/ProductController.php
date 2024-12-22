@@ -76,7 +76,7 @@ class ProductController extends Controller
         );
     }
 
-    // ... (previous methods remain unchanged)
+    
 
     public function getByCategory(Request $request, $categoryId)
     {
@@ -130,7 +130,7 @@ class ProductController extends Controller
 
     public function getPopularProducts(Request $request)
     {
-        $limit = $request->input('limit', 10);
+        $limit = $request->input('limit', 12);
         $category_id = $request->input('category_id');
         $min_rating = $request->input('min_rating', 4.0);
         $min_reviews = $request->input('min_reviews', 5);

@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ProductResource\Pages;
 use App\Filament\Resources\ProductResource\RelationManagers;
 use App\Filament\Resources\ProductResource\RelationManagers\ProductCategoriesRelationManager;
+use App\Filament\Resources\ProductResource\RelationManagers\ReviewsRelationManager;
 use App\Models\Product;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -170,6 +171,7 @@ class ProductResource extends Resource
             RelationManagers\VariantsRelationManager::class,
             RelationManagers\GalleriesRelationManager::class,
             RelationManagers\ProductCategoriesRelationManager::class,
+            ReviewsRelationManager::class,
         ];
     }
 
