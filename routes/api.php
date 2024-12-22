@@ -9,12 +9,21 @@ use App\Http\Controllers\API\UserLocationController;
 use App\Http\Controllers\API\OrderController;
 use App\Http\Controllers\API\TransactionController;
 use App\Http\Controllers\API\ProductCategoryController;
-use App\Http\Controllers\API\ProductReviewController;
 use App\Http\Controllers\API\DeliveryController;
 use App\Http\Controllers\API\CourierController;
+use App\Http\Controllers\API\ProductReviewController;
+
+// Public Product Review Routes
+Route::get('products/{productId}/reviews', [ProductReviewController::class, 'getByProduct']);
 
 // Grup rute untuk pengguna dengan middleware auth:sanctum
 Route::middleware('auth:sanctum')->group(function () {
+    // Product Review Routes
+    Route::post('reviews', [ProductReviewController::class, 'store']);
+    Route::put('reviews/{id}', [ProductReviewController::class, 'update']);
+    Route::delete('reviews/{id}', [ProductReviewController::class, 'destroy']);
+    Route::get('user/reviews', [ProductReviewController::class, 'getUserReviews']);
+
     // Rute untuk logout pengguna
     Route::post('/logout', [UserController::class, 'logout']);
 
@@ -53,21 +62,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('merchants/{merchantId}/products', [ProductController::class, 'getByMerchant']);
     Route::get('products/search', [ProductController::class, 'search']);
 
-    // Popular Products routes
-  
-
     Route::post('/product-category', [ProductCategoryController::class, 'create']);
     Route::get('/product-category/{id}', [ProductCategoryController::class, 'get']);
     Route::put('/product-category/{id}', [ProductCategoryController::class, 'update']);
     Route::delete('/product-category/{id}', [ProductCategoryController::class, 'delete']);
     Route::get('/product-categories', [ProductCategoryController::class, 'list']);
-
-    Route::get('product-reviews', [ProductReviewController::class, 'index']);
-    Route::post('product-reviews', [ProductReviewController::class, 'store']);
-    Route::put('product-reviews/{id}', [ProductReviewController::class, 'update']);
-    Route::delete('product-reviews/{id}', [ProductReviewController::class, 'destroy']);
-
-    Route::post('/orders', [OrderController::class, 'createOrder']);
 
     // Delivery routes
     Route::post('/deliveries/assign-courier', [DeliveryController::class, 'assignCourier']);
