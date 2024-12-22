@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\UserLocationResource\Pages;
 
 use App\Filament\Resources\UserLocationResource;
+use App\Filament\Widgets\UserLocationsMap;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 
@@ -13,7 +14,15 @@ class ListUserLocations extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->label('Add New Location'),
+        ];
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            UserLocationsMap::class,
         ];
     }
 }
