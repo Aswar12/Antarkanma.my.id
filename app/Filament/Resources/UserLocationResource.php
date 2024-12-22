@@ -218,29 +218,7 @@ class UserLocationResource extends Resource
         ];
     }
 
-    public static function getWidgets(): array
-    {
-        return [
-            UserLocationsMap::class,
-        ];
-    }
+    
+   
 
-    protected function getHeaderWidgets(): array
-    {
-        return [
-            UserLocationsMap::class,
-        ];
-    }
-
-    public static function getGloballySearchableAttributes(): array
-    {
-        return [
-            'user.name',
-            'customer_name',
-            'address',
-            'city',
-            'district',
-            'postal_code',
-        ];
-    }
 }
