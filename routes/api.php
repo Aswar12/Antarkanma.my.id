@@ -35,12 +35,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rute untuk memperbarui foto profil pengguna
     Route::post('/user/profile/photo', [UserController::class, 'updatePhoto']);
-    Route::post('/merchant', [MerchantController::class, 'create']);
-    Route::get('/merchant/{id}', [MerchantController::class, 'get']);
+    Route::post('/merchant', [MerchantController::class, 'store']);
+
     Route::put('/merchant/{id}', [MerchantController::class, 'update']);
     Route::delete('/merchant/{id}', [MerchantController::class, 'delete']);
     Route::get('/merchant/list', [MerchantController::class, 'list']);
-
+    Route::get('/merchants/owner/{id}', [MerchantController::class, 'getByOwnerId']);
     Route::post('/product', [ProductController::class, 'create']);
 
     Route::post('products', [ProductController::class, 'create']);
@@ -49,6 +49,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Product Gallery routes
     Route::post('products/{id}/gallery', [ProductController::class, 'addGallery']);
+    Route::put('products/{productId}/gallery/{galleryId}', [ProductController::class, 'editGallery']);
+    Route::delete('products/{productId}/gallery/{galleryId}', [ProductController::class, 'deleteGallery']);
     Route::delete('galleries/{id}', [ProductController::class, 'deleteGallery']);
 
     // Product Variant routes
@@ -59,7 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('variants/{variantId}', [ProductController::class, 'getVariant']);
 
     // Additional Product routes
-    Route::get('merchants/{merchantId}/products', [ProductController::class, 'getByMerchant']);
+    Route::get('merchants/{merchantId}/products', [ProductController::class, 'getProductByMerchant']);
     Route::get('products/search', [ProductController::class, 'search']);
 
     Route::post('/product-category', [ProductCategoryController::class, 'create']);
@@ -73,7 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/deliveries/{deliveryId}/status', [DeliveryController::class, 'updateDeliveryStatus']);
     Route::put('/delivery-items/{deliveryItemId}/pickup-status', [DeliveryController::class, 'updatePickupStatus']);
     Route::get('/couriers/{courierId}/deliveries', [DeliveryController::class, 'getCourierDeliveries']);
-    
+
     // Order routes
     Route::post('orders', [OrderController::class, 'create']);
     Route::get('orders', [OrderController::class, 'list']);
@@ -103,6 +105,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/user-locations/{id}', [UserLocationController::class, 'destroy']);
     Route::post('/user-locations/{id}/set-default', [UserLocationController::class, 'setDefault']);
 });
+
 
 // Public routes
 Route::post('register', [UserController::class, 'register']);

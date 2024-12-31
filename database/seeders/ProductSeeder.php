@@ -9,6 +9,7 @@ use App\Models\Merchant;
 use App\Models\ProductCategory;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Exception;
 
 class ProductSeeder extends Seeder
 {
@@ -102,8 +103,12 @@ class ProductSeeder extends Seeder
             \App\Models\Merchant::factory(5)->create();
         }
 
-        // Get all merchant IDs
-        $merchantIds = Merchant::pluck('id')->toArray();
+        // Get merchant with owner_id 22
+        $merchant = Merchant::where('owner_id', 22)->first();
+
+        if (!$merchant) {
+            throw new \Exception('Merchant with owner_id 22 not found. Please ensure the merchant exists before running this seeder.');
+        }
 
         // Get all files from product-galleries directory
         $galleryFiles = Storage::disk('public')->files('product-galleries');
@@ -122,12 +127,12 @@ class ProductSeeder extends Seeder
         foreach ($this->productsByCategory as $categoryName => $products) {
             // Create category
             $category = ProductCategory::create(['name' => $categoryName]);
-            
+
             // Create all products for this category
             foreach ($products as $productData) {
                 // Create product
                 $product = Product::create([
-                    'merchant_id' => $merchantIds[array_rand($merchantIds)],
+                    'merchant_id' => $merchant->id,
                     'category_id' => $category->id,
                     'name' => $productData['name'],
                     'description' => $productData['description'],

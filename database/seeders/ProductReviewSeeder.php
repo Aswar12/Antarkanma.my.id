@@ -100,8 +100,8 @@ class ProductReviewSeeder extends Seeder
             $userIds = User::pluck('id')->toArray();
         }
 
-        // Get all products
-        $products = Product::with('category')->get();
+        // Get all products for merchant ID 506
+        $products = Product::with('category')->where('merchant_id', 506)->get();
 
         foreach ($products as $product) {
             $categoryName = $product->category->name;
@@ -112,11 +112,11 @@ class ProductReviewSeeder extends Seeder
 
             // Generate 5-20 reviews for each product
             $numReviews = rand(5, 20);
-            
+
             for ($i = 0; $i < $numReviews; $i++) {
                 // Generate rating based on product popularity
                 $rating = rand($ratingRange[0], $ratingRange[1]);
-                
+
                 // Get random comment for this rating
                 $comments = $this->reviewComments[$rating];
                 $comment = $comments[array_rand($comments)];

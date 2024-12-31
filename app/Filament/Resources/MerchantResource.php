@@ -5,13 +5,12 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\MerchantResource\Pages;
 use App\Filament\Resources\MerchantResource\RelationManagers;
 use App\Models\Merchant;
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Tables\Columns\ImageColumn;
 
 class MerchantResource extends Resource
@@ -40,8 +39,16 @@ class MerchantResource extends Resource
                     ->required(),
                 Forms\Components\Textarea::make('description')
                     ->columnSpanFull(),
-                Forms\Components\TextInput::make('logo')
-                    ->maxLength(255),
+                Forms\Components\TextInput::make('logo'),
+                Forms\Components\Select::make('owner_id') // This will link to the User model
+                    ->relationship('owner', 'name') // Assuming 'owner' is the relationship name in the Merchant model
+                    ->required()
+                    ->label('Owner')
+                    ->options(function () {
+                        return User::where('roles', 'MERCHANT') // Filter by role
+                            ->whereDoesntHave('merchant') // Ensure they don't already have a merchant
+                            ->pluck('name', 'id'); // Return name and id for the select options
+                    }),
             ]);
     }
 
