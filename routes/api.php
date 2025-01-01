@@ -96,6 +96,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/transactions', [TransactionController::class, 'list']);
     Route::put('/transactions/{id}', [TransactionController::class, 'update']);
     Route::post('/transactions/{id}/cancel', [TransactionController::class, 'cancel']);
+    Route::get('/merchants/{merchantId}/transaction-summary', [TransactionController::class, 'getTransactionSummaryByMerchant']);
     Route::get('/merchants/{merchantId}/transactions', [TransactionController::class, 'getByMerchant']);
 
     Route::get('/user-locations', [UserLocationController::class, 'index']);

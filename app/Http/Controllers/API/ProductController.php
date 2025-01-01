@@ -61,7 +61,8 @@ class ProductController extends Controller
     public function all(Request $request)
     {
         $id = $request->input('id');
-        $limit = $request->input('limit', 6);
+        $get_all = $request->input('get_all', false);
+        $limit = $get_all ? null : $request->input('limit', 10);
         $name = $request->input('name');
         $description = $request->input('description');
         $tags = $request->input('tags');
@@ -104,16 +105,27 @@ class ProductController extends Controller
             $product->where('category_id', $categories);
         }
 
-        $result = $product->paginate($limit);
-
-        // Transform the data to include rating information
-        $result->getCollection()->transform(function ($product) {
-            $product->rating_info = [
-                'average_rating' => round($product->average_rating, 1),
-                'total_reviews' => $product->total_reviews
-            ];
-            return $product;
-        });
+        if ($get_all) {
+            $result = $product->get();
+            // Transform the data to include rating information
+            $result->transform(function ($product) {
+                $product->rating_info = [
+                    'average_rating' => round($product->average_rating, 1),
+                    'total_reviews' => $product->total_reviews
+                ];
+                return $product;
+            });
+        } else {
+            $result = $product->paginate($limit);
+            // Transform the data to include rating information
+            $result->getCollection()->transform(function ($product) {
+                $product->rating_info = [
+                    'average_rating' => round($product->average_rating, 1),
+                    'total_reviews' => $product->total_reviews
+                ];
+                return $product;
+            });
+        }
 
         return ResponseFormatter::success(
             $result,
@@ -318,7 +330,8 @@ class ProductController extends Controller
 
     public function getProductByMerchant(Request $request, $merchantId)
     {
-        $limit = $request->input('limit', 10);
+        $get_all = $request->input('get_all', false);
+        $limit = $get_all ? null : $request->input('limit', 10);
         $price_from = $request->input('price_from');
         $price_to = $request->input('price_to');
 
@@ -342,7 +355,11 @@ class ProductController extends Controller
         // Order by created_at by default
         $query->orderBy('created_at', 'desc');
 
-        $products = $query->paginate($limit);
+        if ($get_all) {
+            $products = $query->get();
+        } else {
+            $products = $query->paginate($limit);
+        }
 
         if ($products->isEmpty()) {
             return ResponseFormatter::success(
@@ -352,13 +369,23 @@ class ProductController extends Controller
         }
 
         // Transform the data to include rating information
-        $products->getCollection()->transform(function ($product) {
-            $product->rating_info = [
-                'average_rating' => round($product->average_rating, 1),
-                'total_reviews' => $product->total_reviews
-            ];
-            return $product;
-        });
+        if ($get_all) {
+            $products->transform(function ($product) {
+                $product->rating_info = [
+                    'average_rating' => round($product->average_rating, 1),
+                    'total_reviews' => $product->total_reviews
+                ];
+                return $product;
+            });
+        } else {
+            $products->getCollection()->transform(function ($product) {
+                $product->rating_info = [
+                    'average_rating' => round($product->average_rating, 1),
+                    'total_reviews' => $product->total_reviews
+                ];
+                return $product;
+            });
+        }
 
         return ResponseFormatter::success(
             $products,
@@ -371,7 +398,7 @@ class ProductController extends Controller
         try {
             // Find the product
             $product = Product::find($id);
-            
+
             if (!$product) {
                 return ResponseFormatter::error(
                     null,
@@ -395,8 +422,8 @@ class ProductController extends Controller
                 'description' => 'string',
                 'price' => 'numeric|min:0',
                 'category_id' => 'exists:product_categories,id',
-                'merchant_id' => 'exists:merchants,id',
-                'status' => 'in:ACTIVE,INACTIVE,OUT_OF_STOCK'
+                'status' => 'in:ACTIVE,INACTIVE,OUT_OF_STOCK',
+                'variants' => 'array'
             ]);
 
             if ($validator->fails()) {
@@ -407,13 +434,41 @@ class ProductController extends Controller
                 );
             }
 
-            // Update product
-            $product->update($request->all());
+            DB::beginTransaction();
+            try {
+                // Update product basic info
+                $product->update([
+                    'name' => $request->name,
+                    'description' => $request->description,
+                    'price' => $request->price,
+                    'category_id' => $request->category_id,
+                    'status' => $request->status
+                ]);
 
-            return ResponseFormatter::success(
-                $product,
-                'Product updated successfully'
-            );
+                // Handle variants if provided
+                if ($request->has('variants')) {
+                    // Delete existing variants
+                    $product->variants()->delete();
+                    
+                    // Add new variants
+                    foreach ($request->variants as $variant) {
+                        $product->variants()->create($variant);
+                    }
+                }
+
+                DB::commit();
+
+                // Reload product with variants
+                $product->load('variants');
+
+                return ResponseFormatter::success(
+                    $product,
+                    'Product updated successfully'
+                );
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
         } catch (\Exception $e) {
             return ResponseFormatter::error(
                 null,
@@ -428,7 +483,7 @@ class ProductController extends Controller
         try {
             // Find the product
             $product = Product::with('galleries')->find($id);
-            
+
             if (!$product) {
                 return ResponseFormatter::error(
                     null,
@@ -450,7 +505,7 @@ class ProductController extends Controller
             foreach ($product->galleries as $gallery) {
                 // Get clean path without storage URL
                 $path = str_replace('storage/', '', $gallery->url);
-                
+
                 // Delete the physical file
                 if (Storage::disk('public')->exists($path)) {
                     Storage::disk('public')->delete($path);
@@ -605,22 +660,22 @@ class ProductController extends Controller
             // Handle the uploaded files
             if ($request->hasFile('gallery')) {
                 $files = $request->file('gallery');
-                
+
                 // Ensure $files is always an array
                 if (!is_array($files)) {
                     $files = [$files];
                 }
-                
+
                 foreach ($files as $file) {
                     try {
                         // Store file
                         $path = $file->store('product_galleries', 'public');
-                        
+
                         // Create gallery record
                         $gallery = $product->galleries()->create([
                             'url' => $path
                         ]);
-                        
+
                         $galleries[] = [
                             'id' => $gallery->id,
                             'url' => asset('storage/' . $path),
