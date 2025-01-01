@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             DeliverySeeder::class,
             UserLocationSeeder::class,
             ProductReviewSeeder::class,
+            ElectronicsMerchantSeeder::class,
         ]);
     }
 }
