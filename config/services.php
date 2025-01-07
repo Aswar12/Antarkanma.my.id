@@ -1,19 +1,6 @@
 <?php
 
 return [
-
-    /*
-    |--------------------------------------------------------------------------
-    | Third Party Services
-    |--------------------------------------------------------------------------
-    |
-    | This file is for storing the credentials for third party services such
-    | as Mailgun, Postmark, AWS and more. This file provides the de facto
-    | location for this type of information, allowing packages to have
-    | a conventional file to locate the various service credentials.
-    |
-    */
-
     'mailgun' => [
         'domain' => env('MAILGUN_DOMAIN'),
         'secret' => env('MAILGUN_SECRET'),
@@ -31,8 +18,10 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
-    'google' => [
-        'maps_api_key' => env('GOOGLE_MAPS_API_KEY'),
+    'firebase' => [
+        'project_id' => env('FIREBASE_PROJECT_ID', 'antarkanma'),
+        'server_key' => env('FIREBASE_SERVER_KEY'),
+        'messaging_sender_id' => env('FIREBASE_MESSAGING_SENDER_ID', '140831862137'),
+        'api_key' => env('FIREBASE_API_KEY', 'AIzaSyD1ADl2NJLFepwYcQltfKh4ytOHzEvabQQ'),
     ],
-
 ];

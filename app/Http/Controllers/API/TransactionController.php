@@ -20,6 +20,32 @@ use Illuminate\Validation\Rule;
 
 class TransactionController extends Controller
 {
+    public function list(Request $request)
+    {
+        try {
+            $transactions = Transaction::with(['user', 'order.orderItems.product'])
+                ->where('user_id', Auth::id())
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return ResponseFormatter::success(
+                $transactions,
+                'Data transaksi berhasil diambil'
+            );
+        } catch (Exception $error) {
+            Log::error('Failed to fetch transactions:', [
+                'error' => $error->getMessage(),
+                'trace' => $error->getTraceAsString()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Data transaksi gagal diambil: ' . $error->getMessage(),
+                500
+            );
+        }
+    }
+
     public function create(Request $request)
     {
         $validator = Validator::make($request->all(), [

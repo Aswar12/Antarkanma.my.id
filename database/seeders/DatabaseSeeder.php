@@ -16,21 +16,15 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            UserSeeder::class,
+            MerchantLocationCompleteSeeder::class, // New seeder for merchants with locations
             CourierSeeder::class,
             LoyaltyPointSeeder::class,
-            ProductSeeder::class,
             OrderSeeder::class,
-            UserSeeder::class,
-            ProductCategorySeeder::class,
-            ProductGallerySeeder::class,
             OrderItemSeeder::class,
-            MerchantSeeder::class,
             TransactionSeeder::class,
             TransactionItemSeeder::class,
             DeliverySeeder::class,
-            UserLocationSeeder::class,
-            ProductReviewSeeder::class,
-            ElectronicsMerchantSeeder::class,
         ]);
     }
 }

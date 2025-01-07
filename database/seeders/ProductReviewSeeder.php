@@ -13,108 +13,76 @@ class ProductReviewSeeder extends Seeder
     private $reviewComments = [
         5 => [
             'Produk sangat berkualitas, sangat memuaskan!',
-            'Rasanya enak sekali, pasti pesan lagi!',
+            'Kualitas produk luar biasa, sangat recommended!',
             'Pengiriman cepat dan produk sesuai deskripsi',
-            'Harga sebanding dengan kualitas, recommended!',
-            'Pelayanan sangat baik, produk fresh',
+            'Harga sebanding dengan kualitas, worth it!',
+            'Pelayanan sangat baik, produk original',
+            'Sangat puas dengan pembelian ini!',
+            'Kualitas premium, tidak mengecewakan',
+            'Produk authentic dan sesuai gambar',
         ],
         4 => [
             'Produk bagus, sesuai dengan harga',
-            'Rasa enak, tapi pengiriman agak lama',
             'Kualitas baik, akan pesan lagi',
-            'Sesuai ekspektasi, lumayan puas',
-            'Produk fresh, tapi packaging bisa ditingkatkan',
+            'Sesuai ekspektasi, cukup puas',
+            'Produk original, packaging aman',
+            'Harga reasonable untuk kualitasnya',
+            'Pengiriman cepat, produk bagus',
+            'Recommended seller, produk berkualitas',
+            'Barang sesuai deskripsi, puas',
         ],
         3 => [
             'Produk standar, masih bisa ditingkatkan',
-            'Rasa biasa saja, tapi masih ok',
+            'Kualitas cukup baik untuk harganya',
             'Pengiriman agak lama, tapi produk bagus',
-            'Harga sedikit mahal untuk kualitas segini',
-            'Lumayan, tapi masih ada yang perlu diperbaiki',
-        ],
-        2 => [
-            'Kualitas dibawah ekspektasi',
-            'Pengiriman terlalu lama',
-            'Harga tidak sebanding dengan kualitas',
-            'Produk kurang fresh',
-            'Perlu peningkatan kualitas',
-        ],
-        1 => [
-            'Sangat mengecewakan',
-            'Tidak sesuai deskripsi',
-            'Kualitas buruk',
-            'Tidak recommended',
-            'Pelayanan kurang baik',
-        ],
+            'Harga standard untuk kualitas segini',
+            'Lumayan, sesuai harga',
+            'Packaging bisa lebih baik',
+            'Produk ok, pengiriman bisa dipercepat',
+            'Cukup puas dengan produknya',
+        ]
     ];
 
-    private $productPopularity = [
-        'Makanan' => [
-            'Nasi Goreng Special' => [4, 5],    // Popular
-            'Mie Goreng Special' => [4, 5],     // Popular
-            'Ayam Goreng Kremes' => [4, 5],     // Popular
-            'Rendang Daging' => [4, 5],         // Popular
-        ],
-        'Minuman' => [
-            'Es Teh Manis' => [4, 5],           // Popular
-            'Jus Alpukat' => [4, 5],            // Popular
-            'Es Jeruk Peras' => [3, 5],         // Moderate
-        ],
-        'Snack' => [
-            'Kentang Goreng' => [4, 5],         // Popular
-            'Pisang Goreng' => [3, 5],          // Moderate
-            'Tahu Crispy' => [3, 5],            // Moderate
-        ],
-        'Buah & Sayur' => [
-            'Apel Fuji' => [4, 5],              // Popular
-            'Jeruk Mandarin' => [3, 5],         // Moderate
-        ],
-        'Daging & Ikan' => [
-            'Daging Sapi Segar' => [3, 5],      // Moderate
-            'Ikan Salmon' => [4, 5],            // Popular
-        ],
-        'Bumbu Dapur' => [
-            'Bawang Putih' => [3, 5],           // Moderate
-            'Cabai Merah' => [3, 5],            // Moderate
-        ],
-        'Bahan Pokok' => [
-            'Beras Premium' => [4, 5],          // Popular
-            'Minyak Goreng' => [3, 5],          // Moderate
-        ],
-        'Frozen Food' => [
-            'Nugget Ayam' => [4, 5],            // Popular
-            'Bakso Sapi' => [3, 5],             // Moderate
-        ],
+    private $categoryRatings = [
+        'Makanan' => [4, 5],
+        'Minuman' => [4, 5],
+        'Electronics' => [3, 5],
+        'Fashion' => [3, 5],
+        'Home & Living' => [3, 5],
+        'Sports & Outdoors' => [3, 5]
     ];
 
     public function run()
     {
         // Clear existing reviews
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         DB::table('product_reviews')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         // Get all users
-        $userIds = User::pluck('id')->toArray();
-        if (empty($userIds)) {
-            // Create some users if none exist
-            User::factory(10)->create();
-            $userIds = User::pluck('id')->toArray();
+        $users = User::where('roles', '!=', 'MERCHANT')->get();
+        if ($users->count() < 5) {
+            // Create some users if not enough exist
+            $needed = 5 - $users->count();
+            User::factory($needed)->create(['roles' => 'USER']);
+            $users = User::where('roles', '!=', 'MERCHANT')->get();
         }
 
-        // Get all products for merchant ID 506
-        $products = Product::with('category')->where('merchant_id', 506)->get();
+        // Get all products
+        $products = Product::with('category')->get();
 
         foreach ($products as $product) {
             $categoryName = $product->category->name;
-            $productName = $product->name;
+            
+            // Get rating range for this category
+            $ratingRange = $this->categoryRatings[$categoryName] ?? [3, 5];
 
-            // Get popularity range for this product
-            $ratingRange = $this->productPopularity[$categoryName][$productName] ?? [1, 5];
+            // Generate 3-8 reviews for each product
+            $numReviews = rand(3, 8);
+            $reviewUsers = $users->random($numReviews);
 
-            // Generate 5-20 reviews for each product
-            $numReviews = rand(5, 20);
-
-            for ($i = 0; $i < $numReviews; $i++) {
-                // Generate rating based on product popularity
+            foreach ($reviewUsers as $user) {
+                // Generate rating based on category popularity
                 $rating = rand($ratingRange[0], $ratingRange[1]);
 
                 // Get random comment for this rating
@@ -122,7 +90,7 @@ class ProductReviewSeeder extends Seeder
                 $comment = $comments[array_rand($comments)];
 
                 ProductReview::create([
-                    'user_id' => $userIds[array_rand($userIds)],
+                    'user_id' => $user->id,
                     'product_id' => $product->id,
                     'rating' => $rating,
                     'comment' => $comment

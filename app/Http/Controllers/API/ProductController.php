@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
@@ -60,71 +61,62 @@ class ProductController extends Controller
 
     public function all(Request $request)
     {
-        $id = $request->input('id');
-        $get_all = $request->input('get_all', false);
-        $limit = $get_all ? null : $request->input('limit', 10);
-        $name = $request->input('name');
-        $description = $request->input('description');
-        $tags = $request->input('tags');
-        $categories = $request->input('categories');
-        $price_from = $request->input('price_from');
-        $price_to = $request->input('price_to');
+        $start = microtime(true);
+        
+        $cacheKey = 'products_' . md5(json_encode($request->all()));
+        $cacheDuration = 60; // 60 minutes
 
-        $product = Product::with(['merchant', 'category', 'galleries'])
-            ->select(
-                'products.*',
-                DB::raw('(SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id) as average_rating'),
-                DB::raw('(SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id) as total_reviews')
-            );
+        $result = Cache::remember($cacheKey, $cacheDuration, function () use ($request) {
+            $query = Product::query()
+                ->with([
+                    'merchant:id,name,owner_id', 
+                    'category:id,name', 
+                    'galleries:id,product_id,url'
+                ])
+                ->select([
+                    'products.id', 
+                    'products.name', 
+                    'products.description', 
+                    'products.price',
+                    'products.status', 
+                    'products.category_id', 
+                    'products.merchant_id',
+                    'products.created_at',
+                    DB::raw('(SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id) as average_rating'),
+                    DB::raw('(SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id) as total_reviews')
+                ])
+                ->when($request->input('id'), fn($q, $id) => $q->where('products.id', $id))
+                ->when($request->input('name'), fn($q, $name) => $q->where('products.name', 'like', "%{$name}%"))
+                ->when($request->input('description'), fn($q, $desc) => $q->where('products.description', 'like', "%{$desc}%"))
+                ->when($request->input('tags'), fn($q, $tags) => $q->where('products.tags', 'like', "%{$tags}%"))
+                ->when($request->input('categories'), fn($q, $cat) => $q->where('products.category_id', $cat))
+                ->when($request->input('price_from'), fn($q, $price) => $q->where('products.price', '>=', $price))
+                ->when($request->input('price_to'), fn($q, $price) => $q->where('products.price', '<=', $price))
+                ->orderBy('products.created_at', 'desc');
 
-        if ($id) {
-            $product->where('id', $id);
-        }
+            $result = $request->input('get_all') 
+                ? $query->get() 
+                : $query->paginate($request->input('limit', 10));
 
-        if ($name) {
-            $product->where('name', 'like', '%' . $name . '%');
-        }
-
-        if ($description) {
-            $product->where('description', 'like', '%' . $description . '%');
-        }
-
-        if ($tags) {
-            $product->where('tags', 'like', '%' . $tags . '%');
-        }
-
-        if ($price_from) {
-            $product->where('price', '>=', $price_from);
-        }
-
-        if ($price_to) {
-            $product->where('price', '<=', $price_to);
-        }
-
-        if ($categories) {
-            $product->where('category_id', $categories);
-        }
-
-        if ($get_all) {
-            $result = $product->get();
             // Transform the data to include rating information
-            $result->transform(function ($product) {
+            $collection = $request->input('get_all') ? $result : $result->getCollection();
+            $collection->transform(function ($product) {
                 $product->rating_info = [
                     'average_rating' => round($product->average_rating, 1),
                     'total_reviews' => $product->total_reviews
                 ];
                 return $product;
             });
-        } else {
-            $result = $product->paginate($limit);
-            // Transform the data to include rating information
-            $result->getCollection()->transform(function ($product) {
-                $product->rating_info = [
-                    'average_rating' => round($product->average_rating, 1),
-                    'total_reviews' => $product->total_reviews
-                ];
-                return $product;
-            });
+
+            return $result;
+        });
+
+        $duration = microtime(true) - $start;
+        if ($duration > 1) { // Log queries slower than 1 second
+            Log::warning("Slow product query", [
+                'duration' => $duration,
+                'params' => $request->all()
+            ]);
         }
 
         return ResponseFormatter::success(
@@ -135,112 +127,192 @@ class ProductController extends Controller
 
     public function getByCategory(Request $request, $categoryId)
     {
-        $limit = $request->input('limit', 10);
-        $price_from = $request->input('price_from');
-        $price_to = $request->input('price_to');
+        $start = microtime(true);
 
-        $query = Product::with(['merchant', 'category', 'galleries'])
-            ->select(
-                'products.*',
-                DB::raw('(SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id) as average_rating'),
-                DB::raw('(SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id) as total_reviews')
-            )
-            ->where('category_id', $categoryId);
+        $cacheKey = "products_category_{$categoryId}_" . md5(json_encode($request->all()));
+        $cacheDuration = 60; // 60 minutes
 
-        // Filter by price range if provided
-        if ($price_from) {
-            $query->where('price', '>=', $price_from);
-        }
+        $products = Cache::remember($cacheKey, $cacheDuration, function () use ($request, $categoryId) {
+            $result = Product::query()
+                ->with([
+                    'merchant:id,name,owner_id', 
+                    'category:id,name', 
+                    'galleries:id,product_id,url'
+                ])
+                ->select([
+                    'products.id', 
+                    'products.name', 
+                    'products.description', 
+                    'products.price',
+                    'products.status', 
+                    'products.category_id', 
+                    'products.merchant_id',
+                    'products.created_at',
+                    DB::raw('(SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id) as average_rating'),
+                    DB::raw('(SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id) as total_reviews')
+                ])
+                ->where('category_id', $categoryId)
+                ->when($request->input('price_from'), fn($q, $price) => $q->where('price', '>=', $price))
+                ->when($request->input('price_to'), fn($q, $price) => $q->where('price', '<=', $price))
+                ->orderBy('created_at', 'desc')
+                ->paginate($request->input('limit', 10));
 
-        if ($price_to) {
-            $query->where('price', '<=', $price_to);
-        }
+            if (!$result->isEmpty()) {
+                $result->getCollection()->transform(function ($product) {
+                    $product->rating_info = [
+                        'average_rating' => round($product->average_rating, 1),
+                        'total_reviews' => $product->total_reviews
+                    ];
+                    return $product;
+                });
+            }
 
-        // Order by created_at by default
-        $query->orderBy('created_at', 'desc');
-
-        $products = $query->paginate($limit);
-
-        if ($products->isEmpty()) {
-            return ResponseFormatter::success(
-                $products,
-                'Tidak ada produk yang ditemukan dalam kategori ini'
-            );
-        }
-
-        // Transform the data to include rating information
-        $products->getCollection()->transform(function ($product) {
-            $product->rating_info = [
-                'average_rating' => round($product->average_rating, 1),
-                'total_reviews' => $product->total_reviews
-            ];
-            return $product;
+            return $result;
         });
+
+        $duration = microtime(true) - $start;
+        if ($duration > 1) { // Log queries slower than 1 second
+            Log::warning("Slow category products query", [
+                'duration' => $duration,
+                'category_id' => $categoryId,
+                'params' => $request->all()
+            ]);
+        }
 
         return ResponseFormatter::success(
             $products,
-            'Data produk berhasil diambil'
+            $products->isEmpty() ? 'Tidak ada produk yang ditemukan dalam kategori ini' : 'Data produk berhasil diambil'
         );
     }
 
     public function getPopularProducts(Request $request)
     {
-        $limit = $request->input('limit', 12);
-        $category_id = $request->input('category_id');
-        $min_rating = $request->input('min_rating', 4.0);
-        $min_reviews = $request->input('min_reviews', 5);
+        $start = microtime(true);
 
-        $query = Product::select(
-            'products.*',
-            DB::raw('AVG(product_reviews.rating) as average_rating'),
-            DB::raw('COUNT(product_reviews.id) as total_reviews')
-        )
-            ->leftJoin('product_reviews', 'products.id', '=', 'product_reviews.product_id')
-            ->with(['merchant', 'category', 'galleries'])
-            ->groupBy('products.id')
-            ->having('average_rating', '>=', $min_rating)
-            ->having('total_reviews', '>=', $min_reviews)
-            ->orderBy('average_rating', 'desc')
-            ->orderBy('total_reviews', 'desc');
+        $cacheKey = "products_popular_" . md5(json_encode($request->all()));
+        $cacheDuration = 60; // 60 minutes
 
-        if ($category_id) {
-            $query->where('category_id', $category_id);
-        }
+        $products = Cache::remember($cacheKey, $cacheDuration, function () use ($request) {
+            $result = Product::query()
+                ->select([
+                    'products.id', 
+                    'products.name', 
+                    'products.description', 
+                    'products.price',
+                    'products.status', 
+                    'products.category_id', 
+                    'products.merchant_id',
+                    'products.created_at',
+                    DB::raw('AVG(product_reviews.rating) as average_rating'),
+                    DB::raw('COUNT(product_reviews.id) as total_reviews')
+                ])
+                ->leftJoin('product_reviews', 'products.id', '=', 'product_reviews.product_id')
+                ->with([
+                    'merchant:id,name,owner_id', 
+                    'category:id,name', 
+                    'galleries:id,product_id,url'
+                ])
+                ->groupBy('products.id')
+                ->having('average_rating', '>=', $request->input('min_rating', 4.0))
+                ->having('total_reviews', '>=', $request->input('min_reviews', 5))
+                ->when($request->input('category_id'), fn($q, $catId) => $q->where('category_id', $catId))
+                ->orderBy('average_rating', 'desc')
+                ->orderBy('total_reviews', 'desc')
+                ->paginate($request->input('limit', 12));
 
-        $products = $query->paginate($limit);
+            if (!$result->isEmpty()) {
+                $result->getCollection()->transform(function ($product) {
+                    $product->rating_info = [
+                        'average_rating' => round($product->average_rating, 1),
+                        'total_reviews' => $product->total_reviews
+                    ];
+                    return $product;
+                });
+            }
 
-        if ($products->isEmpty()) {
-            return ResponseFormatter::success(
-                $products,
-                'Tidak ada produk populer yang ditemukan'
-            );
-        }
-
-        // Transform the data to include rating information
-        $products->getCollection()->transform(function ($product) {
-            $product->rating_info = [
-                'average_rating' => round($product->average_rating, 1),
-                'total_reviews' => $product->total_reviews
-            ];
-            return $product;
+            return $result;
         });
+
+        $duration = microtime(true) - $start;
+        if ($duration > 1) { // Log queries slower than 1 second
+            Log::warning("Slow popular products query", [
+                'duration' => $duration,
+                'params' => $request->all()
+            ]);
+        }
 
         return ResponseFormatter::success(
             $products,
-            'Data produk populer berhasil diambil'
+            $products->isEmpty() ? 'Tidak ada produk populer yang ditemukan' : 'Data produk populer berhasil diambil'
         );
     }
 
     public function getProductWithReviews($id)
     {
-        $product = Product::with(['merchant', 'category', 'galleries'])
-            ->select(
-                'products.*',
-                DB::raw('(SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id) as average_rating'),
-                DB::raw('(SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id) as total_reviews')
-            )
-            ->where('id', $id)
-            ->first();
+        $start = microtime(true);
+
+        $cacheKey = "product_with_reviews_{$id}";
+        $cacheDuration = 60; // 60 minutes
+
+        $product = Cache::remember($cacheKey, $cacheDuration, function () use ($id) {
+            $product = Product::query()
+                ->with([
+                    'merchant:id,name,owner_id', 
+                    'category:id,name', 
+                    'galleries:id,product_id,url'
+                ])
+                ->select([
+                    'products.id', 
+                    'products.name', 
+                    'products.description', 
+                    'products.price',
+                    'products.status', 
+                    'products.category_id', 
+                    'products.merchant_id',
+                    'products.created_at',
+                    DB::raw('(SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id) as average_rating'),
+                    DB::raw('(SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id) as total_reviews')
+                ])
+                ->where('id', $id)
+                ->first();
+
+            if (!$product) {
+                return null;
+            }
+
+            // Get reviews with optimized query
+            $reviews = $product->reviews()
+                ->with('user:id,name')
+                ->select(['id', 'user_id', 'rating', 'comment', 'created_at'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Add rating statistics
+            $ratingStats = [
+                'average' => round($product->average_rating, 1),
+                'total' => $product->total_reviews,
+                'distribution' => [
+                    5 => $product->reviews()->where('rating', 5)->count(),
+                    4 => $product->reviews()->where('rating', 4)->count(),
+                    3 => $product->reviews()->where('rating', 3)->count(),
+                    2 => $product->reviews()->where('rating', 2)->count(),
+                    1 => $product->reviews()->where('rating', 1)->count(),
+                ]
+            ];
+
+            $product->rating_info = $ratingStats;
+            $product->reviews = $reviews;
+
+            return $product;
+        });
+
+        $duration = microtime(true) - $start;
+        if ($duration > 1) { // Log queries slower than 1 second
+            Log::warning("Slow product with reviews query", [
+                'duration' => $duration,
+                'product_id' => $id
+            ]);
+        }
 
         if (!$product) {
             return ResponseFormatter::error(
@@ -250,29 +322,6 @@ class ProductController extends Controller
             );
         }
 
-        // Get reviews
-        $reviews = $product->reviews()
-            ->with('user:id,name')
-            ->select('id', 'user_id', 'rating', 'comment', 'created_at')
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Add rating statistics
-        $ratingStats = [
-            'average' => round($product->average_rating, 1),
-            'total' => $product->total_reviews,
-            'distribution' => [
-                5 => $product->reviews()->where('rating', 5)->count(),
-                4 => $product->reviews()->where('rating', 4)->count(),
-                3 => $product->reviews()->where('rating', 3)->count(),
-                2 => $product->reviews()->where('rating', 2)->count(),
-                1 => $product->reviews()->where('rating', 1)->count(),
-            ]
-        ];
-
-        $product->rating_info = $ratingStats;
-        $product->reviews = $reviews;
-
         return ResponseFormatter::success(
             $product,
             'Data produk dan review berhasil diambil'
@@ -281,45 +330,68 @@ class ProductController extends Controller
 
     public function getTopProductsByCategory(Request $request)
     {
-        $limit = $request->input('limit', 5);
-        $min_rating = $request->input('min_rating', 4.0);
-        $min_reviews = $request->input('min_reviews', 3);
+        $start = microtime(true);
 
-        $categories = ProductCategory::all();
-        $result = [];
+        $cacheKey = "products_top_by_category_" . md5(json_encode($request->all()));
+        $cacheDuration = 60; // 60 minutes
 
-        foreach ($categories as $category) {
-            $topProducts = Product::select(
-                'products.*',
-                DB::raw('AVG(product_reviews.rating) as average_rating'),
-                DB::raw('COUNT(product_reviews.id) as total_reviews')
-            )
-                ->leftJoin('product_reviews', 'products.id', '=', 'product_reviews.product_id')
-                ->where('category_id', $category->id)
-                ->with(['merchant', 'galleries'])
-                ->groupBy('products.id')
-                ->having('average_rating', '>=', $min_rating)
-                ->having('total_reviews', '>=', $min_reviews)
-                ->orderBy('average_rating', 'desc')
-                ->orderBy('total_reviews', 'desc')
-                ->limit($limit)
-                ->get();
+        $result = Cache::remember($cacheKey, $cacheDuration, function () use ($request) {
+            $categories = ProductCategory::select('id', 'name')->get();
+            $result = [];
 
-            if ($topProducts->isNotEmpty()) {
-                // Transform products to include rating information
-                $topProducts->transform(function ($product) {
-                    $product->rating_info = [
-                        'average_rating' => round($product->average_rating, 1),
-                        'total_reviews' => $product->total_reviews
+            foreach ($categories as $category) {
+                $topProducts = Product::query()
+                    ->select([
+                        'products.id', 
+                        'products.name', 
+                        'products.description', 
+                        'products.price',
+                        'products.status', 
+                        'products.category_id', 
+                        'products.merchant_id',
+                        'products.created_at',
+                        DB::raw('AVG(product_reviews.rating) as average_rating'),
+                        DB::raw('COUNT(product_reviews.id) as total_reviews')
+                    ])
+                    ->leftJoin('product_reviews', 'products.id', '=', 'product_reviews.product_id')
+                    ->where('category_id', $category->id)
+                    ->with([
+                        'merchant:id,name,owner_id',
+                        'galleries:id,product_id,url'
+                    ])
+                    ->groupBy('products.id')
+                    ->having('average_rating', '>=', $request->input('min_rating', 4.0))
+                    ->having('total_reviews', '>=', $request->input('min_reviews', 3))
+                    ->orderBy('average_rating', 'desc')
+                    ->orderBy('total_reviews', 'desc')
+                    ->limit($request->input('limit', 5))
+                    ->get();
+
+                if ($topProducts->isNotEmpty()) {
+                    $topProducts->transform(function ($product) {
+                        $product->rating_info = [
+                            'average_rating' => round($product->average_rating, 1),
+                            'total_reviews' => $product->total_reviews
+                        ];
+                        return $product;
+                    });
+
+                    $result[] = [
+                        'category' => $category->name,
+                        'products' => $topProducts
                     ];
-                    return $product;
-                });
-
-                $result[] = [
-                    'category' => $category->name,
-                    'products' => $topProducts
-                ];
+                }
             }
+
+            return $result;
+        });
+
+        $duration = microtime(true) - $start;
+        if ($duration > 1) { // Log queries slower than 1 second
+            Log::warning("Slow top products by category query", [
+                'duration' => $duration,
+                'params' => $request->all()
+            ]);
         }
 
         return ResponseFormatter::success(
@@ -330,66 +402,64 @@ class ProductController extends Controller
 
     public function getProductByMerchant(Request $request, $merchantId)
     {
-        $get_all = $request->input('get_all', false);
-        $limit = $get_all ? null : $request->input('limit', 10);
-        $price_from = $request->input('price_from');
-        $price_to = $request->input('price_to');
+        $start = microtime(true);
 
-        $query = Product::with(['merchant', 'category', 'galleries'])
-            ->select(
-                'products.*',
-                DB::raw('(SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id) as average_rating'),
-                DB::raw('(SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id) as total_reviews')
-            )
-            ->where('merchant_id', $merchantId);
+        $cacheKey = "products_merchant_{$merchantId}_" . md5(json_encode($request->all()));
+        $cacheDuration = 60; // 60 minutes
 
-        // Filter by price range if provided
-        if ($price_from) {
-            $query->where('price', '>=', $price_from);
-        }
+        $products = Cache::remember($cacheKey, $cacheDuration, function () use ($request, $merchantId) {
+            $query = Product::query()
+                ->with([
+                    'merchant:id,name,owner_id', 
+                    'category:id,name', 
+                    'galleries:id,product_id,url'
+                ])
+                ->select([
+                    'products.id', 
+                    'products.name', 
+                    'products.description', 
+                    'products.price',
+                    'products.status', 
+                    'products.category_id', 
+                    'products.merchant_id',
+                    'products.created_at',
+                    DB::raw('(SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id) as average_rating'),
+                    DB::raw('(SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id) as total_reviews')
+                ])
+                ->where('merchant_id', $merchantId)
+                ->when($request->input('price_from'), fn($q, $price) => $q->where('price', '>=', $price))
+                ->when($request->input('price_to'), fn($q, $price) => $q->where('price', '<=', $price))
+                ->orderBy('created_at', 'desc');
 
-        if ($price_to) {
-            $query->where('price', '<=', $price_to);
-        }
+            $result = $request->input('get_all') 
+                ? $query->get() 
+                : $query->paginate($request->input('limit', 10));
 
-        // Order by created_at by default
-        $query->orderBy('created_at', 'desc');
-
-        if ($get_all) {
-            $products = $query->get();
-        } else {
-            $products = $query->paginate($limit);
-        }
-
-        if ($products->isEmpty()) {
-            return ResponseFormatter::success(
-                $products,
-                'Tidak ada produk ditemukan untuk merchant ini'
-            );
-        }
-
-        // Transform the data to include rating information
-        if ($get_all) {
-            $products->transform(function ($product) {
+            // Transform the data to include rating information
+            $collection = $request->input('get_all') ? $result : $result->getCollection();
+            $collection->transform(function ($product) {
                 $product->rating_info = [
                     'average_rating' => round($product->average_rating, 1),
                     'total_reviews' => $product->total_reviews
                 ];
                 return $product;
             });
-        } else {
-            $products->getCollection()->transform(function ($product) {
-                $product->rating_info = [
-                    'average_rating' => round($product->average_rating, 1),
-                    'total_reviews' => $product->total_reviews
-                ];
-                return $product;
-            });
+
+            return $result;
+        });
+
+        $duration = microtime(true) - $start;
+        if ($duration > 1) { // Log queries slower than 1 second
+            Log::warning("Slow merchant products query", [
+                'duration' => $duration,
+                'merchant_id' => $merchantId,
+                'params' => $request->all()
+            ]);
         }
 
         return ResponseFormatter::success(
             $products,
-            'Data produk berhasil diambil'
+            $products->isEmpty() ? 'Tidak ada produk ditemukan untuk merchant ini' : 'Data produk berhasil diambil'
         );
     }
 
@@ -449,7 +519,7 @@ class ProductController extends Controller
                 if ($request->has('variants')) {
                     // Delete existing variants
                     $product->variants()->delete();
-                    
+
                     // Add new variants
                     foreach ($request->variants as $variant) {
                         $product->variants()->create($variant);
@@ -563,7 +633,7 @@ class ProductController extends Controller
             }
 
             // Store the new file
-            $path = $request->file('gallery')->store('product_galleries', 'public');
+            $path = $request->file('gallery')->store('product-galleries', 'public');
 
             // Update gallery record
             $gallery->url = $path;
@@ -669,7 +739,7 @@ class ProductController extends Controller
                 foreach ($files as $file) {
                     try {
                         // Store file
-                        $path = $file->store('product_galleries', 'public');
+                        $path = $file->store('product-galleries', 'public');
 
                         // Create gallery record
                         $gallery = $product->galleries()->create([

@@ -30,7 +30,6 @@ class Transaction extends Model
         'rating' => 'integer'
     ];
 
-    // Relasi untuk mendukung multi-merchant
     public function order()
     {
         return $this->belongsTo(Order::class);
@@ -44,6 +43,39 @@ class Transaction extends Model
     public function userLocation()
     {
         return $this->belongsTo(UserLocation::class);
+    }
+
+    public function orderItems()
+    {
+        return $this->hasOneThrough(
+            OrderItem::class,
+            Order::class,
+            'id', // Foreign key on orders table
+            'order_id', // Foreign key on order_items table
+            'order_id', // Local key on transactions table
+            'id' // Local key on orders table
+        );
+    }
+
+    public function getOrderItemsAttribute()
+    {
+        return $this->order?->orderItems ?? collect();
+    }
+
+    public function getItemsByMerchant()
+    {
+        return $this->order?->getItemsByMerchant() ?? collect();
+    }
+
+    public function getMerchantTotals()
+    {
+        return $this->order?->orderItems
+            ->groupBy('merchant_id')
+            ->map(function ($items) {
+                return $items->sum(function ($item) {
+                    return $item->price * $item->quantity;
+                });
+            }) ?? collect();
     }
 
     // Metode untuk menghitung biaya pengiriman multi-merchant

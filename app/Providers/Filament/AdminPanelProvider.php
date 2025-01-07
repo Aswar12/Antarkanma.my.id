@@ -51,6 +51,7 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
             ])
             ->sidebarCollapsibleOnDesktop()
-            ->collapsibleNavigationGroups();
+            ->collapsibleNavigationGroups()
+            ->globalSearch(false);
     }
 }

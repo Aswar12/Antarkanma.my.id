@@ -12,12 +12,18 @@ use App\Http\Controllers\API\ProductCategoryController;
 use App\Http\Controllers\API\DeliveryController;
 use App\Http\Controllers\API\CourierController;
 use App\Http\Controllers\API\ProductReviewController;
+use App\Http\Controllers\API\FcmController;
 
 // Public Product Review Routes
 Route::get('products/{productId}/reviews', [ProductReviewController::class, 'getByProduct']);
 
 // Grup rute untuk pengguna dengan middleware auth:sanctum
 Route::middleware('auth:sanctum')->group(function () {
+    // FCM Routes
+    Route::post('/fcm/token', [FcmController::class, 'updateToken']);
+    Route::delete('/fcm/token', [FcmController::class, 'removeToken']);
+    Route::post('/fcm/topic/subscribe', [FcmController::class, 'subscribeTopic']);
+
     // Product Review Routes
     Route::post('reviews', [ProductReviewController::class, 'store']);
     Route::put('reviews/{id}', [ProductReviewController::class, 'update']);
