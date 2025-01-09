@@ -1,22 +1,77 @@
-/.phpunit.cache
+# Dependencies
 /node_modules
+/vendor
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Production
+/build
 /public/build
 /public/hot
 /public/storage
 /storage/*.key
-/storage/pail
-/vendor
+
+# Environment files
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# IDE
+/.idea
+/.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Firebase credentials
+firebase-credentials.json
+antarkanma-bbafa-firebase-adminsdk-npfdc-c4337c14ae.json
+google-services.json
+
+# Laravel specific
+/public/storage
+/storage/*.key
 .env.backup
-.env.production
-.phpactor.json
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
 auth.json
-npm-debug.log
-yarn-error.log
 /.fleet
 /.idea
 /.vscode
-/.zed
+
+# Mix manifest
+/public/mix-manifest.json
+
+# Storage
+/storage/app/public/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+/storage/logs/*
+
+# Keep .gitkeep files
+!.gitkeep

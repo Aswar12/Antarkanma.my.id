@@ -23,7 +23,22 @@ class TransactionController extends Controller
     public function list(Request $request)
     {
         try {
-            $transactions = Transaction::with(['user', 'order.orderItems.product'])
+            $transactions = Transaction::with([
+                'user',
+                'userLocation',
+                'order' => function ($query) {
+                    $query->with([
+                        'orderItems' => function ($q) {
+                            $q->with([
+                                'product' => function ($p) {
+                                    $p->with(['galleries', 'category']);
+                                },
+                                'merchant'
+                            ]);
+                        }
+                    ]);
+                }
+            ])
                 ->where('user_id', Auth::id())
                 ->orderBy('created_at', 'desc')
                 ->get();
