@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Notification Test</title>
+</head>
+<body>
+    <h1>Firebase Notification Test</h1>
+    <div id="token"></div>
+    <button onclick="requestPermission()">Request Notification Permission</button>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDDfPtr3fUr556ItfKpO2TVkkUghQ1LwfM",
+            authDomain: "antarkanma-bbafa.firebaseapp.com",
+            projectId: "antarkanma-bbafa",
+            storageBucket: "antarkanma-bbafa.firebasestorage.app",
+            messagingSenderId: "833436904161",
+            appId: "1:833436904161:web:93a173b3dfd5826767e5a0",
+            measurementId: "G-WX8VGMZM8K"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const messaging = getMessaging(app);
+
+        // Request permission and get token
+        window.requestPermission = async function() {
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    const token = await getToken(messaging, {
+                        vapidKey: 'BHJiHkI0f6GxrAVa3Pbv_eM3vkSgrdr_0vZcIjNSzrredUFiOOllImM_MXRZWfNRmX2MLCrld0SAPpipCKg3tBk'
+                    });
+                    
+                    document.getElementById('token').innerHTML = 'FCM Token: ' + token;
+                    
+                    // Send token to backend
+                    await fetch('/api/fcm/token', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            token: token,
+                            device_type: 'web'
+                        })
+                    });
+
+                    // Test notification
+                    const response = await fetch('/api/test-notification', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            token: token
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    console.log('Notification test result:', result);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('token').innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        // Handle foreground messages
+        onMessage(messaging, (payload) => {
+            console.log('Received foreground message:', payload);
+            new Notification(payload.notification.title, {
+                body: payload.notification.body
+            });
+        });
+    </script>
+</body>
+</html>

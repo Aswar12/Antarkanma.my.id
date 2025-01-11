@@ -31,13 +31,23 @@ class TransactionResource extends Resource
                             ->label('Transaction ID')
                             ->disabled(),
                         Forms\Components\Select::make('user_id')
-                            ->relationship('user', 'name')
+                            ->relationship(
+                                'user',
+                                'name',
+                                fn (Builder $query) => $query->whereNotNull('name')
+                            )
                             ->required()
-                            ->searchable(),
+                            ->searchable()
+                            ->preload(),
                         Forms\Components\Select::make('user_location_id')
-                            ->relationship('userLocation', 'address')
+                            ->relationship(
+                                'userLocation',
+                                'address',
+                                fn (Builder $query) => $query->whereNotNull('address')
+                            )
                             ->required()
-                            ->searchable(),
+                            ->searchable()
+                            ->preload(),
                         Forms\Components\TextInput::make('order_id')
                             ->label('Order ID')
                             ->disabled(),
@@ -48,10 +58,12 @@ class TransactionResource extends Resource
                     ->schema([
                         Forms\Components\Placeholder::make('orderItems')
                             ->content(function ($record) {
-                                if (!$record || !$record->orderItems) return 'No items';
+                                if (!$record || !$record->order) return 'No items';
+                                
+                                $items = $record->order->orderItems;
                                 
                                 return view('filament.components.order-items-list', [
-                                    'items' => $record->orderItems
+                                    'items' => $items
                                 ]);
                             }),
                     ]),
@@ -87,8 +99,24 @@ class TransactionResource extends Resource
                 Forms\Components\Section::make('Additional Information')
                     ->schema([
                         Forms\Components\Select::make('courier_id')
-                            ->relationship('courier', 'name')
-                            ->searchable(),
+                            ->relationship(
+                                'courier',
+                                'id',
+                                fn (Builder $query) => $query->with('user')
+                            )
+                            ->getOptionLabelFromRecordUsing(fn ($record) => 
+                                "{$record->user->name} ({$record->vehicle_type} - {$record->license_plate})"
+                            )
+                            ->searchable()
+                            ->preload()
+                            ->label('Courier')
+                            ->placeholder('No courier assigned')
+                            ->helperText(function ($record) {
+                                if (!$record || !$record->courier) {
+                                    return 'No courier has been assigned to this order yet.';
+                                }
+                                return "Vehicle: {$record->courier->vehicle_type} ({$record->courier->license_plate})";
+                            }),
                         Forms\Components\TextInput::make('rating')
                             ->numeric()
                             ->minValue(1)
@@ -118,11 +146,17 @@ class TransactionResource extends Resource
                     ->label('Order Items')
                     ->listWithLineBreaks()
                     ->getStateUsing(function ($record) {
-                        $itemsByMerchant = $record->getItemsByMerchant();
-                        if ($itemsByMerchant->isEmpty()) return [];
+                        if (!$record || !$record->order) return [];
+                        
+                        $items = $record->order->orderItems;
+                        if ($items->isEmpty()) return [];
+                        
+                        $itemsByMerchant = $items->groupBy('merchant_id');
                         
                         return $itemsByMerchant->map(function($items, $merchantId) {
-                            $merchant = $items->first()->product->merchant;
+                            $merchant = $items->first()->merchant;
+                            if (!$merchant) return "Merchant not found";
+                            
                             $total = number_format($items->sum(fn($item) => $item->price * $item->quantity), 0, ',', '.');
                             $itemCount = $items->count();
                             return "{$merchant->name} ({$itemCount} items) - Rp {$total}";
@@ -145,6 +179,17 @@ class TransactionResource extends Resource
                         'failed' => 'danger',
                         default => 'secondary',
                     }),
+                Tables\Columns\TextColumn::make('courier.user.name')
+                    ->label('Courier')
+                    ->getStateUsing(function ($record) {
+                        if (!$record->courier) {
+                            return 'Not assigned';
+                        }
+                        return "{$record->courier->user->name} ({$record->courier->vehicle_type} - {$record->courier->license_plate})";
+                    })
+                    ->badge()
+                    ->color(fn ($state) => $state === 'Not assigned' ? 'warning' : 'success')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Transaction Date')
                     ->dateTime()

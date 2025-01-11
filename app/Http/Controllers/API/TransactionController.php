@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\UserLocation;
 use App\Models\Merchant;
+use App\Services\FirebaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,105 @@ use Illuminate\Validation\Rule;
 
 class TransactionController extends Controller
 {
+    public function cancel($id)
+    {
+        DB::beginTransaction();
+        try {
+            // Find transaction and verify ownership
+            $transaction = Transaction::with(['order.orderItems.product'])
+                ->where('user_id', Auth::id())
+                ->findOrFail($id);
+
+            // Check if transaction can be cancelled
+            if ($transaction->status !== 'PENDING') {
+                return ResponseFormatter::error(
+                    null,
+                    'Transaksi tidak dapat dibatalkan',
+                    422
+                );
+            }
+
+            // Update transaction status
+            $transaction->status = 'CANCELED';
+            $transaction->save();
+
+            // Update order status
+            $transaction->order->order_status = 'CANCELED';
+            $transaction->order->save();
+
+            // Load relationships for response
+            $transaction->load([
+                'order.orderItems.product',
+                'userLocation'
+            ]);
+
+            DB::commit();
+
+            // Send notification to merchants
+            $firebaseService = new FirebaseService();
+            $merchantIds = $transaction->order->orderItems->pluck('merchant_id')->unique();
+            
+            foreach ($merchantIds as $merchantId) {
+                $merchant = Merchant::with('user.fcmTokens')->find($merchantId);
+                if ($merchant && $merchant->user && $merchant->user->fcmTokens) {
+                    $tokens = $merchant->user->fcmTokens->pluck('token')->toArray();
+                    if (!empty($tokens)) {
+                        $firebaseService->sendToUser(
+                            $tokens,
+                            [
+                                'action' => 'transaction_canceled',
+                                'transaction_id' => $transaction->id,
+                                'order_id' => $transaction->order->id
+                            ],
+                            'Transaction Canceled',
+                            'A transaction has been canceled by the customer.'
+                        );
+                    }
+                }
+            }
+
+            // Send confirmation notification to customer
+            $customerTokens = $transaction->user->fcmTokens->pluck('token')->toArray();
+            if (!empty($customerTokens)) {
+                $firebaseService->sendToUser(
+                    $customerTokens,
+                    [
+                        'action' => 'transaction_canceled',
+                        'transaction_id' => $transaction->id,
+                        'order_id' => $transaction->order->id
+                    ],
+                    'Transaction Canceled',
+                    'Your transaction has been successfully canceled.'
+                );
+            }
+
+            return ResponseFormatter::success(
+                $transaction,
+                'Transaksi berhasil dibatalkan'
+            );
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to cancel transaction:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            if ($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+                return ResponseFormatter::error(
+                    null,
+                    'Transaksi tidak ditemukan',
+                    404
+                );
+            }
+
+            return ResponseFormatter::error(
+                null,
+                'Gagal membatalkan transaksi: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
     public function list(Request $request)
     {
         try {
@@ -52,7 +152,7 @@ class TransactionController extends Controller
                 'error' => $error->getMessage(),
                 'trace' => $error->getTraceAsString()
             ]);
-            
+
             return ResponseFormatter::error(
                 null,
                 'Data transaksi gagal diambil: ' . $error->getMessage(),
@@ -63,122 +163,82 @@ class TransactionController extends Controller
 
     public function create(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'user_location_id' => 'required|exists:user_locations,id',
-            'total_price' => 'required|regex:/^\d*(\.\d{2})?$/',
-            'shipping_price' => 'required|regex:/^\d*(\.\d{2})?$/',
-            'payment_method' => 'required|in:MANUAL,ONLINE',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => [
-                'required',
-                'exists:products,id',
-                function ($attribute, $value, $fail) use ($request) {
-                    $item = collect($request->items)->firstWhere('product_id', $value);
-                    $product = Product::find($value);
-                    if ($product && $product->merchant_id != $item['merchant']['id']) {
-                        $fail('Product does not belong to the specified merchant.');
-                    }
-                }
-            ],
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.price' => 'required|regex:/^\d*(\.\d{2})?$/',
-            'items.*.merchant.id' => [
-                'required',
-                'exists:merchants,id'
-            ],
-        ], [
-            'user_location_id.required' => 'Lokasi pengiriman harus dipilih',
-            'user_location_id.exists' => 'Lokasi pengiriman tidak valid',
-            'total_price.required' => 'Total harga harus diisi',
-            'total_price.numeric' => 'Total harga harus berupa angka',
-            'total_price.min' => 'Total harga tidak boleh negatif',
-            'shipping_price.required' => 'Biaya pengiriman harus diisi',
-            'shipping_price.numeric' => 'Biaya pengiriman harus berupa angka',
-            'shipping_price.min' => 'Biaya pengiriman tidak boleh negatif',
-            'payment_method.required' => 'Metode pembayaran harus dipilih',
-            'payment_method.in' => 'Metode pembayaran tidak valid',
-            'items.required' => 'Daftar item harus diisi',
-            'items.array' => 'Format daftar item tidak valid',
-            'items.min' => 'Minimal harus ada satu item',
-            'items.*.product_id.required' => 'ID produk harus diisi',
-            'items.*.product_id.exists' => 'Produk tidak ditemukan',
-            'items.*.quantity.required' => 'Jumlah item harus diisi',
-            'items.*.quantity.integer' => 'Jumlah item harus berupa angka bulat',
-            'items.*.quantity.min' => 'Jumlah item minimal 1',
-            'items.*.price.required' => 'Harga item harus diisi',
-            'items.*.price.numeric' => 'Harga item harus berupa angka',
-            'items.*.price.min' => 'Harga item tidak boleh negatif',
-            'items.*.merchant.id.required' => 'ID merchant harus diisi',
-            'items.*.merchant.id.exists' => 'Merchant tidak ditemukan'
-        ]);
-
-        if ($validator->fails()) {
-            return ResponseFormatter::error($validator->errors(), 'Validation error', 422);
-        }
-
         try {
             Log::info('Transaction Create Request:', [
                 'user_id' => Auth::id(),
                 'data' => $request->all()
             ]);
 
+            // Basic validation
+            $validator = Validator::make($request->all(), [
+                'user_location_id' => 'required|exists:user_locations,id',
+                'total_price' => 'required|numeric|min:0',
+                'shipping_price' => 'required|numeric|min:0',
+                'payment_method' => 'required|in:MANUAL,ONLINE',
+                'items' => 'required|array|min:1',
+                'items.*.product_id' => 'required',
+                'items.*.product' => 'required|array',
+                'items.*.quantity' => 'required|integer|min:1',
+                'items.*.price' => 'required|numeric|min:0',
+                'items.*.merchant' => 'required|array',
+                'items.*.merchant.id' => 'required|exists:merchants,id'
+            ]);
+
+            if ($validator->fails()) {
+                return ResponseFormatter::error($validator->errors(), 'Validation error', 422);
+            }
+
             DB::beginTransaction();
 
-            try {
-                // Prepare order data
-                $totalPrice = is_string($request->total_price) ?
-                    (float) str_replace(',', '', $request->total_price) :
-                    (float) $request->total_price;
+            // Create Order
+            $orderData = [
+                'user_id' => Auth::id(),
+                'total_amount' => (float) $request->total_price,
+                'order_status' => 'PENDING',
+            ];
 
-                $orderData = [
-                    'user_id' => Auth::id(),
-                    'total_amount' => $totalPrice,
-                    'order_status' => 'PENDING',
-                ];
+            Log::info('Creating Order:', $orderData);
+            $order = Order::create($orderData);
 
-                Log::info('Creating Order:', $orderData);
-                $order = Order::create($orderData);
-
-                // Create Order Items
-                foreach ($request->items as $item) {
-                    $itemPrice = is_string($item['price']) ?
-                        (float) str_replace(',', '', $item['price']) :
-                        (float) $item['price'];
-
+            // Create Order Items
+            foreach ($request->items as $item) {
+                // Ensure we have the product data
+                $product = Product::find($item['product_id']);
+                if (!$product) {
+                    // If product doesn't exist in database, use the data from request
                     $orderItemData = [
                         'order_id' => $order->id,
                         'product_id' => $item['product_id'],
                         'merchant_id' => $item['merchant']['id'],
                         'quantity' => (int) $item['quantity'],
-                        'price' => $itemPrice,
+                        'price' => (float) $item['price'],
                     ];
-                    Log::info('Creating Order Item:', $orderItemData);
-                    OrderItem::create($orderItemData);
+                } else {
+                    // If product exists, use database data
+                    $orderItemData = [
+                        'order_id' => $order->id,
+                        'product_id' => $product->id,
+                        'merchant_id' => $product->merchant_id,
+                        'quantity' => (int) $item['quantity'],
+                        'price' => (float) $product->price,
+                    ];
                 }
-
-                // Prepare transaction data
-                $shippingPrice = is_string($request->shipping_price) ?
-                    (float) str_replace(',', '', $request->shipping_price) :
-                    (float) $request->shipping_price;
-
-                $transactionData = [
-                    'order_id' => $order->id,
-                    'user_id' => Auth::id(),
-                    'user_location_id' => $request->user_location_id,
-                    'total_price' => $totalPrice,
-                    'shipping_price' => $shippingPrice,
-                    'status' => 'PENDING',
-                    'payment_method' => $request->payment_method,
-                    'payment_status' => 'PENDING',
-                ];
-            } catch (Exception $e) {
-                Log::error('Error preparing data:', [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                    'request_data' => $request->all()
-                ]);
-                throw $e;
+                
+                Log::info('Creating Order Item:', $orderItemData);
+                OrderItem::create($orderItemData);
             }
+
+            // Create Transaction
+            $transactionData = [
+                'order_id' => $order->id,
+                'user_id' => Auth::id(),
+                'user_location_id' => $request->user_location_id,
+                'total_price' => (float) $request->total_price,
+                'shipping_price' => (float) $request->shipping_price,
+                'status' => 'PENDING',
+                'payment_method' => $request->payment_method,
+                'payment_status' => 'PENDING',
+            ];
 
             Log::info('Creating Transaction:', $transactionData);
             $transaction = Transaction::create($transactionData);
@@ -202,6 +262,29 @@ class TransactionController extends Controller
             ]);
 
             DB::commit();
+
+            // Send notifications to merchants
+            $firebaseService = new FirebaseService();
+            $merchantIds = collect($request->items)->pluck('merchant.id')->unique();
+            
+            foreach ($merchantIds as $merchantId) {
+                $merchant = Merchant::with('user.fcmTokens')->find($merchantId);
+                if ($merchant && $merchant->user && $merchant->user->fcmTokens) {
+                    $tokens = $merchant->user->fcmTokens->pluck('token')->toArray();
+                    if (!empty($tokens)) {
+                        $firebaseService->sendToUser(
+                            $tokens,
+                            [
+                                'action' => 'new_transaction',
+                                'transaction_id' => $transaction->id,
+                                'order_id' => $order->id
+                            ],
+                            'New Transaction Received',
+                            'You have received a new order. Tap to view details.'
+                        );
+                    }
+                }
+            }
 
             Log::info('Transaction created successfully:', [
                 'transaction_id' => $transaction->id,
@@ -333,6 +416,35 @@ class TransactionController extends Controller
             ]);
 
             DB::commit();
+
+            // Send notification to customer
+            $firebaseService = new FirebaseService();
+            $customerTokens = $order->user->fcmTokens->pluck('token')->toArray();
+            
+            if (!empty($customerTokens)) {
+                $statusMessage = match($request->status) {
+                    'ACCEPTED' => 'Your order has been accepted by the merchant',
+                    'REJECTED' => 'Your order has been rejected by the merchant',
+                    'PROCESSING' => 'Your order is being processed',
+                    'SHIPPED' => 'Your order has been shipped',
+                    'DELIVERED' => 'Your order has been delivered',
+                    'COMPLETED' => 'Your order has been completed',
+                    'CANCELED' => 'Your order has been canceled',
+                    default => 'Your order status has been updated'
+                };
+
+                $firebaseService->sendToUser(
+                    $customerTokens,
+                    [
+                        'action' => 'order_status_update',
+                        'order_id' => $order->id,
+                        'status' => $request->status
+                    ],
+                    'Order Status Update',
+                    $statusMessage
+                );
+            }
+
             return ResponseFormatter::success($order, 'Order status updated successfully');
         } catch (Exception $e) {
             DB::rollBack();

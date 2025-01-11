@@ -1,9 +1,6 @@
-// Give the service worker access to Firebase Messaging.
-// Note that you can only use Firebase Messaging here.
-importScripts('https://www.gstatic.com/firebasejs/11.1.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/11.1.0/firebase-messaging-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
-// Initialize the Firebase app in the service worker
 firebase.initializeApp({
     apiKey: "AIzaSyDDfPtr3fUr556ItfKpO2TVkkUghQ1LwfM",
     authDomain: "antarkanma-bbafa.firebaseapp.com",
@@ -14,20 +11,19 @@ firebase.initializeApp({
     measurementId: "G-WX8VGMZM8K"
 });
 
-// Retrieve an instance of Firebase Messaging
 const messaging = firebase.messaging();
 
 // Handle background messages
 messaging.onBackgroundMessage((payload) => {
     console.log('Received background message:', payload);
 
-    // Customize notification here
     const notificationTitle = payload.notification.title;
     const notificationOptions = {
         body: payload.notification.body,
-        icon: '/icon.png', // Add your app icon path here
-        badge: '/badge.png', // Add your badge icon path here
-        data: payload.data
+        icon: '/icon.png',
+        badge: '/badge.png',
+        data: payload.data,
+        tag: payload.data.action // Use action as tag to group similar notifications
     };
 
     self.registration.showNotification(notificationTitle, notificationOptions);
@@ -36,25 +32,29 @@ messaging.onBackgroundMessage((payload) => {
 // Handle notification click
 self.addEventListener('notificationclick', (event) => {
     console.log('Notification clicked:', event);
-
-    // Close all notifications
     event.notification.close();
 
     // Get the action data from the notification
     const data = event.notification.data;
-    let url = '/products';
+    let url = '/';
 
-    // Customize the URL based on the action
-    if (data) {
+    // Customize URL based on the action
+    if (data && data.action) {
         switch (data.action) {
-            case 'created':
-            case 'updated':
-            case 'restored':
-                url = `/products/${data.product_id}`;
+            case 'new_transaction':
+                url = `/merchant/orders/${data.order_id}`;
                 break;
-            case 'deleted':
-                url = '/products';
+            case 'order_status_update':
+                url = `/orders/${data.order_id}`;
                 break;
+            case 'transaction_canceled':
+                url = `/transactions/${data.transaction_id}`;
+                break;
+            case 'test':
+                url = '/test-notification.html';
+                break;
+            default:
+                url = '/';
         }
     }
 
@@ -73,4 +73,9 @@ self.addEventListener('notificationclick', (event) => {
             }
         })
     );
+});
+
+// Optional: Handle notification close
+self.addEventListener('notificationclose', (event) => {
+    console.log('Notification closed:', event);
 });

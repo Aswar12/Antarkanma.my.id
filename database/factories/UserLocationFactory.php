@@ -27,6 +27,8 @@ class UserLocationFactory extends Factory
             'latitude' => $this->faker->latitude,
             'longitude' => $this->faker->longitude,
             'is_default' => $this->faker->boolean,
+            'is_active' => true,
+            'phone_number' => $this->faker->numerify('08##########'),
         ];
     }
 }

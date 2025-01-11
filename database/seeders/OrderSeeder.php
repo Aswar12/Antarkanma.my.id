@@ -57,18 +57,12 @@ class OrderSeeder extends Seeder
                 ]);
             });
 
-        // Memperbarui payment_status dan order_status secara acak
+        // Memperbarui order_status secara acak
         Order::all()->each(function ($order) {
             $order->update([
-                'payment_status' => $this->getRandomPaymentStatus(),
                 'order_status' => $this->getRandomOrderStatus(),
             ]);
         });
-    }
-
-    private function getRandomPaymentStatus()
-    {
-        return ['PENDING', 'COMPLETED', 'FAILED'][array_rand(['PENDING', 'COMPLETED', 'FAILED'])];
     }
 
     private function getRandomOrderStatus()

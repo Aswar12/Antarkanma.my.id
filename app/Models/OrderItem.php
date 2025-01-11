@@ -12,6 +12,7 @@ class OrderItem extends Model
     protected $fillable = [
         'order_id',
         'product_id',
+        'product_variant_id',
         'merchant_id',
         'quantity',
         'price'
@@ -25,22 +26,36 @@ class OrderItem extends Model
     // Relasi untuk mendukung multi-merchant
     public function order()
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsTo(Order::class)->withDefault();
     }
 
     public function product()
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class)->withDefault();
     }
 
     public function merchant()
     {
-        return $this->belongsTo(Merchant::class);
+        return $this->belongsTo(Merchant::class)->withDefault();
+    }
+
+    public function variant()
+    {
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id')->withDefault();
     }
 
     // Accessor untuk total harga item
     public function getTotalPriceAttribute()
     {
-        return $this->quantity * $this->price;
+        return ($this->quantity ?? 0) * ($this->price ?? 0);
+    }
+
+    protected static function booted()
+    {
+        static::saving(function ($orderItem) {
+            if (!$orderItem->merchant_id && $orderItem->product) {
+                $orderItem->merchant_id = $orderItem->product->merchant_id;
+            }
+        });
     }
 }

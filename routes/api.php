@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Services\FirebaseService;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\MerchantController;
 use App\Http\Controllers\API\ProductController;
@@ -89,6 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('orders/{id}/cancel', [OrderController::class, 'cancel']);
     Route::put('orders/{id}/status', [OrderController::class, 'updateStatus']);
     Route::get('merchant/orders', [OrderController::class, 'getMerchantOrders']);
+    Route::get('merchant/orders/summary', [OrderController::class, 'getMerchantOrdersSummary']);
     Route::get('orders/statistics', [OrderController::class, 'getOrderStatistics']);
 
     Route::get('/couriers', [CourierController::class, 'index']);
@@ -101,7 +103,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/transactions/{id}', [TransactionController::class, 'get']);
     Route::get('/transactions', [TransactionController::class, 'list']);
     Route::put('/transactions/{id}', [TransactionController::class, 'update']);
-    Route::post('/transactions/{id}/cancel', [TransactionController::class, 'cancel']);
+    Route::put('/transactions/{id}/cancel', [TransactionController::class, 'cancel']);
     Route::get('/merchants/{merchantId}/transaction-summary', [TransactionController::class, 'getTransactionSummaryByMerchant']);
     Route::get('/merchants/{merchantId}/transactions', [TransactionController::class, 'getByMerchant']);
 
@@ -111,6 +113,31 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/user-locations/{id}', [UserLocationController::class, 'update']);
     Route::delete('/user-locations/{id}', [UserLocationController::class, 'destroy']);
     Route::post('/user-locations/{id}/set-default', [UserLocationController::class, 'setDefault']);
+});
+
+// Test Firebase notification route
+Route::post('/test-notification', function (Request $request) {
+    $firebaseService = new FirebaseService();
+    
+    try {
+        $result = $firebaseService->sendToUser(
+            $request->token,
+            ['action' => 'test'],
+            'Test Notification',
+            'This is a test notification from Antarkanma'
+        );
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Notification sent successfully',
+            'result' => $result
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to send notification: ' . $e->getMessage()
+        ], 500);
+    }
 });
 
 

@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class OrderItemsRelationManager extends RelationManager
 {
-    protected static string $relationship = 'order.orderItems';
+    protected static string $relationship = 'orderItems';
 
     protected static ?string $title = 'Order Items';
 
@@ -60,12 +60,8 @@ class OrderItemsRelationManager extends RelationManager
                     ->sortable(),
             ])
             ->defaultSort('product.merchant.name')
-            ->grouping([
-                'merchant' => Tables\Grouping\Group::make('product.merchant.name')
-                    ->getStateUsing(fn ($record) => $record->product?->merchant?->name ?? 'Unknown Merchant')
-                    ->label('Merchant')
-                    ->collapsible()
-                    ->titlePrefixedWithLabel(false),
+            ->groups([
+                'product.merchant.name',
             ])
             ->filters([
                 //

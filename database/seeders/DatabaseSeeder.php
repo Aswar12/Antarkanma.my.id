@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UserSeeder::class,
             MerchantLocationCompleteSeeder::class, // New seeder for merchants with locations
+            Additional50ProductsSeeder::class, // Add products including Penghapus
             CourierSeeder::class,
             LoyaltyPointSeeder::class,
             OrderSeeder::class,

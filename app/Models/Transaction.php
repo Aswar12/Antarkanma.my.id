@@ -30,24 +30,31 @@ class Transaction extends Model
         'rating' => 'integer'
     ];
 
+    protected $with = ['order.orderItems.product.merchant'];
+
     public function order()
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsTo(Order::class)->withDefault();
     }
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withDefault();
     }
 
     public function userLocation()
     {
-        return $this->belongsTo(UserLocation::class);
+        return $this->belongsTo(UserLocation::class)->withDefault();
+    }
+
+    public function courier()
+    {
+        return $this->belongsTo(Courier::class)->withDefault();
     }
 
     public function orderItems()
     {
-        return $this->hasOneThrough(
+        return $this->hasManyThrough(
             OrderItem::class,
             Order::class,
             'id', // Foreign key on orders table
@@ -57,9 +64,13 @@ class Transaction extends Model
         );
     }
 
-    public function getOrderItemsAttribute()
+    protected static function booted()
     {
-        return $this->order?->orderItems ?? collect();
+        static::retrieved(function ($transaction) {
+            if ($transaction->order) {
+                $transaction->order->load(['orderItems.product.merchant']);
+            }
+        });
     }
 
     public function getItemsByMerchant()

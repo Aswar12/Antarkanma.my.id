@@ -50,6 +50,11 @@ class Merchant extends Model
         return $this->belongsTo(User::class, 'owner_id');
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
     public function products()
     {
         return $this->hasMany(Product::class, 'merchant_id'); // Assuming 'merchant_id' is the foreign key in the Product model

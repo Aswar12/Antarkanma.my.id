@@ -23,8 +23,10 @@ class Order extends Model
     // Relasi untuk mendukung multi-merchant
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withDefault();
     }
+
+    protected $with = ['orderItems.product.merchant'];
 
     public function orderItems()
     {
@@ -33,7 +35,7 @@ class Order extends Model
 
     public function transaction()
     {
-        return $this->hasOne(Transaction::class);
+        return $this->hasOne(Transaction::class)->withDefault();
     }
 
     // Metode untuk mendapatkan merchant unik dalam order
@@ -45,21 +47,26 @@ class Order extends Model
     // Metode untuk menghitung total amount
     public function calculateTotalAmount()
     {
+        if (!$this->orderItems()->exists()) {
+            return 0;
+        }
         return $this->orderItems->sum(function ($item) {
-            return $item->quantity * $item->price;
+            return $item->quantity * ($item->price ?? 0);
         });
     }
 
     // Metode untuk mengelompokkan item berdasarkan merchant
     public function getItemsByMerchant()
     {
-        return $this->orderItems->groupBy('merchant_id');
+        return $this->orderItems()->with(['product.merchant'])->get()->groupBy('merchant_id');
     }
 
     protected static function booted()
     {
         static::saving(function ($order) {
-            $order->total_amount = $order->calculateTotalAmount();
+            if ($order->orderItems()->exists()) {
+                $order->total_amount = $order->calculateTotalAmount();
+            }
         });
     }
 }

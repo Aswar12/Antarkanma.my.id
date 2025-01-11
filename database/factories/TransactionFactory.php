@@ -23,17 +23,17 @@ class TransactionFactory extends Factory
     public function definition()
     {
         return [
-            'user_id' => function () {
-                return User::inRandomOrder()->first()->id ?? User::factory()->create()->id;
+            'user_id' => User::factory(),
+            'order_id' => function () {
+                return \App\Models\Order::factory()->create()->id;
             },
-            'address' => $this->faker->address,
+            'user_location_id' => UserLocation::factory(),
             'total_price' => $this->faker->randomFloat(2, 10, 1000),
             'shipping_price' => $this->faker->randomFloat(2, 5, 50),
+            'payment_date' => $this->faker->optional()->dateTime(),
             'status' => $this->faker->randomElement(['PENDING', 'COMPLETED', 'CANCELED']),
-            'payment' => $this->faker->randomElement(['MANUAL', 'ONLINE']),
+            'payment_method' => $this->faker->randomElement(['MANUAL', 'ONLINE']),
             'payment_status' => $this->faker->randomElement(['PENDING', 'COMPLETED', 'FAILED']),
-            'user_location_id' => UserLocation::factory(),
-            'courier_id' => Courier::factory(),
             'rating' => $this->faker->optional()->numberBetween(1, 5),
             'note' => $this->faker->optional()->sentence,
         ];

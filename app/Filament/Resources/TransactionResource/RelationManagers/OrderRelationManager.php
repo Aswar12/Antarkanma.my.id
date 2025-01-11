@@ -20,7 +20,7 @@ class OrderRelationManager extends RelationManager
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['orderItems.product', 'orderItems.product.merchant']);
+            ->with(['orderItems.product.merchant', 'user']);
     }
 
     public function table(Table $table): Table
@@ -33,24 +33,30 @@ class OrderRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('merchant_summary')
                     ->label('Merchants')
                     ->getStateUsing(function ($record) {
-                        if (!$record->orderItems) return '';
+                        if (!$record || !$record->orderItems || $record->orderItems->isEmpty()) {
+                            return 'No items';
+                        }
                         
-                        $merchantGroups = $record->orderItems->groupBy('merchant_id');
-                        return $merchantGroups->map(function ($items) {
+                        $merchantGroups = $record->orderItems->groupBy(function ($item) {
+                            return $item->product?->merchant?->id ?? 'unknown';
+                        });
+                        
+                        return $merchantGroups->map(function ($items, $merchantId) {
                             $firstItem = $items->first();
-                            if (!$firstItem || !$firstItem->product || !$firstItem->product->merchant) {
+                            $merchant = $firstItem?->product?->merchant;
+                            if (!$merchant) {
                                 return 'Unknown Merchant';
                             }
                             
-                            $merchant = $firstItem->product->merchant;
                             $itemCount = $items->count();
-                            $total = $items->sum(fn($item) => $item->price * $item->quantity);
+                            $total = $items->sum(fn($item) => ($item->price ?? 0) * ($item->quantity ?? 0));
                             return "{$merchant->name} ({$itemCount} items) - Rp " . number_format($total, 0, ',', '.');
                         })->join(', ');
                     }),
                 Tables\Columns\TextColumn::make('total_amount')
                     ->label('Total Amount')
                     ->money('idr')
+                    ->getStateUsing(fn ($record) => $record->total_amount ?? 0)
                     ->sortable(),
                 Tables\Columns\TextColumn::make('order_status')
                     ->label('Status')
