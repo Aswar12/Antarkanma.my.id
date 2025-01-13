@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 
 class Merchant extends Model
 {
@@ -29,6 +31,35 @@ class Merchant extends Model
         'operating_days' => 'array'
     ];
 
+    protected $appends = ['logo_url'];
+
+    /**
+     * Get the logo URL
+     */
+    public function getLogoUrlAttribute()
+    {
+        if (!$this->logo) {
+            return null;
+        }
+
+        // Check if the logo is a full URL
+        if (filter_var($this->logo, FILTER_VALIDATE_URL)) {
+            return $this->logo;
+        }
+
+        // Check if the logo exists in storage
+        if (Storage::disk('public')->exists($this->logo)) {
+            return asset('storage/' . $this->logo);
+        }
+
+        // Check if the logo exists in merchant-logos directory
+        if (Storage::disk('public')->exists('merchant-logos/' . $this->logo)) {
+            return asset('storage/merchant-logos/' . $this->logo);
+        }
+
+        return null;
+    }
+
     /**
      * Get the operating days as an array
      */
@@ -45,6 +76,24 @@ class Merchant extends Model
         $this->attributes['operating_days'] = is_array($value) ? implode(',', $value) : $value;
     }
 
+    /**
+     * Store the logo file
+     */
+    public function storeLogo($file)
+    {
+        if ($this->logo) {
+            // Delete old logo if exists
+            Storage::disk('public')->delete('merchant-logos/' . $this->logo);
+        }
+
+        // Store new logo
+        $path = $file->store('merchant-logos', 'public');
+        $this->logo = basename($path);
+        $this->save();
+
+        return $this->logo_url;
+    }
+
     public function owner()
     {
         return $this->belongsTo(User::class, 'owner_id');
@@ -57,6 +106,6 @@ class Merchant extends Model
 
     public function products()
     {
-        return $this->hasMany(Product::class, 'merchant_id'); // Assuming 'merchant_id' is the foreign key in the Product model
+        return $this->hasMany(Product::class, 'merchant_id');
     }
 }

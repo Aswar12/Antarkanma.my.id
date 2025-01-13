@@ -46,14 +46,14 @@ class OrderController extends Controller
             foreach ($request->items as $item) {
                 $product = Product::findOrFail($item['product_id']);
                 $variant = isset($item['variant_id']) ? $product->variants()->findOrFail($item['variant_id']) : null;
-                
+
                 $orderItem = new OrderItem();
                 $orderItem->order_id = $order->id;
                 $orderItem->product_id = $product->id;
                 $orderItem->product_variant_id = $variant ? $variant->id : null;
                 $orderItem->merchant_id = $product->merchant_id;
                 $orderItem->quantity = $item['quantity'];
-                
+
                 // Calculate price including variant adjustment if any
                 $basePrice = $product->price;
                 if ($variant) {
@@ -148,12 +148,13 @@ class OrderController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|in:PENDING,PROCESSING,COMPLETED,CANCELED'
+            'status' => 'required|in:PENDING,PROCESSING,READY_FOR_PICKUP,COMPLETED,CANCELED'
         ]);
 
         DB::beginTransaction();
         try {
             $order = Order::findOrFail($id);
+            $oldStatus = $order->order_status;
             $order->order_status = $request->status;
             $order->save();
 
@@ -162,7 +163,41 @@ class OrderController extends Controller
                 $order->transaction->save();
             }
 
+            // If status changed to READY_FOR_PICKUP, send notification to courier
+            if ($request->status === 'READY_FOR_PICKUP' && $oldStatus !== 'READY_FOR_PICKUP') {
+                $firebaseService = new \App\Services\FirebaseService();
+
+                // Get all couriers' FCM tokens
+                $courierTokens = User::where('roles', 'COURIER')
+                    ->with('fcmTokens')
+                    ->get()
+                    ->pluck('fcmTokens')
+                    ->flatten()
+                    ->pluck('token')
+                    ->toArray();
+
+                if (!empty($courierTokens)) {
+                    $merchant = $order->orderItems->first()->product->merchant;
+                    $firebaseService->sendToUser(
+                        $courierTokens,
+                        [
+                            'action' => 'order_ready_pickup',
+                            'order_id' => $order->id,
+                            'merchant' => [
+                                'id' => $merchant->id,
+                                'name' => $merchant->name,
+                                'address' => $merchant->address
+                            ]
+                        ],
+                        'New Order Ready for Pickup',
+                        "Order #{$order->id} is ready for pickup at {$merchant->name}"
+                    );
+                }
+            }
+
             DB::commit();
+
+            $order->load(['orderItems.product.merchant', 'transaction', 'user']);
             return ResponseFormatter::success($order, 'Order status updated successfully');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -170,10 +205,134 @@ class OrderController extends Controller
         }
     }
 
+    public function markReadyForPickup($id)
+    {
+        DB::beginTransaction();
+        try {
+            $order = Order::with(['orderItems.product.merchant'])->findOrFail($id);
+
+            // Validate if order can be marked as ready
+            if ($order->order_status !== 'PROCESSING') {
+                return ResponseFormatter::error(
+                    null,
+                    'Only processing orders can be marked as ready for pickup',
+                    422
+                );
+            }
+
+            $order->order_status = 'READY_FOR_PICKUP';
+            $order->save();
+
+            // Get all couriers' FCM tokens
+            $firebaseService = new \App\Services\FirebaseService();
+            $courierTokens = User::where('roles', 'COURIER')
+                ->with('fcmTokens')
+                ->get()
+                ->pluck('fcmTokens')
+                ->flatten()
+                ->pluck('token')
+                ->toArray();
+
+            if (!empty($courierTokens)) {
+                $merchant = $order->orderItems->first()->product->merchant;
+                $firebaseService->sendToUser(
+                    $courierTokens,
+                    [
+                        'action' => 'order_ready_pickup',
+                        'order_id' => $order->id,
+                        'merchant' => [
+                            'id' => $merchant->id,
+                            'name' => $merchant->name,
+                            'address' => $merchant->address
+                        ]
+                    ],
+                    'New Order Ready for Pickup',
+                    "Order #{$order->id} is ready for pickup at {$merchant->name}"
+                );
+            }
+
+            DB::commit();
+
+            $order->load(['orderItems.product.merchant', 'transaction', 'user']);
+            return ResponseFormatter::success($order, 'Order marked as ready for pickup');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseFormatter::error(null, 'Failed to mark order as ready: ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function getByMerchant(Request $request, $merchantId)
+    {
+        try {
+            $limit = $request->input('limit', 10);
+            $status = $request->input('status');
+            $startDate = $request->input('start_date');
+            $endDate = $request->input('end_date');
+
+            $transactionQuery = Transaction::with([
+                'user',
+                'userLocation',
+                'order' => function ($query) use ($merchantId) {
+                    $query->select('id', 'order_status', 'user_id', 'total_amount', 'created_at')
+                        ->with([
+                            'orderItems' => function ($q) use ($merchantId) {
+                                $q->where('merchant_id', $merchantId)
+                                    ->with([
+                                        'product' => function ($p) {
+                                            $p->with(['galleries', 'category', 'variants']);
+                                        },
+                                        'variant',
+                                        'merchant'
+                                    ]);
+                            }
+                        ]);
+                }
+            ])
+                ->whereHas('order.orderItems', function ($query) use ($merchantId) {
+                    $query->where('merchant_id', $merchantId);
+                });
+
+            // Filter by status if provided
+            if ($status) {
+                $transactionQuery->whereHas('order', function ($query) use ($status) {
+                    $query->where('order_status', $status);
+                });
+            }
+
+            // Filter by date range if provided
+            if ($startDate) {
+                $transactionQuery->whereDate('created_at', '>=', $startDate);
+            }
+            if ($endDate) {
+                $transactionQuery->whereDate('created_at', '<=', $endDate);
+            }
+
+            // Order by latest first
+            $transactionQuery->orderBy('created_at', 'desc');
+
+            $transactions = $transactionQuery->paginate($limit);
+
+            // Get all orders count by status
+            $orderStatusCounts = Order::whereHas('orderItems', function ($query) use ($merchantId) {
+                $query->where('merchant_id', $merchantId);
+            })
+                ->select('order_status', DB::raw('count(*) as total'))
+                ->groupBy('order_status')
+                ->pluck('total', 'order_status');
+
+            return ResponseFormatter::success([
+                'transactions' => $transactions,
+                'status_counts' => $orderStatusCounts
+            ], 'Merchant transactions retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(null, 'Failed to retrieve merchant transactions: ' . $e->getMessage(), 500);
+        }
+    }
+
     public function getMerchantOrders(Request $request)
     {
         try {
-            $merchantId = Auth::user()->merchant->id;
+            $merchantId = $request->input('merchant_id'); // Accept merchantId from the request
             $status = $request->input('status');
 
             $query = Order::whereHas('orderItems', function ($query) use ($merchantId) {
@@ -183,8 +342,7 @@ class OrderController extends Controller
             if ($status) {
                 $query->where('order_status', $status);
             }
-
-            $orders = $query->orderBy('created_at', 'desc')->paginate(10);
+            $orders = $query->orderBy('created_at', 'desc')->get();
 
             return ResponseFormatter::success($orders, 'Merchant orders retrieved successfully');
         } catch (\Exception $e) {
@@ -196,7 +354,7 @@ class OrderController extends Controller
     {
         try {
             $merchantId = Auth::user()->merchant->id;
-            
+
             // Get base statistics
             $statistics = [
                 'total_orders' => Order::whereHas('orderItems', function ($query) use ($merchantId) {
@@ -217,9 +375,9 @@ class OrderController extends Controller
                 'total_revenue' => Order::whereHas('orderItems', function ($query) use ($merchantId) {
                     $query->where('merchant_id', $merchantId);
                 })->where('order_status', 'COMPLETED')
-                  ->join('order_items', 'orders.id', '=', 'order_items.order_id')
-                  ->where('order_items.merchant_id', $merchantId)
-                  ->sum(DB::raw('order_items.quantity * order_items.price'))
+                    ->join('order_items', 'orders.id', '=', 'order_items.order_id')
+                    ->where('order_items.merchant_id', $merchantId)
+                    ->sum(DB::raw('order_items.quantity * order_items.price'))
             ];
 
             // Get orders with items grouped by status
@@ -244,76 +402,76 @@ class OrderController extends Controller
         return Order::whereHas('orderItems', function ($query) use ($merchantId) {
             $query->where('merchant_id', $merchantId);
         })
-        ->where('order_status', $status)
-        ->with(['orderItems' => function ($query) use ($merchantId) {
-            $query->where('merchant_id', $merchantId)
-                  ->with(['product' => function ($query) {
-                      $query->select('id', 'name', 'price', 'description')
-                           ->with(['galleries' => function($q) {
-                               $q->select('id', 'product_id', 'url');
-                           }])
-                           ->with(['variants' => function($q) {
-                               $q->select('id', 'product_id', 'name', 'value', 'price_adjustment');
-                           }]);
-                  }, 'variant']);
-        }, 'user:id,name,email,phone_number'])
-        ->select('id', 'user_id', 'order_status', 'total_amount', 'created_at')
-        ->orderBy('created_at', 'desc')
-        ->get()
-        ->map(function ($order) {
-            return [
-                'id' => $order->id,
-                'status' => $order->order_status,
-                'total_amount' => $order->total_amount,
-                'created_at' => $order->created_at,
-                'customer' => [
-                    'id' => $order->user->id,
-                    'name' => $order->user->name,
-                    'phone' => $order->user->phone_number
-                ],
-                'items' => $order->orderItems->map(function ($item) {
-                    return [
-                        'id' => $item->id,
-                        'product' => [
-                            'id' => $item->product->id,
-                            'name' => $item->product->name,
-                            'price' => $item->product->price,
-                            'description' => $item->product->description,
-                            'galleries' => $item->product->galleries->map(function ($gallery) {
-                                return [
-                                    'id' => $gallery->id,
-                                    'url' => $gallery->url
-                                ];
-                            }),
-                            'variants' => $item->product->variants->map(function ($variant) {
-                                return [
-                                    'id' => $variant->id,
-                                    'name' => $variant->name,
-                                    'value' => $variant->value,
-                                    'price_adjustment' => $variant->price_adjustment
-                                ];
-                            })
-                        ],
-                        'variant' => $item->variant ? [
-                            'id' => $item->variant->id,
-                            'name' => $item->variant->name,
-                            'value' => $item->variant->value,
-                            'price_adjustment' => $item->variant->price_adjustment
-                        ] : null,
-                        'quantity' => $item->quantity,
-                        'price' => $item->price,
-                        'subtotal' => $item->quantity * $item->price
-                    ];
-                })
-            ];
-        });
+            ->where('order_status', $status)
+            ->with(['orderItems' => function ($query) use ($merchantId) {
+                $query->where('merchant_id', $merchantId)
+                    ->with(['product' => function ($query) {
+                        $query->select('id', 'name', 'price', 'description')
+                            ->with(['galleries' => function ($q) {
+                                $q->select('id', 'product_id', 'url');
+                            }])
+                            ->with(['variants' => function ($q) {
+                                $q->select('id', 'product_id', 'name', 'value', 'price_adjustment');
+                            }]);
+                    }, 'variant']);
+            }, 'user:id,name,email,phone_number'])
+            ->select('id', 'user_id', 'order_status', 'total_amount', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'status' => $order->order_status,
+                    'total_amount' => $order->total_amount,
+                    'created_at' => $order->created_at,
+                    'customer' => [
+                        'id' => $order->user->id,
+                        'name' => $order->user->name,
+                        'phone' => $order->user->phone_number
+                    ],
+                    'items' => $order->orderItems->map(function ($item) {
+                        return [
+                            'id' => $item->id,
+                            'product' => [
+                                'id' => $item->product->id,
+                                'name' => $item->product->name,
+                                'price' => $item->product->price,
+                                'description' => $item->product->description,
+                                'galleries' => $item->product->galleries->map(function ($gallery) {
+                                    return [
+                                        'id' => $gallery->id,
+                                        'url' => $gallery->url
+                                    ];
+                                }),
+                                'variants' => $item->product->variants->map(function ($variant) {
+                                    return [
+                                        'id' => $variant->id,
+                                        'name' => $variant->name,
+                                        'value' => $variant->value,
+                                        'price_adjustment' => $variant->price_adjustment
+                                    ];
+                                })
+                            ],
+                            'variant' => $item->variant ? [
+                                'id' => $item->variant->id,
+                                'name' => $item->variant->name,
+                                'value' => $item->variant->value,
+                                'price_adjustment' => $item->variant->price_adjustment
+                            ] : null,
+                            'quantity' => $item->quantity,
+                            'price' => $item->price,
+                            'subtotal' => $item->quantity * $item->price
+                        ];
+                    })
+                ];
+            });
     }
 
     public function getOrderStatistics()
     {
         try {
             $userId = Auth::id();
-            
+
             $statistics = [
                 'total_orders' => Order::where('user_id', $userId)->count(),
                 'pending_orders' => Order::where('user_id', $userId)->where('order_status', 'PENDING')->count(),

@@ -58,7 +58,7 @@ class TransactionController extends Controller
             // Send notification to merchants
             $firebaseService = new FirebaseService();
             $merchantIds = $transaction->order->orderItems->pluck('merchant_id')->unique();
-            
+
             foreach ($merchantIds as $merchantId) {
                 $merchant = Merchant::with('user.fcmTokens')->find($merchantId);
                 if ($merchant && $merchant->user && $merchant->user->fcmTokens) {
@@ -131,8 +131,9 @@ class TransactionController extends Controller
                         'orderItems' => function ($q) {
                             $q->with([
                                 'product' => function ($p) {
-                                    $p->with(['galleries', 'category']);
+                                    $p->with(['galleries', 'category', 'variants']);
                                 },
+                                'variant',  // Add this to load the selected variant
                                 'merchant'
                             ]);
                         }
@@ -223,7 +224,7 @@ class TransactionController extends Controller
                         'price' => (float) $product->price,
                     ];
                 }
-                
+
                 Log::info('Creating Order Item:', $orderItemData);
                 OrderItem::create($orderItemData);
             }
@@ -266,7 +267,7 @@ class TransactionController extends Controller
             // Send notifications to merchants
             $firebaseService = new FirebaseService();
             $merchantIds = collect($request->items)->pluck('merchant.id')->unique();
-            
+
             foreach ($merchantIds as $merchantId) {
                 $merchant = Merchant::with('user.fcmTokens')->find($merchantId);
                 if ($merchant && $merchant->user && $merchant->user->fcmTokens) {
@@ -420,9 +421,9 @@ class TransactionController extends Controller
             // Send notification to customer
             $firebaseService = new FirebaseService();
             $customerTokens = $order->user->fcmTokens->pluck('token')->toArray();
-            
+
             if (!empty($customerTokens)) {
-                $statusMessage = match($request->status) {
+                $statusMessage = match ($request->status) {
                     'ACCEPTED' => 'Your order has been accepted by the merchant',
                     'REJECTED' => 'Your order has been rejected by the merchant',
                     'PROCESSING' => 'Your order is being processed',

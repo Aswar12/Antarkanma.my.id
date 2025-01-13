@@ -14,6 +14,7 @@ use App\Http\Controllers\API\DeliveryController;
 use App\Http\Controllers\API\CourierController;
 use App\Http\Controllers\API\ProductReviewController;
 use App\Http\Controllers\API\FcmController;
+use App\Http\Controllers\API\OrderStatusController;
 
 // Public Product Review Routes
 Route::get('products/{productId}/reviews', [ProductReviewController::class, 'getByProduct']);
@@ -87,11 +88,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('orders', [OrderController::class, 'create']);
     Route::get('orders', [OrderController::class, 'list']);
     Route::get('orders/{id}', [OrderController::class, 'get']);
-    Route::post('orders/{id}/cancel', [OrderController::class, 'cancel']);
-    Route::put('orders/{id}/status', [OrderController::class, 'updateStatus']);
+
+    // Order Status routes
+    Route::post('orders/{id}/process', [OrderStatusController::class, 'processOrder']);
+    Route::post('orders/{id}/ready-for-pickup', [OrderStatusController::class, 'readyForPickup']);
+    Route::post('orders/{id}/complete', [OrderStatusController::class, 'complete']);
+    Route::post('orders/{id}/cancel', [OrderStatusController::class, 'cancel']);
     Route::get('merchant/orders', [OrderController::class, 'getMerchantOrders']);
     Route::get('merchant/orders/summary', [OrderController::class, 'getMerchantOrdersSummary']);
     Route::get('orders/statistics', [OrderController::class, 'getOrderStatistics']);
+    Route::get('merchants/{merchantId}/orders', [OrderController::class, 'getByMerchant']);
 
     Route::get('/couriers', [CourierController::class, 'index']);
     Route::post('/couriers', [CourierController::class, 'store']);
@@ -118,7 +124,7 @@ Route::middleware('auth:sanctum')->group(function () {
 // Test Firebase notification route
 Route::post('/test-notification', function (Request $request) {
     $firebaseService = new FirebaseService();
-    
+
     try {
         $result = $firebaseService->sendToUser(
             $request->token,
@@ -126,7 +132,7 @@ Route::post('/test-notification', function (Request $request) {
             'Test Notification',
             'This is a test notification from Antarkanma'
         );
-        
+
         return response()->json([
             'success' => true,
             'message' => 'Notification sent successfully',
