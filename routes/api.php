@@ -15,6 +15,7 @@ use App\Http\Controllers\API\CourierController;
 use App\Http\Controllers\API\ProductReviewController;
 use App\Http\Controllers\API\FcmController;
 use App\Http\Controllers\API\OrderStatusController;
+use App\Http\Controllers\API\NotificationController;
 
 // Public Product Review Routes
 Route::get('products/{productId}/reviews', [ProductReviewController::class, 'getByProduct']);
@@ -23,8 +24,10 @@ Route::get('products/{productId}/reviews', [ProductReviewController::class, 'get
 Route::middleware('auth:sanctum')->group(function () {
     // FCM Routes
     Route::post('/fcm/token', [FcmController::class, 'updateToken']);
+    Route::post('/fcm/token/create', [FcmController::class, 'store']);
     Route::delete('/fcm/token', [FcmController::class, 'removeToken']);
     Route::post('/fcm/topic/subscribe', [FcmController::class, 'subscribeTopic']);
+    Route::post('/notifications/test/merchant', [NotificationController::class, 'testMerchantNotification']);
 
     // Product Review Routes
     Route::post('reviews', [ProductReviewController::class, 'store']);

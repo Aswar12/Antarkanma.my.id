@@ -48,7 +48,9 @@ Thumbs.db
 # Firebase credentials
 firebase-credentials.json
 antarkanma-bbafa-firebase-adminsdk-npfdc-c4337c14ae.json
+antarkanma-98fde-firebase-adminsdk-2tqx3-25b58dd15e.json
 google-services.json
+firebase-credentials.example.json
 
 # Laravel specific
 /public/storage

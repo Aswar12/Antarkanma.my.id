@@ -2,19 +2,44 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Firebase\Messaging\Notification;
+use Kreait\Firebase\Contract\Messaging;
 
 class FirebaseService
 {
-    protected $serverKey;
-    protected $fcmUrl;
-    protected $iidUrl = 'https://iid.googleapis.com/iid/v1';
+    protected $messaging;
 
-    public function __construct()
+    public function __construct(Messaging $messaging)
     {
-        $this->serverKey = config('firebase.android.server_key');
-        $this->fcmUrl = config('firebase.fcm_url');
+        $this->messaging = $messaging;
+    }
+
+    /**
+     * Send a simple notification to a topic
+     */
+    public function sendNotification($topic, $title, $body)
+    {
+        try {
+            $message = CloudMessage::withTarget('topic', $topic)
+                ->withNotification(Notification::create($title, $body));
+
+            $response = $this->messaging->send($message);
+
+            Log::info('FCM Topic Notification Response:', [
+                'topic' => $topic,
+                'response' => $response
+            ]);
+
+            return $response;
+        } catch (\Exception $e) {
+            Log::error('FCM Topic Notification Error:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return false;
+        }
     }
 
     /**
@@ -23,29 +48,18 @@ class FirebaseService
     public function sendProductUpdate($topic, $data, $title = 'Product Update', $body = 'A product has been updated')
     {
         try {
-            $payload = [
-                'to' => '/topics/' . $topic,
-                'notification' => [
-                    'title' => $title,
-                    'body' => $body,
-                    'sound' => 'default',
-                ],
-                'data' => $data,
-                'priority' => 'high',
-            ];
+            $message = CloudMessage::withTarget('topic', $topic)
+                ->withNotification(Notification::create($title, $body))
+                ->withData($data);
 
-            $response = Http::withHeaders([
-                'Authorization' => 'key=' . $this->serverKey,
-                'Content-Type' => 'application/json',
-            ])->post($this->fcmUrl, $payload);
+            $response = $this->messaging->send($message);
 
             Log::info('FCM Response:', [
-                'status' => $response->status(),
-                'body' => $response->json(),
-                'payload' => $payload
+                'response' => $response,
+                'message' => $message
             ]);
 
-            return $response->json();
+            return $response;
         } catch (\Exception $e) {
             Log::error('FCM Error:', [
                 'message' => $e->getMessage(),
@@ -64,33 +78,49 @@ class FirebaseService
             $tokens = [$tokens];
         }
 
+        // Filter out any empty tokens
+        $tokens = array_filter($tokens);
+        
+        if (empty($tokens)) {
+            Log::warning('No valid FCM tokens provided');
+            return false;
+        }
+
         try {
-            $payload = [
-                'registration_ids' => $tokens,
-                'notification' => [
-                    'title' => $title,
-                    'body' => $body,
-                    'sound' => 'default',
-                ],
-                'data' => $data,
-                'priority' => 'high',
-            ];
+            // Ensure data is JSON serializable
+            $data = array_map(function ($value) {
+                return is_array($value) ? json_encode($value) : $value;
+            }, $data);
 
-            $response = Http::withHeaders([
-                'Authorization' => 'key=' . $this->serverKey,
-                'Content-Type' => 'application/json',
-            ])->post($this->fcmUrl, $payload);
+            // Create the message
+            $message = CloudMessage::new()
+                ->withNotification(Notification::create($title, $body))
+                ->withData($data);
 
-            Log::info('FCM User Notification Response:', [
-                'status' => $response->status(),
-                'body' => $response->json(),
+            // Send to multiple tokens at once
+            $response = $this->messaging->sendMulticast($message, $tokens);
+
+            // Log success and failures
+            $successCount = $response->successes()->count();
+            $failureCount = $response->failures()->count();
+            
+            Log::info('FCM Multicast Response:', [
+                'success_count' => $successCount,
+                'failure_count' => $failureCount,
+                'tokens' => $tokens
             ]);
 
-            return $response->json();
+            // Log any invalid tokens
+            foreach ($response->invalidTokens() as $invalidToken) {
+                Log::warning('Invalid FCM token:', ['token' => $invalidToken]);
+            }
+
+            return $successCount > 0;
         } catch (\Exception $e) {
             Log::error('FCM User Notification Error:', [
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'tokens' => $tokens
             ]);
             return false;
         }
@@ -106,20 +136,13 @@ class FirebaseService
         }
 
         try {
-            $response = Http::withHeaders([
-                'Authorization' => 'key=' . $this->serverKey,
-                'Content-Type' => 'application/json',
-            ])->post("{$this->iidUrl}:batchAdd", [
-                'to' => '/topics/' . $topic,
-                'registration_tokens' => $tokens,
-            ]);
+            $response = $this->messaging->subscribeToTopic($topic, $tokens);
 
             Log::info('Topic Subscription Response:', [
-                'status' => $response->status(),
-                'body' => $response->json(),
+                'response' => $response
             ]);
 
-            return $response->successful();
+            return !empty($response['successCount']);
         } catch (\Exception $e) {
             Log::error('Topic Subscription Error:', [
                 'message' => $e->getMessage(),
@@ -139,20 +162,13 @@ class FirebaseService
         }
 
         try {
-            $response = Http::withHeaders([
-                'Authorization' => 'key=' . $this->serverKey,
-                'Content-Type' => 'application/json',
-            ])->post("{$this->iidUrl}:batchRemove", [
-                'to' => '/topics/' . $topic,
-                'registration_tokens' => $tokens,
-            ]);
+            $response = $this->messaging->unsubscribeFromTopic($topic, $tokens);
 
             Log::info('Topic Unsubscription Response:', [
-                'status' => $response->status(),
-                'body' => $response->json(),
+                'response' => $response
             ]);
 
-            return $response->successful();
+            return !empty($response['successCount']);
         } catch (\Exception $e) {
             Log::error('Topic Unsubscription Error:', [
                 'message' => $e->getMessage(),

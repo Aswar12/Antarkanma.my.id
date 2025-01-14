@@ -21,6 +21,13 @@ use Illuminate\Validation\Rule;
 
 class TransactionController extends Controller
 {
+    protected $notificationController;
+
+    public function __construct(NotificationController $notificationController)
+    {
+        $this->notificationController = $notificationController;
+    }
+
     public function cancel($id)
     {
         DB::beginTransaction();
@@ -55,41 +62,14 @@ class TransactionController extends Controller
 
             DB::commit();
 
-            // Send notification to merchants
-            $firebaseService = new FirebaseService();
+            // Send notifications to merchants
             $merchantIds = $transaction->order->orderItems->pluck('merchant_id')->unique();
 
             foreach ($merchantIds as $merchantId) {
-                $merchant = Merchant::with('user.fcmTokens')->find($merchantId);
-                if ($merchant && $merchant->user && $merchant->user->fcmTokens) {
-                    $tokens = $merchant->user->fcmTokens->pluck('token')->toArray();
-                    if (!empty($tokens)) {
-                        $firebaseService->sendToUser(
-                            $tokens,
-                            [
-                                'action' => 'transaction_canceled',
-                                'transaction_id' => $transaction->id,
-                                'order_id' => $transaction->order->id
-                            ],
-                            'Transaction Canceled',
-                            'A transaction has been canceled by the customer.'
-                        );
-                    }
-                }
-            }
-
-            // Send confirmation notification to customer
-            $customerTokens = $transaction->user->fcmTokens->pluck('token')->toArray();
-            if (!empty($customerTokens)) {
-                $firebaseService->sendToUser(
-                    $customerTokens,
-                    [
-                        'action' => 'transaction_canceled',
-                        'transaction_id' => $transaction->id,
-                        'order_id' => $transaction->order->id
-                    ],
-                    'Transaction Canceled',
-                    'Your transaction has been successfully canceled.'
+                $this->notificationController->sendTransactionCanceledNotification(
+                    $merchantId,
+                    $transaction->order->id,
+                    $transaction->id
                 );
             }
 
@@ -264,28 +244,19 @@ class TransactionController extends Controller
 
             DB::commit();
 
-            // Send notifications to merchants
-            $firebaseService = new FirebaseService();
-            $merchantIds = collect($request->items)->pluck('merchant.id')->unique();
-
-            foreach ($merchantIds as $merchantId) {
-                $merchant = Merchant::with('user.fcmTokens')->find($merchantId);
-                if ($merchant && $merchant->user && $merchant->user->fcmTokens) {
-                    $tokens = $merchant->user->fcmTokens->pluck('token')->toArray();
-                    if (!empty($tokens)) {
-                        $firebaseService->sendToUser(
-                            $tokens,
-                            [
-                                'action' => 'new_transaction',
-                                'transaction_id' => $transaction->id,
-                                'order_id' => $order->id
-                            ],
-                            'New Transaction Received',
-                            'You have received a new order. Tap to view details.'
-                        );
-                    }
-                }
-            }
+            // Group items by merchant for notifications
+            $merchantItems = collect($request->items)
+                ->groupBy('merchant.id')
+                ->map(function ($items) use ($order, $transaction) {
+                    $merchantId = $items->first()['merchant']['id'];
+                    
+                    // Send notification to each merchant with their order details
+                    $this->notificationController->sendNewTransactionNotification(
+                        $merchantId,
+                        $order->id,
+                        $transaction->id
+                    );
+                });
 
             Log::info('Transaction created successfully:', [
                 'transaction_id' => $transaction->id,
@@ -418,33 +389,12 @@ class TransactionController extends Controller
 
             DB::commit();
 
-            // Send notification to customer
-            $firebaseService = new FirebaseService();
-            $customerTokens = $order->user->fcmTokens->pluck('token')->toArray();
-
-            if (!empty($customerTokens)) {
-                $statusMessage = match ($request->status) {
-                    'ACCEPTED' => 'Your order has been accepted by the merchant',
-                    'REJECTED' => 'Your order has been rejected by the merchant',
-                    'PROCESSING' => 'Your order is being processed',
-                    'SHIPPED' => 'Your order has been shipped',
-                    'DELIVERED' => 'Your order has been delivered',
-                    'COMPLETED' => 'Your order has been completed',
-                    'CANCELED' => 'Your order has been canceled',
-                    default => 'Your order status has been updated'
-                };
-
-                $firebaseService->sendToUser(
-                    $customerTokens,
-                    [
-                        'action' => 'order_status_update',
-                        'order_id' => $order->id,
-                        'status' => $request->status
-                    ],
-                    'Order Status Update',
-                    $statusMessage
-                );
-            }
+            // Send notification to user
+            $this->notificationController->sendOrderStatusUpdateNotification(
+                $order->user->id,
+                $order->id,
+                $request->status
+            );
 
             return ResponseFormatter::success($order, 'Order status updated successfully');
         } catch (Exception $e) {
