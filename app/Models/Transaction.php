@@ -10,15 +10,17 @@ class Transaction extends Model
     use HasFactory;
 
     protected $fillable = [
-        'order_id',
         'user_id',
         'user_location_id',
+        'courier_id',
         'total_price',
         'shipping_price',
         'payment_date',
         'status',
         'payment_method',
         'payment_status',
+        'courier_approval',
+        'timeout_at',
         'rating',
         'note'
     ];
@@ -30,11 +32,11 @@ class Transaction extends Model
         'rating' => 'integer'
     ];
 
-    protected $with = ['order.orderItems.product.merchant'];
+    protected $with = ['orders.orderItems.product.merchant'];
 
-    public function order()
+    public function orders()
     {
-        return $this->belongsTo(Order::class)->withDefault();
+        return $this->hasMany(Order::class);
     }
 
     public function user()
@@ -56,77 +58,128 @@ class Transaction extends Model
     {
         return $this->hasManyThrough(
             OrderItem::class,
-            Order::class,
-            'id', // Foreign key on orders table
-            'order_id', // Foreign key on order_items table
-            'order_id', // Local key on transactions table
-            'id' // Local key on orders table
+            Order::class
         );
     }
 
     protected static function booted()
     {
-        static::retrieved(function ($transaction) {
-            if ($transaction->order) {
-                $transaction->order->load(['orderItems.product.merchant']);
+        static::creating(function ($transaction) {
+            if (!$transaction->timeout_at) {
+                $transaction->timeout_at = now()->addMinutes(5);
+            }
+            if (!$transaction->courier_approval) {
+                $transaction->courier_approval = 'PENDING';
             }
         });
     }
 
     public function getItemsByMerchant()
     {
-        return $this->order?->getItemsByMerchant() ?? collect();
+        return $this->orders->flatMap(function ($order) {
+            return [$order->merchant_id => $order->orderItems];
+        });
     }
 
     public function getMerchantTotals()
     {
-        return $this->order?->orderItems
-            ->groupBy('merchant_id')
-            ->map(function ($items) {
-                return $items->sum(function ($item) {
-                    return $item->price * $item->quantity;
-                });
-            }) ?? collect();
+        return $this->orders->mapWithKeys(function ($order) {
+            return [$order->merchant_id => $order->total_amount];
+        });
     }
 
-    // Metode untuk menghitung biaya pengiriman multi-merchant
+    // Status Constants
+    const STATUS_PENDING = 'PENDING';
+    const STATUS_COMPLETED = 'COMPLETED';
+    const STATUS_CANCELED = 'CANCELED';
+
+    // Payment Method Constants
+    const PAYMENT_MANUAL = 'MANUAL';
+    const PAYMENT_ONLINE = 'ONLINE';
+
+    // Payment Status Constants
+    const PAYMENT_STATUS_PENDING = 'PENDING';
+    const PAYMENT_STATUS_COMPLETED = 'COMPLETED';
+    const PAYMENT_STATUS_FAILED = 'FAILED';
+
+    // Courier Approval Constants
+    const COURIER_PENDING = 'PENDING';
+    const COURIER_APPROVED = 'APPROVED';
+    const COURIER_REJECTED = 'REJECTED';
+
+    // Helper methods for status checks
+    public function isPending()
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    public function isCompleted()
+    {
+        return $this->status === self::STATUS_COMPLETED;
+    }
+
+    public function isCanceled()
+    {
+        return $this->status === self::STATUS_CANCELED;
+    }
+
+    public function isCOD()
+    {
+        return $this->payment_method === self::PAYMENT_MANUAL;
+    }
+
+    public function isOnlinePayment()
+    {
+        return $this->payment_method === self::PAYMENT_ONLINE;
+    }
+
+    public function isTimedOut()
+    {
+        return $this->timeout_at && now()->gt($this->timeout_at);
+    }
+
+    public function needsCourierApproval()
+    {
+        return $this->courier_approval === self::COURIER_PENDING &&
+               !$this->isTimedOut() &&
+               $this->status !== self::STATUS_CANCELED;
+    }
+
+    public function canBeProcessed()
+    {
+        return $this->courier_approval === self::COURIER_APPROVED &&
+               $this->status !== self::STATUS_CANCELED &&
+               (!$this->isOnlinePayment() || $this->payment_status === self::PAYMENT_STATUS_COMPLETED);
+    }
+
+    public function hasApprovedOrders()
+    {
+        return $this->orders()
+            ->where('merchant_approval', Order::MERCHANT_APPROVED)
+            ->exists();
+    }
+
+    public function allOrdersCompleted()
+    {
+        return !$this->orders()
+            ->whereNotIn('order_status', [
+                Order::STATUS_COMPLETED,
+                Order::STATUS_CANCELED
+            ])
+            ->exists();
+    }
+
+    public function allOrdersCanceled()
+    {
+        return !$this->orders()
+            ->where('order_status', '!=', Order::STATUS_CANCELED)
+            ->exists();
+    }
+
     public function calculateShippingPrice()
     {
-        $order = $this->order;
-        $merchantGroups = $order->getItemsByMerchant();
-
-        $totalShippingPrice = 0;
-        foreach ($merchantGroups as $merchantId => $items) {
-            $merchant = Merchant::find($merchantId);
-            // Misalkan setiap merchant memiliki biaya kirim berbeda
-            $totalShippingPrice += $merchant->shipping_price;
-        }
-
-        return $totalShippingPrice;
-    }
-
-    // Metode untuk memproses transaksi multi-merchant
-    public function processMultiMerchantOrder()
-    {
-        $order = $this->order;
-        $merchantGroups = $order->getItemsByMerchant();
-
-        foreach ($merchantGroups as $merchantId => $items) {
-            // Proses setiap kelompok item per merchant
-            $this->processmerchantItems($merchantId, $items);
-        }
-    }
-
-    protected function processmerchantItems($merchantId, $items)
-    {
-        // Logika untuk memproses item per merchant
-        // Misalnya: 
-        // - Kurangi stok produk
-        // - Buat catatan penjualan per merchant
-        foreach ($items as $item) {
-            $product = $item->product;
-            $product->stock -= $item->quantity;
-            $product->save();
-        }
+        return $this->orders->sum(function ($order) {
+            return $order->merchant->shipping_price ?? 0;
+        });
     }
 }

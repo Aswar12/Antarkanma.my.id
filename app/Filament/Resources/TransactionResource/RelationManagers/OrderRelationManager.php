@@ -11,9 +11,9 @@ use Illuminate\Database\Eloquent\Builder;
 
 class OrderRelationManager extends RelationManager
 {
-    protected static string $relationship = 'order';
+    protected static string $relationship = 'orders';
 
-    protected static ?string $title = 'Order Details';
+    protected static ?string $title = 'Orders';
 
     protected static ?string $recordTitleAttribute = 'id';
 
@@ -30,27 +30,18 @@ class OrderRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('id')
                     ->label('Order ID')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('merchant_summary')
-                    ->label('Merchants')
+                Tables\Columns\TextColumn::make('merchant.name')
+                    ->label('Merchant')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('items_summary')
+                    ->label('Items')
                     ->getStateUsing(function ($record) {
                         if (!$record || !$record->orderItems || $record->orderItems->isEmpty()) {
                             return 'No items';
                         }
                         
-                        $merchantGroups = $record->orderItems->groupBy(function ($item) {
-                            return $item->product?->merchant?->id ?? 'unknown';
-                        });
-                        
-                        return $merchantGroups->map(function ($items, $merchantId) {
-                            $firstItem = $items->first();
-                            $merchant = $firstItem?->product?->merchant;
-                            if (!$merchant) {
-                                return 'Unknown Merchant';
-                            }
-                            
-                            $itemCount = $items->count();
-                            $total = $items->sum(fn($item) => ($item->price ?? 0) * ($item->quantity ?? 0));
-                            return "{$merchant->name} ({$itemCount} items) - Rp " . number_format($total, 0, ',', '.');
+                        return $record->orderItems->map(function ($item) {
+                            return "{$item->product->name} (x{$item->quantity})";
                         })->join(', ');
                     }),
                 Tables\Columns\TextColumn::make('total_amount')
@@ -63,9 +54,21 @@ class OrderRelationManager extends RelationManager
                     ->badge()
                     ->color(fn (string $state): string => match (strtolower($state)) {
                         'pending' => 'warning',
+                        'waiting_approval' => 'info',
                         'processing' => 'info',
+                        'ready_for_pickup' => 'success',
+                        'picked_up' => 'success',
                         'completed' => 'success',
                         'canceled' => 'danger',
+                        default => 'secondary',
+                    }),
+                Tables\Columns\TextColumn::make('merchant_approval')
+                    ->label('Merchant Approval')
+                    ->badge()
+                    ->color(fn (string $state): string => match (strtolower($state)) {
+                        'pending' => 'warning',
+                        'approved' => 'success',
+                        'rejected' => 'danger',
                         default => 'secondary',
                     }),
                 Tables\Columns\TextColumn::make('created_at')

@@ -48,9 +48,7 @@ class TransactionResource extends Resource
                             ->required()
                             ->searchable()
                             ->preload(),
-                        Forms\Components\TextInput::make('order_id')
-                            ->label('Order ID')
-                            ->disabled(),
+                        // Removed order_id field since we now have multiple orders
                     ])
                     ->columns(2),
 
@@ -58,9 +56,11 @@ class TransactionResource extends Resource
                     ->schema([
                         Forms\Components\Placeholder::make('orderItems')
                             ->content(function ($record) {
-                                if (!$record || !$record->order) return 'No items';
+                                if (!$record || !$record->orders->isEmpty()) return 'No items';
                                 
-                                $items = $record->order->orderItems;
+                                $items = $record->orders->flatMap(function ($order) {
+                                    return $order->orderItems;
+                                });
                                 
                                 return view('filament.components.order-items-list', [
                                     'items' => $items
@@ -139,16 +139,29 @@ class TransactionResource extends Resource
                     ->label('Customer')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('order.id')
-                    ->label('Order ID')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('order.orderItems')
+                Tables\Columns\TextColumn::make('orders')
+                    ->label('Orders')
+                    ->listWithLineBreaks()
+                    ->getStateUsing(function ($record) {
+                        if (!$record || $record->orders->isEmpty()) return [];
+                        
+                        return $record->orders->map(function ($order) {
+                            $total = number_format($order->total_amount, 0, ',', '.');
+                            $itemCount = $order->orderItems->count();
+                            return "Order #{$order->id} - {$order->merchant->name} ({$itemCount} items) - Rp {$total}";
+                        })->toArray();
+                    })
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('orders.orderItems')
                     ->label('Order Items')
                     ->listWithLineBreaks()
                     ->getStateUsing(function ($record) {
-                        if (!$record || !$record->order) return [];
+                        if (!$record || $record->orders->isEmpty()) return [];
                         
-                        $items = $record->order->orderItems;
+                        $items = $record->orders->flatMap(function ($order) {
+                            return $order->orderItems;
+                        });
+                        
                         if ($items->isEmpty()) return [];
                         
                         $itemsByMerchant = $items->groupBy('merchant_id');
