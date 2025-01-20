@@ -97,16 +97,29 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('orders/{id}/ready-for-pickup', [OrderStatusController::class, 'readyForPickup']);
     Route::post('orders/{id}/complete', [OrderStatusController::class, 'complete']);
     Route::post('orders/{id}/cancel', [OrderStatusController::class, 'cancel']);
-    Route::get('merchant/orders', [OrderController::class, 'getMerchantOrders']);
+    Route::get('merchant/{merchantId}/orders', [OrderController::class, 'getByMerchant'])->name('merchant.orders');
     Route::get('merchant/orders/summary', [OrderController::class, 'getMerchantOrdersSummary']);
     Route::get('orders/statistics', [OrderController::class, 'getOrderStatistics']);
     Route::get('merchants/{merchantId}/orders', [OrderController::class, 'getByMerchant']);
+    Route::put('merchants/orders/{orderId}/approve', [OrderController::class, 'approveOrder']);
+    Route::put('merchants/orders/{orderId}/reject', [OrderController::class, 'rejectOrder']);
+    Route::put('merchants/orders/{orderId}/ready', [OrderController::class, 'markAsReady']);
 
     Route::get('/couriers', [CourierController::class, 'index']);
     Route::post('/couriers', [CourierController::class, 'store']);
     Route::get('/couriers/{id}', [CourierController::class, 'show']);
     Route::put('/couriers/{id}', [CourierController::class, 'update']);
     Route::delete('/couriers/{id}', [CourierController::class, 'destroy']);
+
+    // Courier Transaction Routes
+    Route::prefix('courier')->group(function () {
+        Route::get('profile', [CourierController::class, 'profile']);
+        Route::get('transactions', [CourierController::class, 'index']);
+        Route::get('transactions/{id}', [CourierController::class, 'show']);
+        Route::post('transactions/{id}/approve', [CourierController::class, 'approveTransaction']);
+        Route::post('transactions/{id}/reject', [CourierController::class, 'rejectTransaction']);
+        Route::post('orders/{id}/status', [CourierController::class, 'updateOrderStatus']);
+    });
 
     Route::post('/transactions', [TransactionController::class, 'create']);
     Route::get('/transactions/{id}', [TransactionController::class, 'get']);
@@ -124,30 +137,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/user-locations/{id}/set-default', [UserLocationController::class, 'setDefault']);
 });
 
-// Test Firebase notification route
-Route::post('/test-notification', function (Request $request) {
-    $firebaseService = new FirebaseService();
 
-    try {
-        $result = $firebaseService->sendToUser(
-            $request->token,
-            ['action' => 'test'],
-            'Test Notification',
-            'This is a test notification from Antarkanma'
-        );
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Notification sent successfully',
-            'result' => $result
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to send notification: ' . $e->getMessage()
-        ], 500);
-    }
-});
 
 
 // Public routes

@@ -11,20 +11,20 @@ use Illuminate\Database\Eloquent\Builder;
 
 class OrderItemsRelationManager extends RelationManager
 {
-    protected static string $relationship = 'orderItems';
+    protected static string $relationship = 'orders.orderItems';
 
-    protected static ?string $title = 'Order Items';
+    protected static ?string $title = 'All Order Items';
 
     protected static ?string $recordTitleAttribute = 'id';
 
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['product', 'product.merchant'])
+            ->with(['product', 'product.merchant', 'order'])
             ->when(
                 !is_null(request()->route('record')),
                 fn (Builder $query) => $query->whereHas(
-                    'order',
+                    'order.transaction',
                     fn (Builder $query) => $query->where('id', request()->route('record'))
                 )
             );
@@ -34,6 +34,9 @@ class OrderItemsRelationManager extends RelationManager
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('order.id')
+                    ->label('Order ID')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('product.merchant.name')
                     ->label('Merchant')
                     ->getStateUsing(fn ($record) => $record->product?->merchant?->name ?? 'Unknown Merchant')
@@ -59,8 +62,9 @@ class OrderItemsRelationManager extends RelationManager
                     ->getStateUsing(fn ($record) => ($record->price ?? 0) * $record->quantity)
                     ->sortable(),
             ])
-            ->defaultSort('product.merchant.name')
+            ->defaultSort('order.id', 'product.merchant.name')
             ->groups([
+                'order.id',
                 'product.merchant.name',
             ])
             ->filters([
