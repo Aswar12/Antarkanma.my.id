@@ -1,4 +1,5 @@
 <?php
+// Renamed migration to ensure it runs before adding ready_for_pickup_status
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
