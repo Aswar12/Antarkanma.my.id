@@ -11,4 +11,23 @@ export default defineConfig({
             refresh: true,
         }),
     ],
+    build: {
+        manifest: true,
+        outDir: 'public/build',
+        rollupOptions: {
+            output: {
+                assetFileNames: '[name].[hash].[ext]',
+                chunkFileNames: '[name].[hash].js',
+                entryFileNames: '[name].[hash].js',
+            }
+        }
+    },
+    server: {
+        hmr: {
+            host: 'localhost'
+        },
+        headers: {
+            'Cache-Control': 'public, max-age=31536000',
+        },
+    },
 });

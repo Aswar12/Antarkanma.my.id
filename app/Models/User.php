@@ -9,8 +9,10 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Sanctum\HasApiTokens;
 use App\Traits\HasFcmTokens;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     use HasApiTokens, 
         HasFactory, 
@@ -46,8 +48,14 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'is_active' => 'boolean',
-        'preferred_categories' => 'array'
+        'preferred_categories' => 'array',
+        'roles' => 'array'
     ];
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return in_array('admin', $this->roles ?? []);
+    }
 
     public function merchant()
     {

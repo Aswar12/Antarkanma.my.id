@@ -1,0 +1,38 @@
+{
+    email admin@fortufitness.my.id
+    admin off
+}
+
+fortufitness.my.id {
+    reverse_proxy localhost:8000
+    tls {
+        issuer acme
+    }
+    log {
+        output file /var/log/caddy/fortufitness.log {
+            roll_size 10mb
+            roll_keep 10
+        }
+        format console
+        level INFO
+    }
+    handle_errors {
+        respond "{err.status_code} {err.status_text}"
+    }
+}
+
+# Redirect www to non-www
+www.fortufitness.my.id {
+    redir https://fortufitness.my.id{uri} permanent
+}
+
+# phpMyAdmin on port 8080
+:8080 {
+    bind 0.0.0.0
+    root * /usr/share/phpmyadmin
+    php_fastcgi unix//run/php/php8.4-fpm.sock {
+        env HTTPS on
+    }
+    encode gzip
+    file_server
+}
