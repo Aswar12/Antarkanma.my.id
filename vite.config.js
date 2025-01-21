@@ -9,19 +9,9 @@ export default defineConfig({
                 'resources/js/app.js',
             ],
             refresh: true,
+            buildDirectory: 'build'
         }),
     ],
-    build: {
-        manifest: true,
-        outDir: 'public/build',
-        rollupOptions: {
-            output: {
-                assetFileNames: '[name].[hash].[ext]',
-                chunkFileNames: '[name].[hash].js',
-                entryFileNames: '[name].[hash].js',
-            }
-        }
-    },
     server: {
         hmr: {
             host: 'localhost'
