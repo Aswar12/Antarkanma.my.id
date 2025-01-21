@@ -30,9 +30,8 @@ www.fortufitness.my.id {
 :8080 {
     bind 0.0.0.0
     root * /usr/share/phpmyadmin
-    php_fastcgi unix//run/php/php8.4-fpm.sock {
-        env HTTPS on
+    php_fastcgi unix//run/php/php8.3-fpm.sock {
+        env HTTP_X_FORWARDED_PROTO "http"
     }
-    encode gzip
     file_server
 }
