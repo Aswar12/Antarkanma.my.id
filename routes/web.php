@@ -6,6 +6,10 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/login', function () {
+    return view('auth.login');
+})->middleware('guest')->name('login');
+
 // Debug route to check authentication
 Route::get('/debug-auth', function () {
     $user = auth()->user();

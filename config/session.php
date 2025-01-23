@@ -19,6 +19,9 @@ return [
     */
 
     'driver' => env('SESSION_DRIVER', 'database'),
+'lifetime' => env('SESSION_LIFETIME', 120),
+'domain' => env('SESSION_DOMAIN'), // Make sure this matches your domain
+'secure' => env('SESSION_SECURE_COOKIE', true), // Enable for HTTPS
 
     /*
     |--------------------------------------------------------------------------
