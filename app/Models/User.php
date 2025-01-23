@@ -9,8 +9,10 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Sanctum\HasApiTokens;
 use App\Traits\HasFcmTokens;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     use HasApiTokens, 
         HasFactory, 
@@ -48,6 +50,30 @@ class User extends Authenticatable
         'is_active' => 'boolean',
         'preferred_categories' => 'array'
     ];
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        // Add debugging
+        \Log::info('User attempting to access panel:', [
+            'user_id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'roles' => $this->roles,
+            'is_active' => $this->is_active,
+            'panel_id' => $panel->getId()
+        ]);
+
+        if ($panel->getId() === 'admin') {
+            \Log::info('Checking admin panel access');
+            return $this->roles === 'ADMIN';
+        }
+
+        \Log::warning('Unknown panel access attempt', [
+            'panel_id' => $panel->getId()
+        ]);
+        
+        return false;
+    }
 
     public function merchant()
     {

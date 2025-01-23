@@ -77,3 +77,7 @@ auth.json
 
 # Keep .gitkeep files
 !.gitkeep
+
+**/caddy
+frankenphp
+frankenphp-worker.php

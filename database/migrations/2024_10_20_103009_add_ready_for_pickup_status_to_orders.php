@@ -1,4 +1,5 @@
 <?php
+// Renamed migration to ensure it runs after creating the orders table
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;

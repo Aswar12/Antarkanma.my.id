@@ -40,19 +40,14 @@ class TransactionController extends Controller
                 'data' => $request->all()
             ]);
 
-            // Basic validation
+            // Basic validation - only accept product_id, variant_id, and quantity
             $validator = Validator::make($request->all(), [
                 'user_location_id' => 'required|exists:user_locations,id',
-                'total_price' => 'required|numeric|min:0',
-                'shipping_price' => 'required|numeric|min:0',
                 'payment_method' => 'required|in:MANUAL,ONLINE',
                 'items' => 'required|array|min:1',
                 'items.*.product_id' => 'required|exists:products,id',
-                'items.*.product' => 'required|array',
-                'items.*.quantity' => 'required|integer|min:1',
-                'items.*.price' => 'required|numeric|min:0',
-                'items.*.merchant' => 'required|array',
-                'items.*.merchant.id' => 'required|exists:merchants,id'
+                'items.*.variant_id' => 'nullable|exists:product_variants,id',
+                'items.*.quantity' => 'required|integer|min:1'
             ]);
 
             if ($validator->fails()) {
@@ -61,12 +56,40 @@ class TransactionController extends Controller
 
             DB::beginTransaction();
 
+            // Calculate prices based on products and their variants
+            $items = collect($request->items)->map(function ($item) {
+                $product = Product::with(['merchant', 'variants'])->findOrFail($item['product_id']);
+                
+                // Get price based on variant if provided, otherwise use base product price
+                $price = $product->price;
+                $variant = null;
+                
+                if (!empty($item['variant_id'])) {
+                    $variant = $product->variants->firstWhere('id', $item['variant_id']);
+                    if ($variant) {
+                        $price = $variant->price ?? $product->price;
+                    }
+                }
+                
+                return [
+                    'product_id' => $product->id,
+                    'variant_id' => $variant ? $variant->id : null,
+                    'quantity' => $item['quantity'],
+                    'price' => $price,
+                    'merchant_id' => $product->merchant->id,
+                    'subtotal' => $price * $item['quantity']
+                ];
+            });
+
+            $total_price = $items->sum('subtotal');
+            $shipping_price = 10000; // Default shipping price, can be adjusted based on your business logic
+
             // 1. Create Transaction first
             $transactionData = [
                 'user_id' => Auth::id(),
                 'user_location_id' => $request->user_location_id,
-                'total_price' => (float) $request->total_price,
-                'shipping_price' => (float) $request->shipping_price,
+                'total_price' => $total_price,
+                'shipping_price' => $shipping_price,
                 'status' => Transaction::STATUS_PENDING,
                 'payment_method' => $request->payment_method,
                 'payment_status' => Transaction::PAYMENT_STATUS_PENDING,
@@ -78,7 +101,7 @@ class TransactionController extends Controller
             $transaction = Transaction::create($transactionData);
 
             // 2. Group items by merchant
-            $itemsByMerchant = collect($request->items)->groupBy('merchant.id');
+            $itemsByMerchant = $items->groupBy('merchant_id');
 
             // 3. Create Order for each merchant
             foreach ($itemsByMerchant as $merchantId => $merchantItems) {
@@ -107,9 +130,10 @@ class TransactionController extends Controller
                     $orderItemData = [
                         'order_id' => $order->id,
                         'product_id' => $item['product_id'],
+                        'product_variant_id' => $item['variant_id'], // Changed from variant_id to product_variant_id
                         'merchant_id' => $merchantId,
                         'quantity' => (int) $item['quantity'],
-                        'price' => $product ? (float) $product->price : (float) $item['price']
+                        'price' => (float) $item['price']
                     ];
 
                     Log::info('Creating Order Item:', $orderItemData);
@@ -133,9 +157,10 @@ class TransactionController extends Controller
                         'orderItems' => function ($q) {
                             $q->with([
                                 'product' => function ($p) {
-                                    $p->with(['galleries', 'category']);
+                                    $p->with(['galleries', 'category', 'variants']);
                                 },
-                                'merchant'
+                                'merchant',
+                                'variant'
                             ]);
                         }
                     ]);
@@ -198,7 +223,18 @@ class TransactionController extends Controller
             DB::commit();
 
             return ResponseFormatter::success(
-                $transaction->load(['orders.orderItems.product', 'userLocation']),
+                $transaction->load([
+                    'orders.orderItems' => function ($query) {
+                        $query->with([
+                            'product' => function ($p) {
+                                $p->with(['galleries', 'category', 'variants']);
+                            },
+                            'variant',
+                            'merchant'
+                        ]);
+                    },
+                    'userLocation'
+                ]),
                 'Transaksi berhasil dibatalkan'
             );
         } catch (Exception $e) {
@@ -279,8 +315,9 @@ class TransactionController extends Controller
                 $query->where('merchant_id', $merchantId)
                     ->with([
                         'product' => function ($p) {
-                            $p->with(['galleries', 'category']);
-                        }
+                            $p->with(['galleries', 'category', 'variants']);
+                        },
+                        'variant'
                     ]);
             }
         ])

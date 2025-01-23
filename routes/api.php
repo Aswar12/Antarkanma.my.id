@@ -16,6 +16,7 @@ use App\Http\Controllers\API\ProductReviewController;
 use App\Http\Controllers\API\FcmController;
 use App\Http\Controllers\API\OrderStatusController;
 use App\Http\Controllers\API\NotificationController;
+use App\Http\Controllers\API\ProductGalleryController;
 
 // Public Product Review Routes
 Route::get('products/{productId}/reviews', [ProductReviewController::class, 'getByProduct']);
@@ -59,10 +60,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('products/{id}', [ProductController::class, 'destroy']);
 
     // Product Gallery routes
-    Route::post('products/{id}/gallery', [ProductController::class, 'addGallery']);
-    Route::put('products/{productId}/gallery/{galleryId}', [ProductController::class, 'editGallery']);
-    Route::delete('products/{productId}/gallery/{galleryId}', [ProductController::class, 'deleteGallery']);
-    Route::delete('galleries/{id}', [ProductController::class, 'deleteGallery']);
+    Route::post('products/{id}/gallery', [ProductGalleryController::class, 'addGallery']);
+    Route::put('products/{productId}/gallery/{galleryId}', [ProductGalleryController::class, 'editGallery']);
+    Route::delete('products/{productId}/gallery/{galleryId}', [ProductGalleryController::class, 'deleteGallery']);
 
     // Product Variant routes
     Route::post('products/{productId}/variants', [ProductController::class, 'addVariant']);
@@ -142,7 +142,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Public routes
 Route::post('register', [UserController::class, 'register']);
-Route::get('products', [ProductController::class, 'all']);
+Route::get('products', [ProductController::class, 'index']);
 Route::get('products/category/{categoryId}', [ProductController::class, 'getByCategory']);
 Route::post('/login', [UserController::class, 'login']);
 

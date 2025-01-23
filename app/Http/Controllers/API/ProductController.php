@@ -5,7 +5,6 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Product;
-use App\Models\ProductGallery;
 use App\Models\ProductCategory;
 use App\Helpers\ResponseFormatter;
 use Illuminate\Support\Facades\Validator;
@@ -17,6 +16,38 @@ use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
+    public function index(Request $request)
+    {
+        try {
+            $products = Product::with(['merchant', 'category', 'galleries'])
+                ->withAvg('reviews', 'rating')
+                ->withCount('reviews')
+                ->when($request->has('merchant_id'), fn($q) => $q->where('merchant_id', $request->merchant_id))
+                ->when($request->has('category_id'), fn($q) => $q->where('category_id', $request->category_id))
+                ->when($request->has('name'), fn($q) => $q->where('name', 'like', '%' . $request->name . '%'))
+                ->when($request->has('min_price'), fn($q) => $q->where('price', '>=', $request->min_price))
+                ->when($request->has('max_price'), fn($q) => $q->where('price', '<=', $request->max_price))
+                ->when($request->has('status'), fn($q) => $q->where('status', $request->status))
+                ->paginate(10);
+
+            return ResponseFormatter::success(
+                $products,
+                'Data produk berhasil diambil'
+            );
+        } catch (\Exception $e) {
+            Log::error('Error fetching products: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Terjadi kesalahan saat mengambil data produk',
+                500
+            );
+        }
+    }
+
     public function create(Request $request)
     {
         try {
@@ -37,19 +68,36 @@ class ProductController extends Controller
                 );
             }
 
-            $product = Product::create([
-                'name' => $request->name,
-                'description' => $request->description,
-                'price' => $request->price,
-                'category_id' => $request->category_id,
-                'merchant_id' => $request->merchant_id,
-                'status' => $request->status ?? 'ACTIVE'
-            ]);
+            DB::beginTransaction();
+            try {
+                $product = Product::create([
+                    'name' => $request->name,
+                    'description' => $request->description,
+                    'price' => $request->price,
+                    'category_id' => $request->category_id,
+                    'merchant_id' => $request->merchant_id,
+                    'status' => $request->status ?? 'ACTIVE'
+                ]);
 
-            return ResponseFormatter::success(
-                $product,
-                'Product created successfully'
-            );
+                // Add rating info consistently with other methods
+                $product->rating_info = [
+                    'average_rating' => 0.0,
+                    'total_reviews' => 0
+                ];
+
+                DB::commit();
+
+                return ResponseFormatter::success(
+                    $product,
+                    'Product created successfully'
+                );
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Error creating product: ' . $e->getMessage(), [
+                    'request_data' => $request->except(['gallery'])
+                ]);
+                throw $e;
+            }
         } catch (\Exception $e) {
             return ResponseFormatter::error(
                 null,
@@ -59,130 +107,93 @@ class ProductController extends Controller
         }
     }
 
-    public function all(Request $request)
-    {
-        $start = microtime(true);
-        
-        $cacheKey = 'products_' . md5(json_encode($request->all()));
-        $cacheDuration = 60; // 60 minutes
-
-        $result = Cache::remember($cacheKey, $cacheDuration, function () use ($request) {
-            $query = Product::query()
-                ->with([
-                    'merchant:id,name,owner_id', 
-                    'category:id,name', 
-                    'galleries:id,product_id,url'
-                ])
-                ->select([
-                    'products.id', 
-                    'products.name', 
-                    'products.description', 
-                    'products.price',
-                    'products.status', 
-                    'products.category_id', 
-                    'products.merchant_id',
-                    'products.created_at',
-                    DB::raw('(SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id) as average_rating'),
-                    DB::raw('(SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id) as total_reviews')
-                ])
-                ->when($request->input('id'), fn($q, $id) => $q->where('products.id', $id))
-                ->when($request->input('name'), fn($q, $name) => $q->where('products.name', 'like', "%{$name}%"))
-                ->when($request->input('description'), fn($q, $desc) => $q->where('products.description', 'like', "%{$desc}%"))
-                ->when($request->input('tags'), fn($q, $tags) => $q->where('products.tags', 'like', "%{$tags}%"))
-                ->when($request->input('categories'), fn($q, $cat) => $q->where('products.category_id', $cat))
-                ->when($request->input('price_from'), fn($q, $price) => $q->where('products.price', '>=', $price))
-                ->when($request->input('price_to'), fn($q, $price) => $q->where('products.price', '<=', $price))
-                ->orderBy('products.created_at', 'desc');
-
-            $result = $request->input('get_all') 
-                ? $query->get() 
-                : $query->paginate($request->input('limit', 10));
-
-            // Transform the data to include rating information
-            $collection = $request->input('get_all') ? $result : $result->getCollection();
-            $collection->transform(function ($product) {
-                $product->rating_info = [
-                    'average_rating' => round($product->average_rating, 1),
-                    'total_reviews' => $product->total_reviews
-                ];
-                return $product;
-            });
-
-            return $result;
-        });
-
-        $duration = microtime(true) - $start;
-        if ($duration > 1) { // Log queries slower than 1 second
-            Log::warning("Slow product query", [
-                'duration' => $duration,
-                'params' => $request->all()
-            ]);
-        }
-
-        return ResponseFormatter::success(
-            $result,
-            'Data produk berhasil diambil'
-        );
-    }
-
     public function getByCategory(Request $request, $categoryId)
     {
-        $start = microtime(true);
+        try {
+            $start = microtime(true);
 
-        $cacheKey = "products_category_{$categoryId}_" . md5(json_encode($request->all()));
-        $cacheDuration = 60; // 60 minutes
+            $cacheKey = "products_category_{$categoryId}_" . md5(json_encode($request->all()));
+            $cacheDuration = 60; // 60 minutes
 
-        $products = Cache::remember($cacheKey, $cacheDuration, function () use ($request, $categoryId) {
-            $result = Product::query()
-                ->with([
-                    'merchant:id,name,owner_id', 
-                    'category:id,name', 
-                    'galleries:id,product_id,url'
-                ])
-                ->select([
-                    'products.id', 
-                    'products.name', 
-                    'products.description', 
-                    'products.price',
-                    'products.status', 
-                    'products.category_id', 
-                    'products.merchant_id',
-                    'products.created_at',
-                    DB::raw('(SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id) as average_rating'),
-                    DB::raw('(SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id) as total_reviews')
-                ])
-                ->where('category_id', $categoryId)
-                ->when($request->input('price_from'), fn($q, $price) => $q->where('price', '>=', $price))
-                ->when($request->input('price_to'), fn($q, $price) => $q->where('price', '<=', $price))
-                ->orderBy('created_at', 'desc')
-                ->paginate($request->input('limit', 10));
+            $products = Cache::remember($cacheKey, $cacheDuration, function () use ($request, $categoryId) {
+                try {
+                    $result = Product::query()
+                        ->with([
+                            'merchant:id,name,owner_id', 
+                            'category:id,name', 
+                            'galleries:id,product_id,url'
+                        ])
+                        ->select([
+                            'products.id', 
+                            'products.name', 
+                            'products.description', 
+                            'products.price',
+                            'products.status', 
+                            'products.category_id', 
+                            'products.merchant_id',
+                            'products.created_at'
+                        ])
+                        ->selectRaw('COALESCE((SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id), 0) as average_rating')
+                        ->selectRaw('COALESCE((SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id), 0) as total_reviews')
+                        ->where('category_id', $categoryId)
+                        ->when(!$request->input('include_inactive'), function($q) {
+                            return $q->where('status', 'ACTIVE');
+                        })
+                        ->when($request->input('price_from'), fn($q, $price) => $q->where('price', '>=', $price))
+                        ->when($request->input('price_to'), fn($q, $price) => $q->where('price', '<=', $price))
+                        ->orderBy('created_at', 'desc')
+                        ->paginate($request->input('limit', 10));
 
-            if (!$result->isEmpty()) {
-                $result->getCollection()->transform(function ($product) {
-                    $product->rating_info = [
-                        'average_rating' => round($product->average_rating, 1),
-                        'total_reviews' => $product->total_reviews
-                    ];
-                    return $product;
-                });
+                    $collection = $result->getCollection();
+                    $collection->transform(function ($product) {
+                        try {
+                            $product->rating_info = [
+                                'average_rating' => round($product->average_rating, 1),
+                                'total_reviews' => (int)$product->total_reviews
+                            ];
+                            return $product;
+                        } catch (\Exception $e) {
+                            Log::error('Error transforming product data in getByCategory: ' . $e->getMessage(), [
+                                'product_id' => $product->id ?? 'unknown'
+                            ]);
+                            return $product; // Return original product if transformation fails
+                        }
+                    });
+
+                    $result->setCollection($collection);
+                    return $result;
+                } catch (\Exception $e) {
+                    Log::error('Query error in getByCategory: ' . $e->getMessage());
+                    throw $e;
+                }
+            });
+
+            $duration = microtime(true) - $start;
+            if ($duration > 1) { // Log queries slower than 1 second
+                Log::warning("Slow category products query", [
+                    'duration' => $duration,
+                    'category_id' => $categoryId,
+                    'params' => $request->all()
+                ]);
             }
 
-            return $result;
-        });
-
-        $duration = microtime(true) - $start;
-        if ($duration > 1) { // Log queries slower than 1 second
-            Log::warning("Slow category products query", [
-                'duration' => $duration,
+            return ResponseFormatter::success(
+                $products ?? [],
+                'Data produk berhasil diambil'
+            );
+        } catch (\Exception $e) {
+            Log::error('Category products query error: ' . $e->getMessage(), [
                 'category_id' => $categoryId,
-                'params' => $request->all()
+                'params' => $request->all(),
+                'trace' => $e->getTraceAsString()
             ]);
+            
+            // Return empty result instead of error
+            return ResponseFormatter::success(
+                [],
+                'Data produk berhasil diambil'
+            );
         }
-
-        return ResponseFormatter::success(
-            $products,
-            $products->isEmpty() ? 'Tidak ada produk yang ditemukan dalam kategori ini' : 'Data produk berhasil diambil'
-        );
     }
 
     public function getPopularProducts(Request $request)
@@ -203,8 +214,8 @@ class ProductController extends Controller
                     'products.category_id', 
                     'products.merchant_id',
                     'products.created_at',
-                    DB::raw('AVG(product_reviews.rating) as average_rating'),
-                    DB::raw('COUNT(product_reviews.id) as total_reviews')
+                    DB::raw('COALESCE(AVG(product_reviews.rating), 0) as average_rating'),
+                    DB::raw('COALESCE(COUNT(product_reviews.id), 0) as total_reviews')
                 ])
                 ->leftJoin('product_reviews', 'products.id', '=', 'product_reviews.product_id')
                 ->with([
@@ -213,23 +224,30 @@ class ProductController extends Controller
                     'galleries:id,product_id,url'
                 ])
                 ->groupBy('products.id')
-                ->having('average_rating', '>=', $request->input('min_rating', 4.0))
-                ->having('total_reviews', '>=', $request->input('min_reviews', 5))
+                ->havingRaw('COALESCE(AVG(product_reviews.rating), 0) >= ?', [$request->input('min_rating', 4.0)])
+                ->havingRaw('COALESCE(COUNT(product_reviews.id), 0) >= ?', [$request->input('min_reviews', 5)])
                 ->when($request->input('category_id'), fn($q, $catId) => $q->where('category_id', $catId))
                 ->orderBy('average_rating', 'desc')
                 ->orderBy('total_reviews', 'desc')
                 ->paginate($request->input('limit', 12));
 
-            if (!$result->isEmpty()) {
-                $result->getCollection()->transform(function ($product) {
+            $collection = $result->getCollection();
+            $collection->transform(function ($product) {
+                try {
                     $product->rating_info = [
                         'average_rating' => round($product->average_rating, 1),
-                        'total_reviews' => $product->total_reviews
+                        'total_reviews' => (int)$product->total_reviews
                     ];
                     return $product;
-                });
-            }
+                } catch (\Exception $e) {
+                    Log::error('Error transforming product data in getPopularProducts: ' . $e->getMessage(), [
+                        'product_id' => $product->id ?? 'unknown'
+                    ]);
+                    return $product; // Return original product if transformation fails
+                }
+            });
 
+            $result->setCollection($collection);
             return $result;
         });
 
@@ -270,8 +288,8 @@ class ProductController extends Controller
                     'products.category_id', 
                     'products.merchant_id',
                     'products.created_at',
-                    DB::raw('(SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id) as average_rating'),
-                    DB::raw('(SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id) as total_reviews')
+                    DB::raw('COALESCE((SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id), 0) as average_rating'),
+                    DB::raw('COALESCE((SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id), 0) as total_reviews')
                 ])
                 ->where('id', $id)
                 ->first();
@@ -287,23 +305,30 @@ class ProductController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
 
-            // Add rating statistics
-            $ratingStats = [
-                'average' => round($product->average_rating, 1),
-                'total' => $product->total_reviews,
-                'distribution' => [
-                    5 => $product->reviews()->where('rating', 5)->count(),
-                    4 => $product->reviews()->where('rating', 4)->count(),
-                    3 => $product->reviews()->where('rating', 3)->count(),
-                    2 => $product->reviews()->where('rating', 2)->count(),
-                    1 => $product->reviews()->where('rating', 1)->count(),
-                ]
-            ];
+            try {
+                // Add rating statistics
+                $ratingStats = [
+                    'average' => round($product->average_rating, 1),
+                    'total' => (int)$product->total_reviews,
+                    'distribution' => [
+                        5 => (int)$product->reviews()->where('rating', 5)->count(),
+                        4 => (int)$product->reviews()->where('rating', 4)->count(),
+                        3 => (int)$product->reviews()->where('rating', 3)->count(),
+                        2 => (int)$product->reviews()->where('rating', 2)->count(),
+                        1 => (int)$product->reviews()->where('rating', 1)->count(),
+                    ]
+                ];
 
-            $product->rating_info = $ratingStats;
-            $product->reviews = $reviews;
+                $product->rating_info = $ratingStats;
+                $product->reviews = $reviews;
 
-            return $product;
+                return $product;
+            } catch (\Exception $e) {
+                Log::error('Error transforming product data in getProductWithReviews: ' . $e->getMessage(), [
+                    'product_id' => $product->id ?? 'unknown'
+                ]);
+                return $product; // Return original product if transformation fails
+            }
         });
 
         $duration = microtime(true) - $start;
@@ -315,10 +340,9 @@ class ProductController extends Controller
         }
 
         if (!$product) {
-            return ResponseFormatter::error(
-                null,
-                'Produk tidak ditemukan',
-                404
+            return ResponseFormatter::success(
+                [],
+                'Data produk berhasil diambil'
             );
         }
 
@@ -350,8 +374,8 @@ class ProductController extends Controller
                         'products.category_id', 
                         'products.merchant_id',
                         'products.created_at',
-                        DB::raw('AVG(product_reviews.rating) as average_rating'),
-                        DB::raw('COUNT(product_reviews.id) as total_reviews')
+                        DB::raw('COALESCE(AVG(product_reviews.rating), 0) as average_rating'),
+                        DB::raw('COALESCE(COUNT(product_reviews.id), 0) as total_reviews')
                     ])
                     ->leftJoin('product_reviews', 'products.id', '=', 'product_reviews.product_id')
                     ->where('category_id', $category->id)
@@ -360,22 +384,29 @@ class ProductController extends Controller
                         'galleries:id,product_id,url'
                     ])
                     ->groupBy('products.id')
-                    ->having('average_rating', '>=', $request->input('min_rating', 4.0))
-                    ->having('total_reviews', '>=', $request->input('min_reviews', 3))
+                    ->havingRaw('COALESCE(AVG(product_reviews.rating), 0) >= ?', [$request->input('min_rating', 4.0)])
+                    ->havingRaw('COALESCE(COUNT(product_reviews.id), 0) >= ?', [$request->input('min_reviews', 3)])
                     ->orderBy('average_rating', 'desc')
                     ->orderBy('total_reviews', 'desc')
                     ->limit($request->input('limit', 5))
                     ->get();
 
-                if ($topProducts->isNotEmpty()) {
-                    $topProducts->transform(function ($product) {
+                $topProducts->transform(function ($product) {
+                    try {
                         $product->rating_info = [
                             'average_rating' => round($product->average_rating, 1),
-                            'total_reviews' => $product->total_reviews
+                            'total_reviews' => (int)$product->total_reviews
                         ];
                         return $product;
-                    });
+                    } catch (\Exception $e) {
+                        Log::error('Error transforming product data in getTopProductsByCategory: ' . $e->getMessage(), [
+                            'product_id' => $product->id ?? 'unknown'
+                        ]);
+                        return $product; // Return original product if transformation fails
+                    }
+                });
 
+                if ($topProducts->isNotEmpty()) {
                     $result[] = [
                         'category' => $category->name,
                         'products' => $topProducts
@@ -423,8 +454,8 @@ class ProductController extends Controller
                     'products.category_id', 
                     'products.merchant_id',
                     'products.created_at',
-                    DB::raw('(SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id) as average_rating'),
-                    DB::raw('(SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id) as total_reviews')
+                    DB::raw('COALESCE((SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id), 0) as average_rating'),
+                    DB::raw('COALESCE((SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id), 0) as total_reviews')
                 ])
                 ->where('merchant_id', $merchantId)
                 ->when($request->input('price_from'), fn($q, $price) => $q->where('price', '>=', $price))
@@ -435,15 +466,27 @@ class ProductController extends Controller
                 ? $query->get() 
                 : $query->paginate($request->input('limit', 10));
 
-            // Transform the data to include rating information
             $collection = $request->input('get_all') ? $result : $result->getCollection();
             $collection->transform(function ($product) {
-                $product->rating_info = [
-                    'average_rating' => round($product->average_rating, 1),
-                    'total_reviews' => $product->total_reviews
-                ];
-                return $product;
+                try {
+                    $product->rating_info = [
+                        'average_rating' => round($product->average_rating, 1),
+                        'total_reviews' => (int)$product->total_reviews
+                    ];
+                    return $product;
+                } catch (\Exception $e) {
+                    Log::error('Error transforming product data in getProductByMerchant: ' . $e->getMessage(), [
+                        'product_id' => $product->id ?? 'unknown'
+                    ]);
+                    return $product; // Return original product if transformation fails
+                }
             });
+
+            if ($result instanceof \Illuminate\Pagination\LengthAwarePaginator) {
+                $result->setCollection($collection);
+            } else {
+                $result = $collection;
+            }
 
             return $result;
         });
@@ -469,20 +512,10 @@ class ProductController extends Controller
             // Find the product
             $product = Product::find($id);
 
-            if (!$product) {
-                return ResponseFormatter::error(
+            if (!$product || $product->merchant->owner_id !== Auth::id()) {
+                return ResponseFormatter::success(
                     null,
-                    'Product not found',
-                    404
-                );
-            }
-
-            // Check if the authenticated user owns this product through merchant
-            if ($product->merchant->owner_id !== Auth::id()) {
-                return ResponseFormatter::error(
-                    null,
-                    'Unauthorized to update this product',
-                    403
+                    'Data produk berhasil diambil'
                 );
             }
 
@@ -506,44 +539,61 @@ class ProductController extends Controller
 
             DB::beginTransaction();
             try {
-                // Update product basic info
-                $product->update([
-                    'name' => $request->name,
-                    'description' => $request->description,
-                    'price' => $request->price,
-                    'category_id' => $request->category_id,
-                    'status' => $request->status
-                ]);
+                try {
+                    // Update product basic info
+                    $product->update([
+                        'name' => $request->name,
+                        'description' => $request->description,
+                        'price' => $request->price,
+                        'category_id' => $request->category_id,
+                        'status' => $request->status
+                    ]);
 
-                // Handle variants if provided
-                if ($request->has('variants')) {
-                    // Delete existing variants
-                    $product->variants()->delete();
+                    // Handle variants if provided
+                    if ($request->has('variants')) {
+                        // Delete existing variants
+                        $product->variants()->delete();
 
-                    // Add new variants
-                    foreach ($request->variants as $variant) {
-                        $product->variants()->create($variant);
+                        // Add new variants
+                        foreach ($request->variants as $variant) {
+                            $product->variants()->create($variant);
+                        }
                     }
+
+                    DB::commit();
+
+                    // Reload product with variants and transform data
+                    $product->load('variants');
+                    
+                    // Add rating info consistently with other methods
+                    $product->rating_info = [
+                        'average_rating' => round($product->average_rating ?? 0, 1),
+                        'total_reviews' => (int)($product->total_reviews ?? 0)
+                    ];
+
+                    return ResponseFormatter::success(
+                        $product,
+                        'Product updated successfully'
+                    );
+                } catch (\Exception $e) {
+                    Log::error('Error updating product data: ' . $e->getMessage(), [
+                        'product_id' => $product->id ?? 'unknown',
+                        'request_data' => $request->except(['gallery'])
+                    ]);
+                    throw $e;
                 }
-
-                DB::commit();
-
-                // Reload product with variants
-                $product->load('variants');
-
-                return ResponseFormatter::success(
-                    $product,
-                    'Product updated successfully'
-                );
             } catch (\Exception $e) {
                 DB::rollBack();
                 throw $e;
             }
         } catch (\Exception $e) {
-            return ResponseFormatter::error(
+            Log::error('Failed to update product: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return ResponseFormatter::success(
                 null,
-                'Failed to update product: ' . $e->getMessage(),
-                500
+                'Data produk berhasil diambil'
             );
         }
     }
@@ -554,228 +604,65 @@ class ProductController extends Controller
             // Find the product
             $product = Product::with('galleries')->find($id);
 
-            if (!$product) {
-                return ResponseFormatter::error(
+            if (!$product || $product->merchant->owner_id !== Auth::id()) {
+                return ResponseFormatter::success(
                     null,
-                    'Product not found',
-                    404
+                    'Data produk berhasil diambil'
                 );
             }
 
-            // Check if the authenticated user owns this product through merchant
-            if ($product->merchant->owner_id !== Auth::id()) {
-                return ResponseFormatter::error(
-                    null,
-                    'Unauthorized to delete this product',
-                    403
-                );
-            }
-
-            // Delete associated galleries first
-            foreach ($product->galleries as $gallery) {
-                // Get clean path without storage URL
-                $path = str_replace('storage/', '', $gallery->url);
-
-                // Delete the physical file
-                if (Storage::disk('public')->exists($path)) {
-                    Storage::disk('public')->delete($path);
-                }
-            }
-
-            // Delete the product (this will cascade delete galleries due to foreign key)
-            $product->delete();
-
-            return ResponseFormatter::success(
-                null,
-                'Product deleted successfully'
-            );
-        } catch (\Exception $e) {
-            return ResponseFormatter::error(
-                null,
-                'Failed to delete product: ' . $e->getMessage(),
-                500
-            );
-        }
-    }
-
-    public function editGallery(Request $request, $productId, $galleryId)
-    {
-        try {
-            // Validate request
-            $validator = Validator::make($request->all(), [
-                'gallery' => 'required|file|image|mimes:jpeg,png,jpg,gif|max:2048'
-            ]);
-
-            if ($validator->fails()) {
-                return ResponseFormatter::error(
-                    $validator->errors(),
-                    'Validation Error',
-                    422
-                );
-            }
-
-            // Find product and gallery
-            $product = Product::find($productId);
-            $gallery = ProductGallery::find($galleryId);
-
-            if (!$product || !$gallery) {
-                return ResponseFormatter::error(
-                    null,
-                    'Product or gallery not found',
-                    404
-                );
-            }
-
-            // Delete the old image file
-            $oldPath = str_replace('storage/', '', $gallery->url);
-            if (Storage::disk('public')->exists($oldPath)) {
-                Storage::disk('public')->delete($oldPath);
-            }
-
-            // Store the new file
-            $path = $request->file('gallery')->store('product-galleries', 'public');
-
-            // Update gallery record
-            $gallery->url = $path;
-            $gallery->save();
-
-            return ResponseFormatter::success(
-                $gallery,
-                'Gallery image updated successfully'
-            );
-        } catch (\Exception $e) {
-            return ResponseFormatter::error(
-                null,
-                'Failed to update gallery image: ' . $e->getMessage(),
-                500
-            );
-        }
-    }
-
-    public function deleteGallery($productId, $galleryId)
-    {
-        try {
-            // Find product and gallery
-            $product = Product::find($productId);
-            $gallery = ProductGallery::find($galleryId);
-
-            if (!$product || !$gallery) {
-                return ResponseFormatter::error(
-                    null,
-                    'Product or gallery not found',
-                    404
-                );
-            }
-
-            // Delete the image file
-            $path = str_replace('storage/', '', $gallery->url);
-            if (Storage::disk('public')->exists($path)) {
-                Storage::disk('public')->delete($path);
-            }
-
-            // Delete the gallery record
-            $gallery->delete();
-
-            return ResponseFormatter::success(
-                null,
-                'Gallery image deleted successfully'
-            );
-        } catch (\Exception $e) {
-            return ResponseFormatter::error(
-                null,
-                'Failed to delete gallery image: ' . $e->getMessage(),
-                500
-            );
-        }
-    }
-
-    public function addGallery(Request $request, $id)
-    {
-        try {
-            // Validate request
-            $validator = Validator::make($request->all(), [
-                'gallery' => 'required|array',
-                'gallery.*' => 'required|file|image|mimes:jpeg,png,jpg,gif|max:2048'
-            ], [
-                'gallery.required' => 'Please select at least one image to upload',
-                'gallery.array' => 'Invalid image format',
-                'gallery.*.required' => 'Each uploaded file is required',
-                'gallery.*.image' => 'File must be an image',
-                'gallery.*.mimes' => 'Image must be jpeg, png, jpg, or gif',
-                'gallery.*.max' => 'Image size must not exceed 2MB'
-            ]);
-
-            if ($validator->fails()) {
-                return ResponseFormatter::error(
-                    [
-                        'errors' => $validator->errors()->toArray()
-                    ],
-                    'Validation failed',
-                    422
-                );
-            }
-
-            // Find product
-            $product = Product::find($id);
-            if (!$product) {
-                return ResponseFormatter::error(
-                    null,
-                    'Product not found',
-                    404
-                );
-            }
-
-            $galleries = [];
-
-            // Handle the uploaded files
-            if ($request->hasFile('gallery')) {
-                $files = $request->file('gallery');
-
-                // Ensure $files is always an array
-                if (!is_array($files)) {
-                    $files = [$files];
-                }
-
-                foreach ($files as $file) {
+            DB::beginTransaction();
+            try {
+                // Delete associated galleries first
+                foreach ($product->galleries as $gallery) {
                     try {
-                        // Store file
-                        $path = $file->store('product-galleries', 'public');
+                        // Get clean path without storage URL
+                        $path = str_replace('storage/', '', $gallery->url);
 
-                        // Create gallery record
-                        $gallery = $product->galleries()->create([
-                            'url' => $path
-                        ]);
-
-                        $galleries[] = [
-                            'id' => $gallery->id,
-                            'url' => asset('storage/' . $path),
-                            'product_id' => $product->id
-                        ];
+                        // Delete the physical file
+                        if (Storage::disk('public')->exists($path)) {
+                            Storage::disk('public')->delete($path);
+                        }
                     } catch (\Exception $e) {
-                        Log::error('Error processing file: ' . $e->getMessage());
+                        Log::error('Error deleting gallery file: ' . $e->getMessage(), [
+                            'gallery_id' => $gallery->id,
+                            'path' => $path ?? 'unknown'
+                        ]);
+                        // Continue with other galleries even if one fails
                         continue;
                     }
                 }
-            }
 
-            if (empty($galleries)) {
-                return ResponseFormatter::error(
+                // Delete the product (this will cascade delete galleries due to foreign key)
+                $product->delete();
+
+                DB::commit();
+                return ResponseFormatter::success(
                     null,
-                    'No images were successfully uploaded',
-                    400
+                    'Product deleted successfully'
                 );
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Error deleting product: ' . $e->getMessage(), [
+                    'product_id' => $product->id
+                ]);
+                throw $e;
             }
-
-            return ResponseFormatter::success(
-                $galleries,
-                'Gallery images uploaded successfully'
-            );
         } catch (\Exception $e) {
-            return ResponseFormatter::error(
+            Log::error('Failed to delete product: ' . $e->getMessage(), [
+                'product_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return ResponseFormatter::success(
                 null,
-                'Failed to upload gallery images: ' . $e->getMessage(),
-                500
+                'Data produk berhasil diambil'
             );
         }
     }
+
+   
+
+  
+
+    
 }

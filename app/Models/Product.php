@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -75,22 +74,25 @@ class Product extends Model
         return $this->hasMany(ProductGallery::class, 'product_id');
     }
 
-    public function reviews(): HasMany
-
-    {
-        return $this->hasMany(ProductReview::class);
-    }
-
-    public function variants(): HasMany
-    {
-        return $this->hasMany(ProductVariant::class);
-    }
-
     /**
      * Get the reviews for the product.
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(ProductReview::class);
+    }
+
+    /**
+     * Get the variants for the product.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function variants(): HasMany
+    {
+        return $this->hasMany(ProductVariant::class);
+    }
 
     /**
      * Scope a query to only include active products.
@@ -100,6 +102,6 @@ class Product extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('status', 'ACTIVE');
     }
 }

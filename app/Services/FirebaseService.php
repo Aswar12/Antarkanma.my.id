@@ -11,9 +11,15 @@ class FirebaseService
 {
     protected $messaging;
 
-    public function __construct(Messaging $messaging)
+    public function __construct(Messaging $messaging = null)
     {
         $this->messaging = $messaging;
+    }
+
+    private function isConfigured(): bool
+    {
+        return $this->messaging !== null && 
+               config('firebase.projects.app.credentials') !== null;
     }
 
     /**
@@ -47,6 +53,11 @@ class FirebaseService
      */
     public function sendProductUpdate($topic, $data, $title = 'Product Update', $body = 'A product has been updated')
     {
+        if (!$this->isConfigured()) {
+            Log::info('Firebase messaging is not configured, skipping notification');
+            return false;
+        }
+
         try {
             $message = CloudMessage::withTarget('topic', $topic)
                 ->withNotification(Notification::create($title, $body))

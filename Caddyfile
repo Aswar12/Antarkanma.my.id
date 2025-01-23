@@ -1,0 +1,27 @@
+{
+    email admin@antarkanmaa.my.id
+    admin off
+}
+
+antarkanmaa.my.id {
+    reverse_proxy localhost:8000
+    tls {
+        issuer acme
+    }
+    log {
+        output file /var/log/caddy/antarkanmaa.log {
+            roll_size 10mb
+            roll_keep 10
+        }
+        format console
+        level INFO
+    }
+    handle_errors {
+        respond "{err.status_code} {err.status_text}"
+    }
+}
+
+# Redirect www to non-www
+www.antarkanmaa.my.id {
+    redir https://antarkanmaa.my.id{uri} permanent
+}
