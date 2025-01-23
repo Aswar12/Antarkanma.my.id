@@ -48,13 +48,31 @@ class User extends Authenticatable implements FilamentUser
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'is_active' => 'boolean',
-        'preferred_categories' => 'array',
-        'roles' => 'array'
+        'preferred_categories' => 'array'
     ];
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return in_array('admin', $this->roles ?? []);
+        // Add debugging
+        \Log::info('User attempting to access panel:', [
+            'user_id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'roles' => $this->roles,
+            'is_active' => $this->is_active,
+            'panel_id' => $panel->getId()
+        ]);
+
+        if ($panel->getId() === 'admin') {
+            \Log::info('Checking admin panel access');
+            return $this->roles === 'ADMIN';
+        }
+
+        \Log::warning('Unknown panel access attempt', [
+            'panel_id' => $panel->getId()
+        ]);
+        
+        return false;
     }
 
     public function merchant()

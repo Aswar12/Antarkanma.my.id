@@ -1,15 +1,15 @@
 {
-    email admin@fortufitness.my.id
+    email admin@antarkanmaa.my.id
     admin off
 }
 
-fortufitness.my.id {
+antarkanmaa.my.id {
     reverse_proxy localhost:8000
     tls {
         issuer acme
     }
     log {
-        output file /var/log/caddy/fortufitness.log {
+        output file /var/log/caddy/antarkanmaa.log {
             roll_size 10mb
             roll_keep 10
         }
@@ -22,6 +22,6 @@ fortufitness.my.id {
 }
 
 # Redirect www to non-www
-www.fortufitness.my.id {
-    redir https://fortufitness.my.id{uri} permanent
+www.antarkanmaa.my.id {
+    redir https://antarkanmaa.my.id{uri} permanent
 }

@@ -2,7 +2,7 @@
 
 namespace App\Providers\Filament;
 
-use Filament\Http\Middleware\Authenticate;
+use App\Http\Middleware\FilamentAuthenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages;
@@ -27,6 +27,8 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->profile()
+            ->brandName('Admin Panel')
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -48,8 +50,15 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->authMiddleware([
-                Authenticate::class,
+                FilamentAuthenticate::class,
             ])
+            ->authGuard('web')
+            ->login()
+            ->registration(false)
+            ->passwordReset()
+            ->maxContentWidth('full')
+            ->spa()
+           
             ->sidebarCollapsibleOnDesktop()
             ->collapsibleNavigationGroups()
             ->globalSearch(false);

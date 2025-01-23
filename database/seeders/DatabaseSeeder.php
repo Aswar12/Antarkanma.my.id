@@ -21,11 +21,6 @@ class DatabaseSeeder extends Seeder
             Additional50ProductsSeeder::class, // Add products including Penghapus
             CourierSeeder::class,
             LoyaltyPointSeeder::class,
-            OrderSeeder::class,
-            OrderItemSeeder::class,
-            TransactionSeeder::class,
-            TransactionItemSeeder::class,
-            DeliverySeeder::class,
         ]);
     }
 }

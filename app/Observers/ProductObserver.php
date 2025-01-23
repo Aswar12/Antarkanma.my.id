@@ -51,17 +51,25 @@ class ProductObserver
         // Clear caches
         $this->clearProductCaches($product);
 
-        // Notify subscribers about new product
-        $this->firebase->sendProductUpdate(
-            'all_products',
-            [
-                'action' => 'created',
+        try {
+            // Notify subscribers about new product
+            $this->firebase->sendProductUpdate(
+                'all_products',
+                [
+                    'action' => 'created',
+                    'product_id' => $product->id,
+                    'product' => $product->load(['merchant', 'category', 'galleries'])->toArray()
+                ],
+                'Produk Baru',
+                'Produk baru telah ditambahkan: ' . $product->name
+            );
+        } catch (\Exception $e) {
+            // Log the error but don't let it affect the response
+            Log::error('Firebase notification error: ' . $e->getMessage(), [
                 'product_id' => $product->id,
-                'product' => $product->load(['merchant', 'category', 'galleries'])->toArray()
-            ],
-            'Produk Baru',
-            'Produk baru telah ditambahkan: ' . $product->name
-        );
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
     }
 
     /**
@@ -80,32 +88,40 @@ class ProductObserver
         $hasRelevantChanges = !empty(array_intersect(array_keys($changes), $relevantFields));
 
         if ($hasRelevantChanges) {
-            // Notify subscribers about product update
-            $this->firebase->sendProductUpdate(
-                'all_products',
-                [
-                    'action' => 'updated',
-                    'product_id' => $product->id,
-                    'product' => $product->fresh(['merchant', 'category', 'galleries'])->toArray(),
-                    'changes' => $changes
-                ],
-                'Produk Diperbarui',
-                'Produk telah diperbarui: ' . $product->name
-            );
-
-            // Send to specific category subscribers
-            if ($product->category) {
+            try {
+                // Notify subscribers about product update
                 $this->firebase->sendProductUpdate(
-                    'product_category_' . $product->category_id,
+                    'all_products',
                     [
                         'action' => 'updated',
                         'product_id' => $product->id,
                         'product' => $product->fresh(['merchant', 'category', 'galleries'])->toArray(),
                         'changes' => $changes
                     ],
-                    'Update Produk Kategori',
-                    'Produk dalam kategori ini telah diperbarui: ' . $product->name
+                    'Produk Diperbarui',
+                    'Produk telah diperbarui: ' . $product->name
                 );
+
+                // Send to specific category subscribers
+                if ($product->category) {
+                    $this->firebase->sendProductUpdate(
+                        'product_category_' . $product->category_id,
+                        [
+                            'action' => 'updated',
+                            'product_id' => $product->id,
+                            'product' => $product->fresh(['merchant', 'category', 'galleries'])->toArray(),
+                            'changes' => $changes
+                        ],
+                        'Update Produk Kategori',
+                        'Produk dalam kategori ini telah diperbarui: ' . $product->name
+                    );
+                }
+            } catch (\Exception $e) {
+                // Log the error but don't let it affect the response
+                Log::error('Firebase notification error: ' . $e->getMessage(), [
+                    'product_id' => $product->id,
+                    'trace' => $e->getTraceAsString()
+                ]);
             }
         }
     }
@@ -118,16 +134,24 @@ class ProductObserver
         // Clear caches
         $this->clearProductCaches($product);
 
-        // Notify subscribers about product deletion
-        $this->firebase->sendProductUpdate(
-            'all_products',
-            [
-                'action' => 'deleted',
-                'product_id' => $product->id
-            ],
-            'Produk Dihapus',
-            'Produk telah dihapus: ' . $product->name
-        );
+        try {
+            // Notify subscribers about product deletion
+            $this->firebase->sendProductUpdate(
+                'all_products',
+                [
+                    'action' => 'deleted',
+                    'product_id' => $product->id
+                ],
+                'Produk Dihapus',
+                'Produk telah dihapus: ' . $product->name
+            );
+        } catch (\Exception $e) {
+            // Log the error but don't let it affect the response
+            Log::error('Firebase notification error: ' . $e->getMessage(), [
+                'product_id' => $product->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
     }
 
     /**
@@ -138,16 +162,24 @@ class ProductObserver
         // Clear caches
         $this->clearProductCaches($product);
 
-        // Notify subscribers about product restoration
-        $this->firebase->sendProductUpdate(
-            'all_products',
-            [
-                'action' => 'restored',
+        try {
+            // Notify subscribers about product restoration
+            $this->firebase->sendProductUpdate(
+                'all_products',
+                [
+                    'action' => 'restored',
+                    'product_id' => $product->id,
+                    'product' => $product->fresh(['merchant', 'category', 'galleries'])->toArray()
+                ],
+                'Produk Dipulihkan',
+                'Produk telah dipulihkan: ' . $product->name
+            );
+        } catch (\Exception $e) {
+            // Log the error but don't let it affect the response
+            Log::error('Firebase notification error: ' . $e->getMessage(), [
                 'product_id' => $product->id,
-                'product' => $product->fresh(['merchant', 'category', 'galleries'])->toArray()
-            ],
-            'Produk Dipulihkan',
-            'Produk telah dipulihkan: ' . $product->name
-        );
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
     }
 }
