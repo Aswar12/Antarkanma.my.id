@@ -32,7 +32,7 @@ class Transaction extends Model
         'rating' => 'integer'
     ];
 
-    protected $with = ['orders.orderItems.product.merchant'];
+    protected $with = ['user', 'courier', 'orders'];
 
     public function orders()
     {
@@ -76,14 +76,14 @@ class Transaction extends Model
 
     public function getItemsByMerchant()
     {
-        return $this->orders->flatMap(function ($order) {
+        return collect($this->orders)->flatMap(function ($order) {
             return [$order->merchant_id => $order->orderItems];
         });
     }
 
     public function getMerchantTotals()
     {
-        return $this->orders->mapWithKeys(function ($order) {
+        return collect($this->orders)->mapWithKeys(function ($order) {
             return [$order->merchant_id => $order->total_amount];
         });
     }
@@ -152,6 +152,24 @@ class Transaction extends Model
                (!$this->isOnlinePayment() || $this->payment_status === self::PAYMENT_STATUS_COMPLETED);
     }
 
+    public function approveCourier(): void
+    {
+        DB::transaction(function () {
+            // Update courier approval status
+            $this->update(['courier_approval' => self::COURIER_APPROVED]);
+            
+            // Update all associated orders to waiting approval status
+            $this->orders()->update([
+                'order_status' => Order::STATUS_WAITING_APPROVAL
+            ]);
+        });
+    }
+
+    public function rejectCourier(): void
+    {
+        $this->update(['courier_approval' => self::COURIER_REJECTED]);
+    }
+
     public function hasApprovedOrders()
     {
         return $this->orders()
@@ -178,7 +196,7 @@ class Transaction extends Model
 
     public function calculateShippingPrice()
     {
-        return $this->orders->sum(function ($order) {
+        return collect($this->orders)->sum(function ($order) {
             return $order->merchant->shipping_price ?? 0;
         });
     }

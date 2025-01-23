@@ -14,7 +14,7 @@ php artisan optimize:clear
 
 
 # Start Octane with FrankenPHP
-sudo php artisan octane:start --server=frankenphp --host=127.0.0.1 --port=8000 --workers=4 
+sudo php artisan octane:start --server=frankenphp --host=127.0.0.1 --port=8000 --workers=1 
 
 sudo cp Caddyfile /etc/caddy/Caddyfile 
 
