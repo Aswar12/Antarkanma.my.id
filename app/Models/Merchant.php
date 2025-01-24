@@ -47,17 +47,26 @@ class Merchant extends Model
             return $this->logo;
         }
 
-        // Check if the logo exists in storage
-        if (Storage::disk('public')->exists($this->logo)) {
-            return asset('storage/' . $this->logo);
+        // Generate S3 URL for the logo
+        return Storage::disk('public')->url($this->logo);
+    }
+
+    /**
+     * Store the logo file
+     */
+    public function storeLogo($file)
+    {
+        if ($this->logo) {
+            // Delete old logo if exists
+            Storage::disk('public')->delete($this->logo);
         }
 
-        // Check if the logo exists in merchant-logos directory
-        if (Storage::disk('public')->exists('merchant-logos/' . $this->logo)) {
-            return asset('storage/merchant-logos/' . $this->logo);
-        }
+        // Store new logo in merchants/logos directory
+        $path = $file->store('merchants/logos', 'public');
+        $this->logo = $path;
+        $this->save();
 
-        return null;
+        return $this->logo_url;
     }
 
     /**
@@ -74,24 +83,6 @@ class Merchant extends Model
     public function setOperatingDaysArrayAttribute($value)
     {
         $this->attributes['operating_days'] = is_array($value) ? implode(',', $value) : $value;
-    }
-
-    /**
-     * Store the logo file
-     */
-    public function storeLogo($file)
-    {
-        if ($this->logo) {
-            // Delete old logo if exists
-            Storage::disk('public')->delete('merchant-logos/' . $this->logo);
-        }
-
-        // Store new logo
-        $path = $file->store('merchant-logos', 'public');
-        $this->logo = basename($path);
-        $this->save();
-
-        return $this->logo_url;
     }
 
     public function owner()

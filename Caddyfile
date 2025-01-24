@@ -1,27 +1,24 @@
 {
-    email admin@antarkanmaa.my.id
-    admin off
-}
+    {$CADDY_GLOBAL_OPTIONS}
 
-antarkanmaa.my.id {
-    reverse_proxy localhost:8000
-    tls {
-        issuer acme
-    }
-    log {
-        output file /var/log/caddy/antarkanmaa.log {
-            roll_size 10mb
-            roll_keep 10
-        }
-        format console
-        level INFO
-    }
-    handle_errors {
-        respond "{err.status_code} {err.status_text}"
+    frankenphp {
+        {$FRANKENPHP_CONFIG}
     }
 }
 
-# Redirect www to non-www
-www.antarkanmaa.my.id {
-    redir https://antarkanmaa.my.id{uri} permanent
+{$SERVER_NAME:localhost} {
+    root * /app/public
+    encode gzip
+    php_server
+    file_server
+    
+    # Add security headers
+    header {
+        # Enable HTTP Strict Transport Security (HSTS)
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        # Disable clients from sniffing the media type
+        X-Content-Type-Options "nosniff"
+        # Keep referrer data off of HTTP connections
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
 }

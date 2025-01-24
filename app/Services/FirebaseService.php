@@ -19,7 +19,8 @@ class FirebaseService
     private function isConfigured(): bool
     {
         return $this->messaging !== null && 
-               config('firebase.projects.app.credentials') !== null;
+               config('firebase.credentials.file') !== null &&
+               config('firebase.project_id') !== null;
     }
 
     /**
@@ -27,6 +28,11 @@ class FirebaseService
      */
     public function sendNotification($topic, $title, $body)
     {
+        if (!$this->isConfigured()) {
+            Log::info('Firebase messaging is not configured, skipping notification');
+            return false;
+        }
+
         try {
             $message = CloudMessage::withTarget('topic', $topic)
                 ->withNotification(Notification::create($title, $body));
@@ -85,6 +91,11 @@ class FirebaseService
      */
     public function sendToUser($tokens, $data, $title, $body)
     {
+        if (!$this->isConfigured()) {
+            Log::info('Firebase messaging is not configured, skipping notification');
+            return false;
+        }
+
         if (!is_array($tokens)) {
             $tokens = [$tokens];
         }
@@ -142,6 +153,11 @@ class FirebaseService
      */
     public function subscribeToTopic($tokens, $topic)
     {
+        if (!$this->isConfigured()) {
+            Log::info('Firebase messaging is not configured, skipping topic subscription');
+            return false;
+        }
+
         if (!is_array($tokens)) {
             $tokens = [$tokens];
         }
@@ -168,6 +184,11 @@ class FirebaseService
      */
     public function unsubscribeFromTopic($tokens, $topic)
     {
+        if (!$this->isConfigured()) {
+            Log::info('Firebase messaging is not configured, skipping topic unsubscription');
+            return false;
+        }
+
         if (!is_array($tokens)) {
             $tokens = [$tokens];
         }
