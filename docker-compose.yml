@@ -16,79 +16,22 @@ services:
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
-      - FIREBASE_CREDENTIALS=/app/antarkanma-98fde-firebase-adminsdk-2tqx3-25b58dd15e.json
+      - FIREBASE_CREDENTIALS=/app/storage/app/firebase/firebase-credentials.json
       - FIREBASE_PROJECT_ID=${FIREBASE_WEB_PROJECT_ID}
-      - DB_HOST=mysql
+      - DB_HOST=127.0.0.1
       - DB_PORT=3306
       - DB_DATABASE=${DB_DATABASE}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=redis
+      - REDIS_HOST=127.0.0.1
       - REDIS_PORT=6379
       - REDIS_PASSWORD=null
-      - MEMCACHED_HOST=memcached
+      - MEMCACHED_HOST=127.0.0.1
       - MEMCACHED_PORT=11211
-    depends_on:
-      - mysql
-      - redis
-      - memcached
     restart: unless-stopped
     tty: true
-
-  mysql:
-    image: mysql:8.0
-    ports:
-      - "3307:3306"  # Changed to 3307 to avoid conflict with local MySQL
-    environment:
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_USER: ${DB_USERNAME}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    command: >
-      --default-authentication-plugin=mysql_native_password
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
-      --innodb_buffer_pool_size=512M
-      --max_connections=1000
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    cap_add:
-      - SYS_NICE  # CAP_SYS_NICE for better MySQL performance
-    restart: unless-stopped
-
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  memcached:
-    image: memcached:alpine
-    ports:
-      - "11211:11211"
-    command: memcached -m 128
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "11211"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
+    network_mode: host
 
 volumes:
   caddy_data:
   caddy_config:
-  mysql_data:
-  redis_data:
