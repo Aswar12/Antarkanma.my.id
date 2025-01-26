@@ -29,18 +29,30 @@
 - Cek riwayat transaksi customer
 - Batasan nilai minimum order
 - Deteksi pola pemesanan mencurigakan
+- Verifikasi saldo kurir:
+  * Cek saldo minimal Rp 20.000
+  * Cek history pemotongan fee
+  * Validasi status topup terakhir
 
 #### B. Saat Pengambilan Order
 - Kurir wajib di lokasi merchant (GPS)
 - Foto makanan/pesanan
 - Konfirmasi merchant
 - Timestamp pengambilan
+- Verifikasi pembayaran:
+  * Konfirmasi transfer dari customer (jika transfer)
+  * Validasi nominal sesuai order
+  * Sistem siap potong fee dari saldo
 
 #### C. Saat Pengantaran
 - Tracking GPS kurir
 - Foto serah terima
 - Konfirmasi penerimaan customer
 - Timestamp pengantaran
+- Proses fee platform:
+  * Pemotongan otomatis Rp 2.000 dari saldo
+  * Update saldo kurir
+  * Catat dalam history pemotongan
 
 ## Sistem Deteksi Order Fiktif
 
@@ -49,12 +61,20 @@
 - Pola waktu mencurigakan
 - Lokasi pickup/delivery tidak sesuai
 - Nilai transaksi tidak wajar
+- Anomali saldo:
+  * Topup mencurigakan
+  * Pola pemotongan tidak normal
+  * Manipulasi saldo
 
 ### 2. Monitoring Otomatis
 - Flag transaksi mencurigakan
 - Alert untuk admin
 - Tracking GPS realtime
 - Review transaksi berkala
+- Monitoring saldo:
+  * Alert saldo menipis
+  * Notifikasi kegagalan potong fee
+  * Tracking history topup
 
 ### 3. Tindakan Preventif
 - Batasan order per akun per hari

@@ -21,6 +21,16 @@ class User extends Authenticatable implements FilamentUser
         TwoFactorAuthenticatable,
         HasFcmTokens;
 
+    /**
+     * Get the disk that profile photos should be stored on.
+     *
+     * @return string
+     */
+    protected function profilePhotoDisk()
+    {
+        return 's3';
+    }
+
     protected $fillable = [
         'name',
         'email',

@@ -48,7 +48,7 @@ class Merchant extends Model
         }
 
         // Generate S3 URL for the logo
-        return Storage::disk('public')->url($this->logo);
+        return Storage::disk('s3')->url($this->logo);
     }
 
     /**
@@ -58,15 +58,19 @@ class Merchant extends Model
     {
         if ($this->logo) {
             // Delete old logo if exists
-            Storage::disk('public')->delete($this->logo);
+            Storage::disk('s3')->delete($this->logo);
         }
 
-        // Store new logo in merchants/logos directory
-        $path = $file->store('merchants/logos', 'public');
+        // Store new logo in merchants/logos directory using s3 disk
+        $path = $file->store('merchants/logos', 's3');
+        
+        // Set visibility to public
+        Storage::disk('s3')->setVisibility($path, 'public');
+        
         $this->logo = $path;
         $this->save();
 
-        return $this->logo_url;
+        return Storage::disk('s3')->url($path);
     }
 
     /**

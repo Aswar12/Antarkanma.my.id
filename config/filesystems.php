@@ -46,12 +46,18 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', true),
-            'throw' => true, // Enable exceptions for debugging
+            'throw' => true,
             'visibility' => 'public',
-            'bucket_endpoint' => true,
+            'bucket_endpoint' => false,
             'scheme' => 'https',
-            'ACL' => 'public-read', // Make files publicly readable
-            'debug' => true, // Enable debug mode
+            'ACL' => 'public-read',
+            'debug' => true,
+            'http' => [
+                'verify' => false
+            ],
+            'options' => [
+                'PathStyle' => true
+            ]
         ],
 
         's3' => [
@@ -63,14 +69,38 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', true),
-            'throw' => true,
+            'throw' => false,
             'visibility' => 'public',
-            'bucket_endpoint' => true,
+            'bucket_endpoint' => false,
             'scheme' => 'https',
             'ACL' => 'public-read',
-            'debug' => true,
+            'debug' => false,
+            'permissions' => [
+                'file' => [
+                    'public' => 0644,
+                    'private' => 0600,
+                ],
+                'dir' => [
+                    'public' => 0755,
+                    'private' => 0700,
+                ],
+            ],
+            'cache' => [
+                'store' => 'redis',
+                'expire' => 600,
+                'prefix' => 'antarkanma-s3',
+            ],
             'http' => [
-                'verify' => false
+                'verify' => false,
+                'connect_timeout' => 5,
+                'timeout' => 10,
+            ],
+            'options' => [
+                'PathStyle' => true,
+                'CacheControl' => 'max-age=31536000, public',
+                'ACL' => [
+                    'permission' => 'public-read'
+                ]
             ]
         ],
 

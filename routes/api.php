@@ -17,6 +17,7 @@ use App\Http\Controllers\API\FcmController;
 use App\Http\Controllers\API\OrderStatusController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\ProductGalleryController;
+use App\Http\Controllers\S3TestController;
 
 // Public Product Review Routes
 Route::get('products/{productId}/reviews', [ProductReviewController::class, 'getByProduct']);
@@ -150,3 +151,6 @@ Route::post('/login', [UserController::class, 'login']);
 Route::get('products/popular', [ProductController::class, 'getPopularProducts']);
 Route::get('products/top-by-category', [ProductController::class, 'getTopProductsByCategory']);
 Route::get('products/{id}/with-reviews', [ProductController::class, 'getProductWithReviews']);
+
+// S3 Storage Test Route
+Route::post('/test/upload-image', [S3TestController::class, 'uploadImage']);

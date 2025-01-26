@@ -43,15 +43,15 @@ class ProductGallery extends Model
             return $value;
         }
 
-        // Generate S3 URL for the image
-        return Storage::disk('public')->url($value);
+        // Generate S3 URL for the image using the s3 disk
+        return Storage::disk('s3')->url($value);
     }
 
     public function setUrlAttribute($value)
     {
         // If it's already a full URL from S3, store only the path part
-        if (str_starts_with($value, config('filesystems.disks.public.url'))) {
-            $value = str_replace(config('filesystems.disks.public.url') . '/', '', $value);
+        if (str_starts_with($value, env('AWS_URL'))) {
+            $value = str_replace(env('AWS_URL') . '/', '', $value);
         }
         
         // Clean the path before saving to database
@@ -63,11 +63,15 @@ class ProductGallery extends Model
      */
     public function storeImage($file)
     {
-        // Store image in products/galleries directory
-        $path = $file->store('products/galleries', 'public');
+        // Store image in products/galleries directory using s3 disk
+        $path = $file->store('products/galleries', 's3');
+        
+        // Set visibility to public
+        Storage::disk('s3')->setVisibility($path, 'public');
+        
         $this->url = $path;
         $this->save();
 
-        return $this->url;
+        return Storage::disk('s3')->url($path);
     }
 }

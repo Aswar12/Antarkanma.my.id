@@ -4,88 +4,101 @@
 
 ### 1. Metode Pembayaran yang Tersedia
 
-#### A. Cash on Delivery (COD)
-- Customer membayar langsung ke kurir
-- Kurir menerima total biaya (makanan + ongkir)
-- Kurir wajib setor fee platform (Rp 2.000/order)
+#### A. Transfer ke Rekening Kurir
+- Customer transfer total biaya (makanan + ongkir) ke rekening kurir
+- Kurir membayar ke merchant
+- Fee platform dipotong dari saldo kurir
 
-#### B. QRIS (Tahap Selanjutnya)
+#### B. Cash on Delivery (COD)
+- Customer membayar total biaya ke kurir
+- Kurir membayar ke merchant
+- Fee platform dipotong dari saldo kurir
+
+#### C. QRIS (Tahap Selanjutnya)
 - Pembayaran langsung ke rekening Antarkanma
 - Fee QRIS 0.7% dari total transaksi
 - Settlement otomatis H+1 ke merchant
 
-### 2. Pengelolaan Fee Platform (COD)
+### 2. Sistem Saldo Kurir
 
-#### A. Sistem Setoran Fee
-- Fee tetap: Rp 2.000 per transaksi
-- Periode setoran: Harian (setelah jam operasional)
-- Metode setoran:
-  * Transfer bank
-  * E-wallet
-  * Setor tunai (mitra collection point)
+#### A. Mekanisme Topup
+- Minimal topup: Rp 20.000
+- Metode topup:
+  * Transfer bank ke rekening Antarkanma
+  * Upload bukti transfer
+  * Verifikasi admin
+  * Penambahan saldo otomatis
 
-#### B. Monitoring Setoran
-- Dashboard kurir menampilkan:
-  * Total fee harian yang harus disetor
-  * Riwayat setoran
-  * Status setoran
+#### B. Pengelolaan Saldo
+- Saldo minimal: Rp 20.000
+- Pemotongan otomatis Rp 2.000/order
+- Sistem blokir order jika saldo < minimal
+- History pemotongan saldo tersedia
 
-## Alur Transaksi COD
+## Alur Transaksi
 
-### 1. Proses Order
+### 1. Proses Order (Transfer)
 1. Customer membuat pesanan
 2. Sistem menghitung total:
    - Harga makanan
    - Ongkos kirim (berdasarkan jarak)
-3. Kurir menerima order
-4. Kurir mengambil makanan
-5. Kurir mengantar ke customer
-6. Customer membayar total biaya ke kurir
+3. Customer transfer total ke rekening kurir
+4. Kurir verifikasi pembayaran masuk
+5. Kurir mengambil dan membayar makanan
+6. Kurir mengantar ke customer
+7. Sistem otomatis potong fee dari saldo
 
-### 2. Proses Setoran Fee
-1. Sistem mencatat fee per transaksi (Rp 2.000)
-2. Di akhir hari:
-   - Sistem menghitung total fee harian
-   - Mengirim notifikasi jumlah yang harus disetor
-3. Kurir melakukan setoran
-4. Admin memverifikasi setoran
-5. Status setoran diupdate di sistem
+### 2. Proses Order (COD)
+1. Customer membuat pesanan
+2. Kurir mengambil dan membayar makanan
+3. Kurir mengantar ke customer
+4. Customer membayar total biaya
+5. Sistem otomatis potong fee dari saldo
 
 ## Pencatatan dan Pelaporan
 
-### 1. Laporan Harian
+### 1. Dashboard Kurir
+- Saldo tersedia
+- Riwayat transaksi
+- History topup
+- History pemotongan fee
+
+### 2. Laporan Harian
 - Total transaksi
-- Total fee yang harus diterima
-- Status setoran per kurir
-- Fee yang sudah diterima
+- Total fee terkumpul
+- Saldo per kurir
+- Status topup
 
-### 2. Laporan Mingguan
+### 3. Laporan Mingguan
 - Rekap transaksi per kurir
-- Total fee yang diterima
-- Analisa performa setoran
-- Identifikasi keterlambatan setoran
+- Total fee terkumpul
+- Analisa performa kurir
+- Trend topup saldo
 
-### 3. Laporan Bulanan
+### 4. Laporan Bulanan
 - Total pendapatan fee platform
-- Perbandingan dengan biaya operasional
+- Perbandingan dengan target
 - Analisa trend transaksi
 - Rekomendasi penyesuaian sistem
 
 ## Penanganan Masalah
 
-### 1. Keterlambatan Setoran
-- Notifikasi pengingat otomatis
-- Batas waktu setoran hingga H+1
-- Suspend akun jika belum setor H+1
+### 1. Saldo Tidak Mencukupi
+- Notifikasi saldo menipis (< Rp 30.000)
+- Reminder untuk topup
+- Blokir order jika di bawah minimal
+- Panduan cara topup
 
-### 2. Orderan Fiktif
-- Verifikasi setiap transaksi
-- Monitoring pola transaksi mencurigakan
-- Sistem penalti untuk pelanggaran
+### 2. Verifikasi Topup
+- Sistem verifikasi otomatis
+- Backup verifikasi manual
+- SLA verifikasi maksimal 1 jam
+- Notifikasi status topup
 
 ### 3. Dispute Resolution
-- Pencatatan riwayat setoran
-- Bukti transfer/setoran
+- Riwayat transaksi detail
+- Bukti transfer/topup
+- History pemotongan
 - Proses mediasi jika ada selisih
 
 ## Target dan Monitoring
@@ -94,14 +107,22 @@
 - 3 transaksi per hari untuk BEP
 - Total fee: Rp 6.000/hari
 - Total fee: Rp 180.000/bulan
+- Minimal saldo: Rp 20.000
 
 ### 2. Target Optimal
 - 5 transaksi per hari
 - Total fee: Rp 10.000/hari
 - Total fee: Rp 300.000/bulan
+- Saldo optimal: Rp 50.000
 
 ### 3. Monitoring Performa
-- Tracking jumlah transaksi harian
-- Monitoring ketepatan setoran
-- Analisa trend pendapatan
+- Tracking jumlah transaksi
+- Monitoring saldo kurir
+- Analisa trend topup
 - Evaluasi sistem setiap bulan
+
+### 4. Insentif Program
+- Bonus untuk topup rutin
+- Reward transaksi tinggi
+- Program loyalitas kurir
+- Cashback untuk topup nominal besar

@@ -59,67 +59,101 @@
 
 ### 1. Database Records
 
-#### A. Tabel Orders
+#### A. Tabel Transactions
 ```sql
-- order_id (PK)
-- customer_id (FK)
-- merchant_id (FK)
-- total_food_price
-- delivery_fee
-- platform_fee
-- payment_status
-- delivery_status
+- id (PK)
+- user_id (FK) -> users.id
+- user_location_id (FK) -> user_locations.id
+- total_price (decimal 10,2)
+- shipping_price (decimal 10,2)
+- payment_date (datetime, nullable)
+- status (enum):
+  * PENDING
+  * COMPLETED
+  * CANCELED
+- payment_method (enum):
+  * MANUAL (COD)
+  * ONLINE
+- payment_status (enum):
+  * PENDING
+  * COMPLETED
+  * FAILED
+- courier_approval (enum):
+  * PENDING
+  * APPROVED
+  * REJECTED
+- timeout_at (timestamp, nullable)
+- rating (integer, nullable)
+- note (text, nullable)
 - created_at
 - updated_at
 ```
 
-#### B. Tabel Payments
+#### B. Tabel Orders
 ```sql
-- payment_id (PK)
-- order_id (FK)
-- payment_proof
-- bank_from
-- bank_reference
-- verified_at
-- verified_by
-- status
-- notes
+- id (PK)
+- transaction_id (FK) -> transactions.id
+- user_id (FK) -> users.id
+- merchant_id (FK) -> merchants.id
+- total_amount (decimal 10,2)
+- order_status (enum):
+  * PENDING
+  * WAITING_APPROVAL
+  * PROCESSING
+  * READY_FOR_PICKUP
+  * PICKED_UP
+  * COMPLETED
+  * CANCELED
+- merchant_approval (enum):
+  * PENDING
+  * APPROVED
+  * REJECTED
+- created_at
+- updated_at
 ```
 
-#### C. Tabel Delivery_Fees
+#### C. Tabel OrderItems
 ```sql
-- delivery_fee_id (PK)
-- order_id (FK)
-- courier_id (FK)
-- amount
-- platform_fee
-- collected_at
-- remitted_at
-- status
+- id (PK)
+- order_id (FK) -> orders.id
+- product_id (FK) -> products.id
+- quantity
+- price
+- created_at
+- updated_at
 ```
 
 ### 2. Status Tracking
 
-#### A. Payment Status
-- WAITING_PAYMENT
-- PAYMENT_UPLOADED
-- PAYMENT_VERIFIED
-- PAYMENT_REJECTED
-- EXPIRED
+#### A. Transaction Status
+- PENDING: Transaksi baru dibuat
+- COMPLETED: Transaksi selesai
+- CANCELED: Transaksi dibatalkan
 
-#### B. Delivery Status
-- WAITING_PICKUP
-- PICKED_UP
-- DELIVERING
-- DELIVERED
-- COMPLETED
-- CANCELLED
+#### B. Payment Status
+- PENDING: Menunggu pembayaran
+- COMPLETED: Pembayaran selesai
+- FAILED: Pembayaran gagal
 
-#### C. Fee Collection Status
-- PENDING
-- COLLECTED
-- REMITTED
-- OVERDUE
+#### C. Order Status
+- PENDING: Order baru dibuat
+- WAITING_APPROVAL: Menunggu persetujuan merchant
+- PROCESSING: Sedang diproses merchant
+- READY_FOR_PICKUP: Siap diambil kurir
+- PICKED_UP: Sudah diambil kurir
+- COMPLETED: Order selesai
+- CANCELED: Order dibatalkan
+
+#### D. Approval Status
+1. Merchant Approval:
+   - PENDING: Menunggu persetujuan
+   - APPROVED: Disetujui
+   - REJECTED: Ditolak
+
+2. Courier Approval:
+   - PENDING: Menunggu persetujuan
+   - APPROVED: Disetujui
+   - REJECTED: Ditolak
 
 ## Notifikasi System
 
@@ -137,9 +171,11 @@
 
 ### 3. Courier Notifications
 - New order assignments
+- Order approval requests
+- Order status updates
 - Pickup reminders
-- Fee collection reminders
-- Settlement reminders
+- Delivery confirmations
+- Rating notifications
 
 ## Reporting System
 
