@@ -187,7 +187,7 @@ class TestAccountsSeeder extends Seeder
             ]);
 
             // Upload merchant profile photo if exists
-            $profilePhotoPath = 'product-galleries/01JBE54Q492SD1AC9SA6NNWF6D.jpg';
+            $profilePhotoPath = 'profile-photos/01JBE54Q492SD1AC9SA6NNWF6D.jpg';
             $s3ProfilePhotoPath = 'profile-photos/merchant-' . $merchantUser->id . '.jpg';
             
             if ($this->uploadFileToS3($profilePhotoPath, $s3ProfilePhotoPath)) {
@@ -230,7 +230,7 @@ class TestAccountsSeeder extends Seeder
                 'country' => 'Indonesia'
             ]);
 
-            // Create Courier Account
+            // Create Courier Account with profile photo
             $courierUser = User::create([
                 'name' => 'Test Courier',
                 'email' => 'courier@test.com',
@@ -241,7 +241,16 @@ class TestAccountsSeeder extends Seeder
                 'is_active' => true
             ]);
 
-            // Create Regular User Account for reviews
+            // Upload courier profile photo
+            $courierProfilePhotoPath = 'profile-photos/01JBE54Q492SD1AC9SA6NNWF6D.jpg';
+            $s3CourierProfilePath = 'profile-photos/courier-' . $courierUser->id . '.jpg';
+            if ($this->uploadFileToS3($courierProfilePhotoPath, $s3CourierProfilePath)) {
+                $courierUser->forceFill([
+                    'profile_photo_path' => $s3CourierProfilePath
+                ])->save();
+            }
+
+            // Create Regular User Account with profile photo
             $user = User::create([
                 'name' => 'Test User',
                 'email' => 'user@test.com',
@@ -251,6 +260,15 @@ class TestAccountsSeeder extends Seeder
                 'username' => 'testuser',
                 'is_active' => true
             ]);
+
+            // Upload user profile photo
+            $userProfilePhotoPath = 'profile-photos/01JBE54Q492SD1AC9SA6NNWF6D.jpg';
+            $s3UserProfilePath = 'profile-photos/user-' . $user->id . '.jpg';
+            if ($this->uploadFileToS3($userProfilePhotoPath, $s3UserProfilePath)) {
+                $user->forceFill([
+                    'profile_photo_path' => $s3UserProfilePath
+                ])->save();
+            }
 
             // Create categories and products with image upload tests
             foreach ($this->products as $categoryName => $products) {

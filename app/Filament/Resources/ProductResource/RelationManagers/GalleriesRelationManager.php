@@ -7,7 +7,7 @@ use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class GalleriesRelationManager extends RelationManager
@@ -28,38 +28,39 @@ class GalleriesRelationManager extends RelationManager
                 //
             ])
             ->headerActions([
-                Tables\Actions\Action::make('upload')
+                Tables\Actions\CreateAction::make()
                     ->label('Upload Images')
                     ->form([
-                        Forms\Components\FileUpload::make('images')
-                            ->image()
+                        Forms\Components\FileUpload::make('url')
+                            ->label('Images')
                             ->multiple()
+                            ->image()
                             ->required()
-                            ->directory('products/galleries')
-                            ->disk(config('filesystems.default'))
+                            ->disk('s3')
+                            ->directory(trim(env('AWS_DIRECTORY'), '/') . '/products/galleries')
                             ->visibility('public')
-                            ->storeFileNamesIn('original_filename')
-                            ->getUploadedFileNameForStorageUsing(
-                                function (\Illuminate\Http\UploadedFile $file): string {
-                                    return Str::random(40) . '.' . $file->getClientOriginalExtension();
-                                }
-                            )
                             ->maxSize(5120)
-                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif']),
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif'])
+                            ->getUploadedFileNameForStorageUsing(
+                                fn ($file): string => 
+                                    'img_' . Str::random(32) . '.' . $file->getClientOriginalExtension()
+                            )
+                            ->storeFileNamesIn('original_filename'),
                     ])
-                    ->action(function (array $data): void {
-                        $images = $data['images'];
-                        if (!is_array($images)) {
-                            $images = [$images];
+                    ->mutateFormDataUsing(function (array $data): array {
+                        // Convert single file to array for consistent handling
+                        if (!is_array($data['url'])) {
+                            $data['url'] = [$data['url']];
                         }
-
-                        DB::transaction(function () use ($images) {
-                            foreach ($images as $image) {
-                                $this->getOwnerRecord()->galleries()->create([
-                                    'url' => $image,
-                                ]);
-                            }
-                        });
+                        return $data;
+                    })
+                    ->using(function (array $data, string $model): void {
+                        foreach ($data['url'] as $url) {
+                            $model::create([
+                                'product_id' => $this->getOwnerRecord()->id,
+                                'url' => $url,
+                            ]);
+                        }
                     }),
             ])
             ->actions([

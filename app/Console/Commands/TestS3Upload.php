@@ -13,24 +13,57 @@ class TestS3Upload extends Command
     public function handle()
     {
         try {
-            // Try to upload the test file
-            $result = Storage::disk('s3')->put('test.txt', 'Testing S3 upload');
+            $this->info('S3 Configuration:');
+            $this->info('Endpoint: ' . config('filesystems.disks.s3.endpoint'));
+            $this->info('Bucket: ' . config('filesystems.disks.s3.bucket'));
+            $this->info('Region: ' . config('filesystems.disks.s3.region'));
+            $this->info('Directory: ' . env('AWS_DIRECTORY'));
+            
+            // Get S3 client
+            $s3Client = Storage::disk('s3')->getClient();
+            
+            // Test bucket access
+            try {
+                $this->info('Testing bucket access...');
+                $s3Client->listBuckets();
+                $this->info('Bucket access successful');
+            } catch (\Exception $e) {
+                $this->error('Bucket access failed: ' . $e->getMessage());
+                return;
+            }
+            
+            // Try to upload with explicit ACL
+            $path = trim(env('AWS_DIRECTORY'), '/') . '/test.txt';
+            $this->info('Attempting to upload to path: ' . $path);
+            
+            // Try direct Storage facade upload first
+            $this->info('Attempting Storage facade upload...');
+            $result = Storage::disk('s3')->put($path, 'Testing S3 upload');
             
             if ($result) {
-                $this->info('Successfully uploaded to S3');
+                $this->info('Storage facade upload successful');
+                $url = Storage::disk('s3')->url($path);
+                $this->info('File URL: ' . $url);
                 
-                // Try to get the URL
-                $url = Storage::disk('s3')->url('test.txt');
-                $this->info("File URL: " . $url);
-                
-                // Verify file exists
-                $exists = Storage::disk('s3')->exists('test.txt');
-                $this->info("File exists check: " . ($exists ? 'Yes' : 'No'));
+                // List directory contents
+                $this->info('Listing directory contents:');
+                $files = Storage::disk('s3')->files(env('AWS_DIRECTORY'));
+                foreach ($files as $file) {
+                    $this->info('- ' . $file);
+                }
             } else {
-                $this->error('Failed to upload to S3');
+                $this->error('Storage facade upload failed');
             }
+            
         } catch (\Exception $e) {
             $this->error('Error: ' . $e->getMessage());
+            $this->error('Error type: ' . get_class($e));
+            if (method_exists($e, 'getAwsErrorCode')) {
+                $this->error('AWS Error Code: ' . $e->getAwsErrorCode());
+            }
+            if (method_exists($e, 'getAwsErrorType')) {
+                $this->error('AWS Error Type: ' . $e->getAwsErrorType());
+            }
         }
     }
 }
