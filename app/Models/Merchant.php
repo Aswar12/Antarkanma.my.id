@@ -61,11 +61,14 @@ class Merchant extends Model
             Storage::disk('s3')->delete($this->logo);
         }
 
-        // Store new logo in merchants/logos directory using s3 disk
-        $path = $file->store('merchants/logos', 's3');
+        // Generate filename with merchant ID
+        $filename = 'merchant-' . $this->id . '.' . $file->getClientOriginalExtension();
         
-        // Set visibility to public
-        Storage::disk('s3')->setVisibility($path, 'public');
+        // Store new logo with specific filename
+        $path = $file->storeAs('merchants/logos', $filename, [
+            'disk' => 's3',
+            'visibility' => 'public'
+        ]);
         
         $this->logo = $path;
         $this->save();

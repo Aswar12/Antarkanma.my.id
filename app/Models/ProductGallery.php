@@ -43,19 +43,24 @@ class ProductGallery extends Model
             return $value;
         }
 
-        // Generate URL for the image using the configured disk
-        return Storage::disk(config('filesystems.default'))->url($value);
+        // Generate URL using S3 disk
+        return Storage::disk('s3')->url($value);
     }
 
     public function setUrlAttribute($value)
     {
-        // If it's already a full URL, store only the path part
+        // If it's already a full URL, extract just the path
         if (filter_var($value, FILTER_VALIDATE_URL)) {
             $parsedUrl = parse_url($value);
-            $value = ltrim($parsedUrl['path'], '/');
+            $path = ltrim($parsedUrl['path'], '/');
+            
+            // Remove bucket name if present
+            $bucket = config('filesystems.disks.s3.bucket');
+            $path = str_replace($bucket . '/', '', $path);
+            
+            $value = $path;
         }
         
-        // Clean the path before saving to database
         $this->attributes['url'] = trim(str_replace('"', '', $value));
     }
 
@@ -64,15 +69,18 @@ class ProductGallery extends Model
      */
     public function storeImage($file)
     {
-        // Store image in products/galleries directory using configured disk
-        $path = $file->store('products/galleries', config('filesystems.default'));
+        // Generate unique filename
+        $filename = $this->product_id . '-' . Str::random(8) . '.' . $file->getClientOriginalExtension();
         
-        // Set visibility to public
-        Storage::disk(config('filesystems.default'))->setVisibility($path, 'public');
+        // Store image in products/images directory
+        $path = $file->storeAs('products/images', $filename, [
+            'disk' => 's3',
+            'visibility' => 'public'
+        ]);
         
         $this->url = $path;
         $this->save();
 
-        return Storage::disk(config('filesystems.default'))->url($path);
+        return Storage::disk('s3')->url($path);
     }
 }

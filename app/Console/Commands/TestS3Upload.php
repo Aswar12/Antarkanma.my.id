@@ -32,13 +32,16 @@ class TestS3Upload extends Command
                 return;
             }
             
-            // Try to upload with explicit ACL
-            $path = trim(env('AWS_DIRECTORY'), '/') . '/test.txt';
+            // Try to upload using Storage facade
+            $bucket = config('filesystems.disks.s3.bucket');
+            $path = $bucket . '/test.txt';
             $this->info('Attempting to upload to path: ' . $path);
             
-            // Try direct Storage facade upload first
-            $this->info('Attempting Storage facade upload...');
-            $result = Storage::disk('s3')->put($path, 'Testing S3 upload');
+            $result = Storage::disk('s3')->put($path, 'Testing S3 upload', [
+                'visibility' => 'public',
+                'ContentType' => 'text/plain',
+                'CacheControl' => 'max-age=31536000'
+            ]);
             
             if ($result) {
                 $this->info('Storage facade upload successful');

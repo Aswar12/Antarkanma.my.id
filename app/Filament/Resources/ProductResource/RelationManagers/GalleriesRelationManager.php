@@ -20,7 +20,8 @@ class GalleriesRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\ImageColumn::make('url')
                     ->square()
-                    ->disk(config('filesystems.default')),
+                    ->disk('s3')
+                    ->visibility('public'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime(),
             ])
@@ -37,15 +38,19 @@ class GalleriesRelationManager extends RelationManager
                             ->image()
                             ->required()
                             ->disk('s3')
-                            ->directory(trim(env('AWS_DIRECTORY'), '/') . '/products/galleries')
+                            ->directory('products/images')
                             ->visibility('public')
                             ->maxSize(5120)
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif'])
                             ->getUploadedFileNameForStorageUsing(
                                 fn ($file): string => 
-                                    'img_' . Str::random(32) . '.' . $file->getClientOriginalExtension()
+                                    $this->getOwnerRecord()->id . '-' . Str::random(8) . '.' . $file->getClientOriginalExtension()
                             )
-                            ->storeFileNamesIn('original_filename'),
+                            ->storeFileNamesIn('original_filename')
+                            ->imageResizeMode('cover')
+                            ->imageCropAspectRatio('16:9')
+                            ->imageResizeTargetWidth('1920')
+                            ->imageResizeTargetHeight('1080'),
                     ])
                     ->mutateFormDataUsing(function (array $data): array {
                         // Convert single file to array for consistent handling

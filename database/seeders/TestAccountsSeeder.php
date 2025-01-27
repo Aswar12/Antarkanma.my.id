@@ -129,6 +129,9 @@ class TestAccountsSeeder extends Seeder
                     'ACL' => 'public-read',
                     'CacheControl' => 'max-age=31536000'
                 ]);
+
+                // Store just the path without bucket name
+                $this->command->info("Path to store in database: {$s3Path}");
                 
                 $uploaded = true;
             } catch (\Exception $e) {
@@ -141,10 +144,12 @@ class TestAccountsSeeder extends Seeder
                 return false;
             }
 
-            // Get and verify the S3 URL
+            // Get and verify the S3 URL (will include bucket name)
             $url = Storage::disk('s3')->url($s3Path);
             $this->command->info("Successfully uploaded {$localPath} to S3");
             $this->command->info("File accessible at: {$url}");
+            
+            // Return the path without bucket name for database storage
             
             return true;
         } catch (\Exception $e) {
@@ -196,11 +201,7 @@ class TestAccountsSeeder extends Seeder
                 ])->save();
             }
 
-            // Upload merchant logo from profile photos
-            $localLogoPath = 'profile-photos/01JBE54Q492SD1AC9SA6NNWF6D.jpg';
-            $s3LogoPath = 'merchants/logos/merchant-' . $merchantUser->id . '.jpg';
-            $logoUploaded = $this->uploadFileToS3($localLogoPath, $s3LogoPath);
-
+            // Create merchant first
             $merchant = Merchant::create([
                 'owner_id' => $merchantUser->id,
                 'name' => 'Test Merchant Store',
@@ -211,8 +212,14 @@ class TestAccountsSeeder extends Seeder
                 'opening_time' => Carbon::createFromTime(8, 0, 0),
                 'closing_time' => Carbon::createFromTime(22, 0, 0),
                 'operating_days' => ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'],
-                'logo' => $logoUploaded ? $s3LogoPath : null
             ]);
+
+            // Upload merchant logo after merchant creation to get correct ID
+            $localLogoPath = 'profile-photos/01JBE54Q492SD1AC9SA6NNWF6D.jpg';
+            $s3LogoPath = 'merchants/logos/merchant-' . $merchant->id . '.jpg';
+            if ($this->uploadFileToS3($localLogoPath, $s3LogoPath)) {
+                $merchant->update(['logo' => $s3LogoPath]);
+            }
 
             // Create merchant location
             UserLocation::create([

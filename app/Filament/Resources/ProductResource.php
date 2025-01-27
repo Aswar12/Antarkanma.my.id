@@ -12,6 +12,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 
 class ProductResource extends Resource
 {
@@ -77,11 +78,15 @@ class ProductResource extends Resource
                                     ->imageCropAspectRatio('16:9')
                                     ->imageResizeTargetWidth('1920')
                                     ->imageResizeTargetHeight('1080')
-                                    ->directory( 'products/' .  config('filesystems.disks.s3.directory_env'))
+                                    ->directory('products/images')
                                     ->visibility('public')
                                     ->downloadable()
                                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                                    ->maxSize(5120), // 5MB
+                                    ->maxSize(5120) // 5MB
+                                    ->getUploadedFileNameForStorageUsing(
+                                        fn ($file): string => 
+                                            $this->getRecord()->id . '-' . Str::random(8) . '.' . $file->getClientOriginalExtension()
+                                    ),
                             ]),
                         Forms\Components\Tabs\Tab::make('Varian Produk')
                             ->schema([
@@ -135,7 +140,8 @@ class ProductResource extends Resource
                     ->label('Image')
                     ->circular()
                     ->stacked()
-                    ->limit(3),
+                    ->limit(3)
+                    ->disk('s3'),
                 Tables\Columns\TextColumn::make('merchant.name')
                     ->sortable()
                     ->searchable(),
