@@ -25,9 +25,9 @@ class TestAccountsSeeder extends Seeder
                 'price' => 25000,
                 'description' => 'Nasi goreng dengan telur, ayam, dan sayuran pilihan',
                 'images' => [
-                    'pexels-kelvinocta16-7190355.jpg',
-                    'pexels-kelvinocta16-7190356.jpg',
-                    'pexels-kelvinocta16-7190359.jpg'
+                    'product-galleries/pexels-kelvinocta16-7190355.jpg',
+                    'product-galleries/pexels-kelvinocta16-7190356.jpg',
+                    'product-galleries/pexels-kelvinocta16-7190359.jpg'
                 ]
             ],
             [
@@ -35,9 +35,9 @@ class TestAccountsSeeder extends Seeder
                 'price' => 23000,
                 'description' => 'Mie goreng dengan telur dan sayuran segar',
                 'images' => [
-                    'pexels-meggy-kadam-aryanto-3797063-7429247.jpg',
-                    'pexels-meggy-kadam-aryanto-3797063-9620137.jpg',
-                    'pexels-meggy-kadam-aryanto-3797063-11346027.jpg'
+                    'product-galleries/pexels-meggy-kadam-aryanto-3797063-7429247.jpg',
+                    'product-galleries/pexels-meggy-kadam-aryanto-3797063-9620137.jpg',
+                    'product-galleries/pexels-meggy-kadam-aryanto-3797063-11346027.jpg'
                 ]
             ],
             [
@@ -45,9 +45,9 @@ class TestAccountsSeeder extends Seeder
                 'price' => 30000,
                 'description' => 'Ayam goreng dengan bumbu kremes renyah',
                 'images' => [
-                    'pexels-ffawdyy-13294514.jpg',
-                    'pexels-ffawdyy-13294534.jpg',
-                    'pexels-ffawdyy-13294536.jpg'
+                    'product-galleries/pexels-ffawdyy-13294514.jpgX',
+                    'product-galleries/pexels-ffawdyy-13294534.jpg',
+                    'product-galleries/pexels-ffawdyy-13294536.jpg'
                 ]
             ]
         ],
@@ -57,9 +57,9 @@ class TestAccountsSeeder extends Seeder
                 'price' => 5000,
                 'description' => 'Teh manis dingin segar',
                 'images' => [
-                    'pexels-pixabay-372851.jpg',
-                    'pexels-polina-tankilevitch-4110012.jpg',
-                    'pexels-pragyanbezbo-2010701.jpg'
+                    'product-galleries/pexels-pixabay-372851.jpg',
+                    'product-galleries/pexels-polina-tankilevitch-4110012.jpg',
+                    'product-galleries/pexels-pragyanbezbo-2010701.jpg'
                 ]
             ],
             [
@@ -67,9 +67,9 @@ class TestAccountsSeeder extends Seeder
                 'price' => 7000,
                 'description' => 'Jeruk peras segar dengan es',
                 'images' => [
-                    'pexels-tijana-drndarski-449691-3338681.jpg',
-                    'pexels-tijana-drndarski-449691-3656119.jpg',
-                    'pexels-pixabay-279906.jpg'
+                    'product-galleries/pexels-tijana-drndarski-449691-3338681.jpg',
+                    'product-galleries/pexels-tijana-drndarski-449691-3656119.jpg',
+                    'product-galleries/pexels-pixabay-279906.jpg'
                 ]
             ]
         ]
@@ -86,45 +86,67 @@ class TestAccountsSeeder extends Seeder
     private function uploadFileToS3($localPath, $s3Path) 
     {
         try {
-            // Remove 'public/' prefix if exists since Storage::disk('local') already points to storage/app
-            $localPath = str_replace('public/', '', $localPath);
+            // Use absolute path for local files
+            $absolutePath = storage_path('app/public/' . $localPath);
             
-            if (Storage::disk('local')->exists($localPath)) {
-                $fileContent = Storage::disk('local')->get($localPath);
-                
-                // Determine content type based on file extension
-                $extension = strtolower(pathinfo($localPath, PATHINFO_EXTENSION));
-                $contentType = match($extension) {
-                    'jpg', 'jpeg' => 'image/jpeg',
-                    'png' => 'image/png',
-                    'gif' => 'image/gif',
-                    'webp' => 'image/webp',
-                    default => 'application/octet-stream',
-                };
-                
-                // Upload to S3 with public visibility and proper headers
-                Storage::disk('s3')->put($s3Path, $fileContent, [
-                    'visibility' => 'public',
-                    'ContentType' => $contentType,
-                    'CacheControl' => 'max-age=31536000, public'
-                ]);
-                
-                // Get the S3 URL
-                $url = Storage::disk('s3')->url($s3Path);
-                $this->command->info("Successfully uploaded {$localPath} to S3");
-                $this->command->info("File accessible at: {$url}");
-                
-                // Verify the file exists and is accessible
-                if (Storage::disk('s3')->exists($s3Path)) {
-                    $this->command->info("File verified on S3");
-                    return true;
-                } else {
-                    throw new \Exception("File uploaded but not verified on S3");
-                }
-            } else {
-                $this->command->error("Local file not found in storage/app/{$localPath}");
+            if (!file_exists($absolutePath)) {
+                $this->command->error("Local file not found: {$absolutePath}");
                 return false;
             }
+
+            $fileContent = file_get_contents($absolutePath);
+            if ($fileContent === false) {
+                $this->command->error("Failed to read file: {$absolutePath}");
+                return false;
+            }
+            
+            // Determine content type based on file extension
+            $extension = strtolower(pathinfo($localPath, PATHINFO_EXTENSION));
+            $contentType = match($extension) {
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'webp' => 'image/webp',
+                default => 'application/octet-stream',
+            };
+            
+            // Ensure the directory exists in S3
+            $directory = dirname($s3Path);
+            if (!Storage::disk('s3')->exists($directory)) {
+                Storage::disk('s3')->makeDirectory($directory);
+            }
+            
+            // Upload to S3 with public visibility
+            try {
+                $s3Client = Storage::disk('s3')->getClient();
+                $bucket = config('filesystems.disks.s3.bucket');
+                
+                $s3Client->putObject([
+                    'Bucket' => $bucket,
+                    'Key' => $s3Path,
+                    'Body' => $fileContent,
+                    'ContentType' => $contentType,
+                    'ACL' => 'public-read',
+                    'CacheControl' => 'max-age=31536000'
+                ]);
+                
+                $uploaded = true;
+            } catch (\Exception $e) {
+                $this->command->error("S3 upload error: " . $e->getMessage());
+                $uploaded = false;
+            }
+
+            if (!$uploaded) {
+                $this->command->error("Failed to upload file to S3: {$s3Path}");
+                return false;
+            }
+
+            // Get and verify the S3 URL
+            $url = Storage::disk('s3')->url($s3Path);
+            $this->command->info("Successfully uploaded {$localPath} to S3");
+            $this->command->info("File accessible at: {$url}");
+            
+            return true;
         } catch (\Exception $e) {
             Log::error("Failed to upload file to S3", [
                 'localPath' => $localPath,
@@ -165,40 +187,18 @@ class TestAccountsSeeder extends Seeder
             ]);
 
             // Upload merchant profile photo if exists
-            $profilePhotoPath = '/home/antarkanma/Desktop/Antarkanma.my.id/storage/app/public/profile-photos/01JBE54Q492SD1AC9SA6NNWF6D.jpg';
+            $profilePhotoPath = 'product-galleries/01JBE54Q492SD1AC9SA6NNWF6D.jpg';
             $s3ProfilePhotoPath = 'profile-photos/merchant-' . $merchantUser->id . '.jpg';
             
-            try {
-                if (file_exists($profilePhotoPath)) {
-                    $fileContent = file_get_contents($profilePhotoPath);
-                    
-                    // Upload to S3 with public visibility and proper headers
-                    Storage::disk('s3')->put($s3ProfilePhotoPath, $fileContent, [
-                        'visibility' => 'public',
-                        'ContentType' => 'image/jpeg',
-                        'CacheControl' => 'max-age=31536000, public'
-                    ]);
-                    
-                    // Update user profile photo path
-                    $merchantUser->forceFill([
-                        'profile_photo_path' => $s3ProfilePhotoPath
-                    ])->save();
-                    
-                    $this->command->info("Successfully uploaded profile photo to S3: " . Storage::disk('s3')->url($s3ProfilePhotoPath));
-                } else {
-                    $this->command->error("Profile photo not found in storage/app/{$profilePhotoPath}");
-                }
-            } catch (\Exception $e) {
-                Log::error("Failed to upload profile photo to S3", [
-                    'error' => $e->getMessage(),
-                    'path' => $profilePhotoPath
-                ]);
-                $this->command->error("Failed to upload profile photo: " . $e->getMessage());
+            if ($this->uploadFileToS3($profilePhotoPath, $s3ProfilePhotoPath)) {
+                $merchantUser->forceFill([
+                    'profile_photo_path' => $s3ProfilePhotoPath
+                ])->save();
             }
 
-            // Upload merchant logo from local storage
-            $localLogoPath = 'merchants/logos/merchant-logo.png';
-            $s3LogoPath = 'merchants/logos/merchant-' . $merchantUser->id . '.png';
+            // Upload merchant logo from profile photos
+            $localLogoPath = 'profile-photos/01JBE54Q492SD1AC9SA6NNWF6D.jpg';
+            $s3LogoPath = 'merchants/logos/merchant-' . $merchantUser->id . '.jpg';
             $logoUploaded = $this->uploadFileToS3($localLogoPath, $s3LogoPath);
 
             $merchant = Merchant::create([
@@ -270,8 +270,8 @@ class TestAccountsSeeder extends Seeder
 
                     // Upload product images from local storage
                     foreach ($productData['images'] as $index => $image) {
-                        $localImagePath = 'products/images/' . $image;
-                        $s3ImagePath = 'products/images/' . $product->id . '-' . $index . '-' . $image;
+                        $localImagePath = $image;
+                        $s3ImagePath = 'products/images/' . $product->id . '-' . $index . '-' . basename($image);
                         
                         if ($this->uploadFileToS3($localImagePath, $s3ImagePath)) {
                             ProductGallery::create([

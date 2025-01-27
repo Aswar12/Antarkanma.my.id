@@ -72,13 +72,16 @@ class ProductResource extends Resource
                                 Forms\Components\FileUpload::make('galleries')
                                     ->multiple()
                                     ->image()
+                                    ->disk('s3')
                                     ->imageResizeMode('cover')
                                     ->imageCropAspectRatio('16:9')
                                     ->imageResizeTargetWidth('1920')
                                     ->imageResizeTargetHeight('1080')
-                                    ->directory('product-galleries')
+                                    ->directory( 'products/' .  config('filesystems.disks.s3.directory_env'))
                                     ->visibility('public')
-                                    ->downloadable(),
+                                    ->downloadable()
+                                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                                    ->maxSize(5120), // 5MB
                             ]),
                         Forms\Components\Tabs\Tab::make('Varian Produk')
                             ->schema([

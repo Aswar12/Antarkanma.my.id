@@ -20,7 +20,7 @@ class GalleriesRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\ImageColumn::make('url')
                     ->square()
-                    ->disk('public'),
+                    ->disk(config('filesystems.default')),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime(),
             ])
@@ -35,8 +35,8 @@ class GalleriesRelationManager extends RelationManager
                             ->image()
                             ->multiple()
                             ->required()
-                            ->directory('product-galleries')
-                            ->disk('public')
+                            ->directory('products/galleries')
+                            ->disk(config('filesystems.default'))
                             ->visibility('public')
                             ->storeFileNamesIn('original_filename')
                             ->getUploadedFileNameForStorageUsing(
