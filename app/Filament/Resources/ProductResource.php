@@ -74,19 +74,25 @@ class ProductResource extends Resource
                                     ->multiple()
                                     ->image()
                                     ->disk('s3')
-                                    ->imageResizeMode('cover')
-                                    ->imageCropAspectRatio('16:9')
-                                    ->imageResizeTargetWidth('1920')
-                                    ->imageResizeTargetHeight('1080')
                                     ->directory('products/images')
                                     ->visibility('public')
-                                    ->downloadable()
-                                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                                    ->maxSize(5120) // 5MB
+                                    ->maxSize(5120)
+                                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif'])
                                     ->getUploadedFileNameForStorageUsing(
                                         fn ($file): string => 
                                             $this->getRecord()->id . '-' . Str::random(8) . '.' . $file->getClientOriginalExtension()
-                                    ),
+                                    )
+                                    ->afterStateUpdated(function ($state, $set, $get, $record) {
+                                        if (!$state || !$record) return;
+                                        
+                                        $files = is_array($state) ? $state : [$state];
+                                        
+                                        foreach ($files as $file) {
+                                            $record->galleries()->create([
+                                                'url' => $file
+                                            ]);
+                                        }
+                                    }),
                             ]),
                         Forms\Components\Tabs\Tab::make('Varian Produk')
                             ->schema([

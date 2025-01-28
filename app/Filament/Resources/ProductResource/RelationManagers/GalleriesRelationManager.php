@@ -20,8 +20,7 @@ class GalleriesRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\ImageColumn::make('url')
                     ->square()
-                    ->disk('s3')
-                    ->visibility('public'),
+                    ->disk('s3'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime(),
             ])
@@ -45,35 +44,37 @@ class GalleriesRelationManager extends RelationManager
                             ->getUploadedFileNameForStorageUsing(
                                 fn ($file): string => 
                                     $this->getOwnerRecord()->id . '-' . Str::random(8) . '.' . $file->getClientOriginalExtension()
-                            )
-                            ->storeFileNamesIn('original_filename')
-                            ->imageResizeMode('cover')
-                            ->imageCropAspectRatio('16:9')
-                            ->imageResizeTargetWidth('1920')
-                            ->imageResizeTargetHeight('1080'),
+                            ),
                     ])
-                    ->mutateFormDataUsing(function (array $data): array {
-                        // Convert single file to array for consistent handling
-                        if (!is_array($data['url'])) {
-                            $data['url'] = [$data['url']];
-                        }
-                        return $data;
-                    })
-                    ->using(function (array $data, string $model): void {
-                        foreach ($data['url'] as $url) {
-                            $model::create([
-                                'product_id' => $this->getOwnerRecord()->id,
-                                'url' => $url,
+                    ->using(function (array $data): void {
+                        \Log::info('Uploading images:', $data);
+                        $files = is_array($data['url']) ? $data['url'] : [$data['url']];
+                        
+                        foreach ($files as $file) {
+                            $this->getOwnerRecord()->galleries()->create([
+                                'url' => $file
                             ]);
                         }
                     }),
             ])
             ->actions([
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function ($record) {
+                        if ($record->url) {
+                            Storage::disk('s3')->delete($record->url);
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function ($records) {
+                            foreach ($records as $record) {
+                                if ($record->url) {
+                                    Storage::disk('s3')->delete($record->url);
+                                }
+                            }
+                        }),
                 ]),
             ])
             ->defaultSort('created_at', 'desc')

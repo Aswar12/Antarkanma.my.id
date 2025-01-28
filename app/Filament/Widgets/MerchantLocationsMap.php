@@ -32,13 +32,9 @@ class MerchantLocationsMap extends Widget
                     // Get the full URL for the logo
                     $logoUrl = null;
                     if ($user->merchant->logo) {
-                        // Remove any 'public/' prefix if it exists
-                        $logoPath = str_replace('public/', '', $user->merchant->logo);
-                        $logoUrl = asset('storage/' . $logoPath);
+                        $logoUrl = Storage::disk('s3')->url($user->merchant->logo);
                     } elseif ($user->profile_photo_path) {
-                        // Try using profile photo as fallback
-                        $photoPath = str_replace('public/', '', $user->profile_photo_path);
-                        $logoUrl = asset('storage/' . $photoPath);
+                        $logoUrl = Storage::disk('s3')->url($user->profile_photo_path);
                     }
 
                     return [

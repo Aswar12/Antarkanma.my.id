@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use App\Actions\Fortify\PasswordValidationRules;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
@@ -130,7 +131,7 @@ class UserController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'photo' => 'required|image' // Removed size limit, only validating that it's an image
+                'photo' => 'required|image|max:5120' // 5MB max
             ]);
 
             if ($validator->fails()) {
@@ -142,21 +143,30 @@ class UserController extends Controller
             if ($request->hasFile('photo')) {
                 // Delete old photo if exists
                 if ($user->profile_photo_path) {
-                    Storage::disk('public')->delete($user->profile_photo_path);
+                    Storage::disk('s3')->delete($user->profile_photo_path);
                 }
 
-                // Store new photo without any size restrictions
-                $path = $request->file('photo')->store('profile-photos', 'public');
+                // Generate filename
+                $filename = 'user-' . $user->id . '-' . Str::random(8) . '.' . $request->file('photo')->getClientOriginalExtension();
                 
-                // Update user profile photo and reload data
+                // Store new photo in S3
+                $path = $request->file('photo')->storeAs(
+                    'profile-photos',
+                    $filename,
+                    ['disk' => 's3', 'visibility' => 'public']
+                );
+                
+                // Update user profile photo
                 User::where('id', $user->id)->update([
                     'profile_photo_path' => $path
                 ]);
+
+                // Reload user data
                 $user = User::find($user->id);
 
                 return ResponseFormatter::success([
                     'path' => $path,
-                    'url' => $user->profile_photo_url
+                    'url' => Storage::disk('s3')->url($path)
                 ], 'Foto profile berhasil diupload');
             }
 

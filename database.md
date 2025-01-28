@@ -9,7 +9,7 @@
 - `email` - Unique email address
 - `email_verified_at` - Timestamp for email verification
 - `password` - Encrypted password
-- `roles` - Enum: 'USER', 'MERCHANT', 'COURIER'
+- `roles` - Enum: 'ADMIN', 'USER', 'MERCHANT', 'COURIER' (default: 'USER')
 - `username` - Unique username (nullable)
 - `phone_number` - Contact number (nullable)
 - `current_team_id` - For team management (nullable)
@@ -30,6 +30,13 @@
 - `payload` - Session data
 - `last_activity` - Last activity timestamp
 
+### FCM Notifications
+#### fcm_tokens
+- `id` - Primary key
+- `user_id` - Foreign key to users
+- `token` - FCM token string
+- Standard timestamps
+
 ### E-commerce Core
 
 #### product_galleries
@@ -48,7 +55,6 @@
 - `status` - Enum: 'ACTIVE', 'INACTIVE', 'OUT_OF_STOCK'
 - Standard timestamps
 
-
 #### merchants
 - `id` - Primary key
 - `name` - Merchant/store name
@@ -58,6 +64,8 @@
 - `status` - Enum: 'active', 'inactive'
 - `description` - Store description (nullable)
 - `logo` - Store logo path (nullable)
+- `logo_url` - Store logo URL (nullable)
+- `operating_hours` - Store operating hours
 - Standard timestamps
 
 #### products
@@ -82,7 +90,7 @@
 - `id` - Primary key
 - `user_id` - Foreign key to users
 - `total_amount` - Decimal(10,2)
-- `order_status` - Enum: 'PENDING', 'PROCESSING', 'COMPLETED', 'CANCELED'
+- `order_status` - Enum: 'PENDING', 'WAITING_APPROVAL', 'PROCESSING', 'READY_FOR_PICKUP', 'PICKED_UP', 'COMPLETED', 'CANCELED'
 - Standard timestamps
 
 #### order_items
@@ -106,6 +114,8 @@
 - `status` - Enum: 'PENDING', 'COMPLETED', 'CANCELED'
 - `payment_method` - Enum: 'MANUAL', 'ONLINE'
 - `payment_status` - Enum: 'PENDING', 'COMPLETED', 'FAILED'
+- `courier_approval` - Enum: 'PENDING', 'APPROVED', 'REJECTED'
+- `timeout_at` - Timestamp for transaction timeout
 - `rating` - Integer (nullable)
 - `note` - Text (nullable)
 - Standard timestamps
@@ -167,6 +177,7 @@
 - `latitude` - Decimal(10,8) (nullable)
 - `longitude` - Decimal(11,8) (nullable)
 - `is_default` - Boolean
+- `address_type` - Enum in Indonesian language
 - Standard timestamps
 
 ### Reviews and Ratings
@@ -188,6 +199,7 @@
    - Users -> Product Reviews (one-to-many)
    - Users -> Loyalty Points (one-to-one)
    - Users -> Couriers (one-to-one)
+   - Users -> FCM Tokens (one-to-many)
 
 2. Product Management
    - Products -> Merchants (many-to-one)
@@ -219,6 +231,10 @@
 - Indexing: Foreign keys and frequently queried fields are indexed
 
 ## Recent Updates
-1. Added is_active flag to users table
-2. Enhanced user locations with additional fields
-3. Updated address types to use Indonesian language
+1. Added ADMIN role to users roles enum
+2. Enhanced order status with WAITING_APPROVAL and PICKED_UP states
+3. Added courier_approval and timeout_at to transactions
+4. Added FCM tokens table for push notifications
+5. Added logo_url to merchants table
+6. Updated address types to use Indonesian language
+7. Added operating hours to merchants
