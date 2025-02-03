@@ -9,15 +9,6 @@ export default defineConfig({
                 'resources/js/app.js',
             ],
             refresh: true,
-            buildDirectory: 'build'
         }),
     ],
-    server: {
-        hmr: {
-            host: 'localhost'
-        },
-        headers: {
-            'Cache-Control': 'public, max-age=31536000',
-        },
-    },
 });

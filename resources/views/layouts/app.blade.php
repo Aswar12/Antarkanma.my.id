@@ -12,6 +12,9 @@
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
         <!-- Scripts -->
+        @php $manifestPath = public_path('build/manifest.json'); @endphp
+        <!-- Debug Info: {{ file_exists($manifestPath) ? 'Manifest exists' : 'Manifest not found' }} -->
+        <!-- Debug Path: {{ $manifestPath }} -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
 
         <!-- Styles -->
