@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\OrderItem;
 use App\Models\ProductGallery;
 use App\Models\User;
+use Database\Seeders\TestMerchantSeeder;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -21,6 +22,7 @@ class DatabaseSeeder extends Seeder
             Additional50ProductsSeeder::class, // Add products including Penghapus
             CourierSeeder::class,
             LoyaltyPointSeeder::class,
+            TestMerchantSeeder::class,
         ]);
     }
 }

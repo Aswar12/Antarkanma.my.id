@@ -8,19 +8,165 @@ use App\Models\Merchant;
 use Illuminate\Http\Request;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
+use App\Services\OsrmService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class MerchantController extends Controller
 {
-    public function index()
+    protected $osrmService;
+
+    public function __construct(OsrmService $osrmService)
     {
-        $merchants = Merchant::all();
-        return ResponseFormatter::success(
-            $merchants,
-            'Merchants retrieved successfully'
-        );
+        $this->osrmService = $osrmService;
+    }
+
+    public function index(Request $request)
+    {
+        try {
+            $merchants = Merchant::query()
+                ->where('status', 'active')
+                ->select([
+                    'id', 
+                    'name', 
+                    'address', 
+                    'phone_number',
+                    'status',
+                    'description',
+                    'logo',
+                    'latitude',
+                    'longitude',
+                    'opening_time',
+                    'closing_time',
+                    'operating_days'
+                ])
+                ->withCount(['products as total_products' => function($query) {
+                    $query->where('status', 'ACTIVE');
+                }]);
+
+            // Filter by name
+            if ($request->has('name')) {
+                $merchants->where('name', 'like', '%' . $request->name . '%');
+            }
+
+            // Filter by address
+            if ($request->has('address')) {
+                $merchants->where('address', 'like', '%' . $request->address . '%');
+            }
+
+            // Set limit per page, default 10
+            $limit = $request->input('limit', 10);
+
+            // Get paginated results
+            $result = $merchants->paginate($limit);
+
+            if ($result->isEmpty()) {
+                return ResponseFormatter::success(
+                    [],
+                    'No merchants found'
+                );
+            }
+
+            // Calculate distances if coordinates provided
+            if ($request->has(['latitude', 'longitude'])) {
+                // Get distances from OSRM for all merchants
+                $distances = $this->osrmService->getDistancesToMerchants(
+                    $request->latitude,
+                    $request->longitude,
+                    $result->getCollection()
+                );
+
+                // Add distances to merchants
+                $result->getCollection()->transform(function ($merchant) use ($distances) {
+                    if (isset($distances[$merchant->id])) {
+                        $merchant->distance = $distances[$merchant->id]['distance'];
+                        $merchant->duration = $distances[$merchant->id]['duration'];
+                    }
+                    
+                    // Ensure total_products is included
+                    $merchant->total_products = (int) $merchant->total_products;
+                    
+                    return $merchant;
+                });
+            }
+
+            return ResponseFormatter::success(
+                $result,
+                'Merchants retrieved successfully'
+            );
+        } catch (\Exception $e) {
+            Log::error('Error getting merchants: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Failed to retrieve merchants',
+                500
+            );
+        }
+    }
+
+    public function show($id)
+    {
+        try {
+            $merchant = Merchant::query()
+                ->with([
+                    'owner:id,name',
+                    'products' => function($query) {
+                        $query->with([
+                            'category:id,name',
+                            'galleries:id,product_id,url'
+                        ])
+                        ->select([
+                            'products.id',
+                            'products.merchant_id',
+                            'products.name',
+                            'products.description',
+                            'products.price',
+                            'products.status',
+                            'products.category_id',
+                            'products.created_at'
+                        ])
+                        ->selectRaw('COALESCE((SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id), 0) as average_rating')
+                        ->selectRaw('COALESCE((SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id), 0) as total_reviews')
+                        ->where('status', 'ACTIVE')
+                        ->orderBy('created_at', 'desc');
+                    }
+                ])
+                ->findOrFail($id);
+
+            // Add merchant stats
+            $merchant->stats = [
+                'product_count' => $merchant->products->count(),
+                'total_orders' => OrderItem::where('merchant_id', $merchant->id)->count(),
+                'total_sales' => OrderItem::where('merchant_id', $merchant->id)->sum('price')
+            ];
+
+            // Transform products to add rating_info like in ProductController
+            $merchant->products->transform(function ($product) {
+                $product->rating_info = [
+                    'average_rating' => round($product->average_rating, 1),
+                    'total_reviews' => (int)$product->total_reviews
+                ];
+                return $product;
+            });
+
+            return ResponseFormatter::success(
+                $merchant,
+                'Merchant details retrieved successfully'
+            );
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Merchant not found',
+                404
+            );
+        }
     }
 
     public function store(Request $request)
@@ -73,23 +219,6 @@ class MerchantController extends Controller
                 null,
                 'Failed to create merchant: ' . $e->getMessage(),
                 500
-            );
-        }
-    }
-
-    public function show($id)
-    {
-        try {
-            $merchant = Merchant::findOrFail($id);
-            return ResponseFormatter::success(
-                $merchant,
-                'Merchant details retrieved successfully'
-            );
-        } catch (\Exception $e) {
-            return ResponseFormatter::error(
-                null,
-                'Merchant not found',
-                404
             );
         }
     }
@@ -181,18 +310,57 @@ class MerchantController extends Controller
 
     public function getByOwnerId($id)
     {
-        $merchants = Merchant::where('owner_id', $id)->get();
+        $merchants = Merchant::query()
+            ->with([
+                'owner:id,name',
+                'products' => function($query) {
+                    $query->with([
+                        'category:id,name',
+                        'galleries:id,product_id,url'
+                    ])
+                    ->select([
+                        'products.id',
+                        'products.merchant_id',
+                        'products.name',
+                        'products.description',
+                        'products.price',
+                        'products.status',
+                        'products.category_id',
+                        'products.created_at'
+                    ])
+                    ->selectRaw('COALESCE((SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id), 0) as average_rating')
+                    ->selectRaw('COALESCE((SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id), 0) as total_reviews')
+                    ->where('status', 'ACTIVE')
+                    ->orderBy('created_at', 'desc');
+                }
+            ])
+            ->where('owner_id', $id)
+            ->get();
+
         $merchants->transform(function ($merchant) {
-            $merchant->product_count = $merchant->products()->count(); // Count of products
-            $merchant->order_count = OrderItem::where('merchant_id', $merchant->id)->count(); // Count of orders
-            $merchant->products_sold = OrderItem::where('merchant_id', $merchant->id)->sum('quantity'); // Total products sold
-            $merchant->total_sales = OrderItem::where('merchant_id', $merchant->id)->sum('price'); // Total sales
-            $merchant->monthly_revenue = OrderItem::where('merchant_id', $merchant->id)
-                ->whereMonth('created_at', now()->month)
-                ->sum('price'); // Monthly revenue
-            $merchant->product_count = $merchant->products()->count(); // Assuming a relationship exists
+            // Add merchant stats
+            $merchant->stats = [
+                'product_count' => $merchant->products->count(),
+                'total_orders' => OrderItem::where('merchant_id', $merchant->id)->count(),
+                'total_sales' => OrderItem::where('merchant_id', $merchant->id)->sum('price'),
+                'products_sold' => OrderItem::where('merchant_id', $merchant->id)->sum('quantity'),
+                'monthly_revenue' => OrderItem::where('merchant_id', $merchant->id)
+                    ->whereMonth('created_at', now()->month)
+                    ->sum('price')
+            ];
+
+            // Transform products to add rating_info
+            $merchant->products->transform(function ($product) {
+                $product->rating_info = [
+                    'average_rating' => round($product->average_rating, 1),
+                    'total_reviews' => (int)$product->total_reviews
+                ];
+                return $product;
+            });
+
             return $merchant;
         });
+
         return ResponseFormatter::success(
             $merchants,
             'Merchant list by owner retrieved successfully'

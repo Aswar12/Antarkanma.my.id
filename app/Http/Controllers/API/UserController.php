@@ -90,6 +90,29 @@ class UserController extends Controller
         return ResponseFormatter::success($token, 'Berhasil Logout', 200);
     }
 
+    public function refresh(Request $request)
+    {
+        try {
+            $user = $request->user();
+            
+            // Revoke current token
+            if ($request->bearerToken()) {
+                $user->tokens()->where('id', $user->currentAccessToken()->id)->delete();
+            }
+            
+            // Create new token
+            $token = $user->createToken('authToken')->plainTextToken;
+            
+            return ResponseFormatter::success([
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'user' => $user
+            ], 'Token berhasil diperbarui');
+        } catch (Exception $e) {
+            return ResponseFormatter::error('Refresh token failed: ' . $e->getMessage(), 500);
+        }
+    }
+
     public function profileUpdate(Request $request)
     {
         try {

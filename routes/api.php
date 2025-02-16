@@ -17,6 +17,7 @@ use App\Http\Controllers\API\FcmController;
 use App\Http\Controllers\API\OrderStatusController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\ProductGalleryController;
+use App\Http\Controllers\API\ShippingController;
 use App\Http\Controllers\S3TestController;
 
 // Public Product Review Routes
@@ -37,8 +38,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('reviews/{id}', [ProductReviewController::class, 'destroy']);
     Route::get('user/reviews', [ProductReviewController::class, 'getUserReviews']);
 
-    // Rute untuk logout pengguna
+    // Auth routes
     Route::post('/logout', [UserController::class, 'logout']);
+    Route::post('/refresh', [UserController::class, 'refresh']);
 
     // Rute untuk memperbarui profil pengguna
     Route::put('/user/profile', [UserController::class, 'profileUpdate']);
@@ -146,11 +148,22 @@ Route::post('register', [UserController::class, 'register']);
 Route::get('products', [ProductController::class, 'index']);
 Route::get('products/category/{categoryId}', [ProductController::class, 'getByCategory']);
 Route::post('/login', [UserController::class, 'login']);
+Route::get('/categories', [ProductCategoryController::class, 'list']);
+Route::get('/categories/{id}', [ProductCategoryController::class, 'get']);
+// Shipping routes
+Route::post('/shipping/calculate', [ShippingController::class, 'previewCosts'])->middleware('auth:sanctum'); // For backward compatibility
+Route::post('/shipping/preview', [ShippingController::class, 'previewCosts'])->middleware('auth:sanctum'); // New endpoint
+
+
+// Public Merchant routes
+Route::get('merchants', [MerchantController::class, 'index']); // List merchant (with optional distance)
+Route::get('merchants/{id}', [MerchantController::class, 'show']); // Detail merchant with products
 
 // Public Product routes
 Route::get('products/popular', [ProductController::class, 'getPopularProducts']);
 Route::get('products/top-by-category', [ProductController::class, 'getTopProductsByCategory']);
 Route::get('products/{id}/with-reviews', [ProductController::class, 'getProductWithReviews']);
+Route::get('merchants/{merchantId}/products', [ProductController::class, 'getProductByMerchant']);
 
 // S3 Storage Test Route
 Route::post('/test/upload-image', [S3TestController::class, 'uploadImage']);

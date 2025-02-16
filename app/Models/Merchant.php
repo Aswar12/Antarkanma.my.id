@@ -16,6 +16,8 @@ class Merchant extends Model
         'owner_id',
         'name',
         'address',
+        'latitude',
+        'longitude',
         'phone_number',
         'status',
         'description',
@@ -28,7 +30,9 @@ class Merchant extends Model
     protected $casts = [
         'opening_time' => 'datetime:H:i',
         'closing_time' => 'datetime:H:i',
-        'operating_days' => 'array'
+        'operating_days' => 'array',
+        'latitude' => 'decimal:8',
+        'longitude' => 'decimal:8'
     ];
 
     protected $appends = ['logo_url'];

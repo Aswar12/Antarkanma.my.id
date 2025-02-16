@@ -70,6 +70,14 @@ services:
     networks:
       - antarkanma
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: antarkanma-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token eyJhIjoiNjE1NzhkZDhiMzMxNzYyMzNlNGM3ZjI5MDYwMmJmMzUiLCJ0IjoiZmM3ZjU1ZjUtY2MwMi00Y2JhLTk5MTQtZmJmNmY2ZDI2ZjhkIiwicyI6Ik9UTTNNV1k0T0RRdE1XWTRNeTAwTkRFMkxXSmhaalV0TkRKbE9EZzVaVEExWlRFMiJ9
+    networks:
+      - antarkanma
+
 networks:
   antarkanma:
     driver: bridge

@@ -1,0 +1,134 @@
+/* Auto-scroll Animation */
+.pause-animation {
+    animation-play-state: paused;
+}
+
+/* Custom Animation Utilities */
+.perspective {
+    perspective: 2000px;
+}
+
+.preserve-3d {
+    transform-style: preserve-3d;
+}
+
+.transform-style-3d {
+    transform-style: preserve-3d;
+}
+
+.rotate-y-1 {
+    transform: rotateY(1deg);
+}
+
+.rotate-y-12 {
+    transform: rotateY(12deg);
+}
+
+/* Mask Utilities */
+.mask-radial-faded {
+    mask-image: radial-gradient(circle at center, black, transparent 80%);
+}
+
+.mask-image-gradient-faded {
+    mask-image: linear-gradient(black, transparent 70%);
+}
+
+/* Animation Delays */
+.animation-delay-2000 {
+    animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+    animation-delay: 4s;
+}
+
+/* Gradient Animations */
+.bg-gradient-conic {
+    background-image: conic-gradient(var(--tw-gradient-stops));
+}
+
+/* Custom Scrollbar */
+.scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;     /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;             /* Chrome, Safari and Opera */
+}
+
+/* Smooth Scrolling */
+.smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Custom Scrollbar (when visible) */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #FF6600 transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #FF6600;
+    border-radius: 3px;
+}
+
+/* Card Hover Effects */
+.card-hover-effect {
+    transition: all 0.3s ease;
+}
+
+.card-hover-effect:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Text Gradient Animation */
+.animate-text-gradient {
+    background-size: 200% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: textGradient 3s linear infinite;
+}
+
+@keyframes textGradient {
+    to {
+        background-position: 200% center;
+    }
+}
+
+/* Glass Morphism */
+.glass-effect {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Floating Animation */
+.floating {
+    animation: floating 3s ease-in-out infinite;
+}
+
+@keyframes floating {
+    0% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+    100% {
+        transform: translateY(0px);
+    }
+}

@@ -6,6 +6,8 @@ use Illuminate\Support\ServiceProvider;
 use App\Models\Product;
 use App\Observers\ProductObserver;
 use App\Services\FirebaseService;
+use App\Services\OsrmService;
+use App\Http\Controllers\API\ShippingController;
 use Kreait\Firebase\Contract\Messaging;
 
 class AppServiceProvider extends ServiceProvider
@@ -15,6 +17,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Register OSRM Service
+        $this->app->singleton(OsrmService::class, function ($app) {
+            return new OsrmService();
+        });
+
+        // Register ShippingController
+        $this->app->singleton(ShippingController::class, function ($app) {
+            return new ShippingController($app->make(OsrmService::class));
+        });
+
         // Only register Firebase services if both project ID and credentials are available
         if (config('firebase.project_id') && 
             config('firebase.credentials.file') && 

@@ -3,7 +3,6 @@
 namespace App\Filament\Widgets;
 
 use App\Models\User;
-use App\Models\UserLocation;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -20,14 +19,10 @@ class MerchantLocationsMap extends Widget
     {
         return Cache::store('array')->remember('merchant_locations', 60, function () {
             return User::whereHas('merchant')
-                ->with(['merchant', 'locations' => function ($query) {
-                    $query->where('is_default', true)
-                        ->where('is_active', true);
-                }])
+                ->with('merchant')
                 ->get()
                 ->map(function ($user) {
-                    $location = $user->locations->first();
-                    if (!$location) return null;
+                    if (!$user->merchant->latitude || !$user->merchant->longitude) return null;
 
                     // Get the full URL for the logo
                     $logoUrl = null;
@@ -39,10 +34,10 @@ class MerchantLocationsMap extends Widget
 
                     return [
                         'name' => $user->merchant->name,
-                        'address' => $location->address,
-                        'latitude' => $location->latitude,
-                        'longitude' => $location->longitude,
-                        'district' => $location->district,
+                        'address' => $user->merchant->address,
+                        'latitude' => $user->merchant->latitude,
+                        'longitude' => $user->merchant->longitude,
+                        'district' => $user->merchant->district,
                         'logo' => $logoUrl,
                     ];
                 })
