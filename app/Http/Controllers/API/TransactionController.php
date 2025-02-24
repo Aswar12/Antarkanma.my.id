@@ -212,6 +212,22 @@ class TransactionController extends Controller
             // Group items by merchant
             $itemsByMerchant = $items->groupBy('merchant_id');
 
+            // Get base merchant from shipping calculation
+            $baseMerchant = collect($shippingDetails)
+                ->where('route_type', 'base_merchant')
+                ->first();
+
+            if (!$baseMerchant) {
+                Log::error('No base merchant found in shipping details', [
+                    'shipping_details' => $shippingDetails
+                ]);
+                return ResponseFormatter::error(
+                    null,
+                    'Invalid shipping calculation. Please recalculate shipping.',
+                    422
+                );
+            }
+
             // Create Transaction
             $transactionData = [
                 'user_id' => Auth::id(),
@@ -222,11 +238,37 @@ class TransactionController extends Controller
                 'payment_method' => $request->payment_method,
                 'payment_status' => Transaction::PAYMENT_STATUS_PENDING,
                 'courier_approval' => Transaction::COURIER_PENDING,
-                'timeout_at' => now()->addMinutes(5)
+                'timeout_at' => now()->addMinutes(10), // Set 10 minutes timeout
+                'base_merchant_id' => $baseMerchant['merchant_id']
             ];
 
             Log::info('Creating Transaction:', $transactionData);
             $transaction = Transaction::create($transactionData);
+
+            // Check and cancel any timed out transactions
+            $timedOutTransactions = Transaction::where('status', Transaction::STATUS_PENDING)
+                ->where('courier_approval', Transaction::COURIER_PENDING)
+                ->where('timeout_at', '<', now())
+                ->get();
+
+            foreach ($timedOutTransactions as $timedOutTransaction) {
+                $timedOutTransaction->status = Transaction::STATUS_CANCELED;
+                $timedOutTransaction->save();
+
+                // Cancel all associated orders
+                $timedOutTransaction->orders()->update([
+                    'order_status' => 'CANCELED'
+                ]);
+
+                Log::info("Transaction {$timedOutTransaction->id} automatically canceled due to timeout");
+            }
+
+            // Kirim notifikasi ke semua kurir melalui topic
+            $this->firebaseService->sendNotification(
+                'new_transactions',
+                'Orderan Baru Tersedia!',
+                'Ada orderan baru yang menunggu untuk diambil'
+            );
 
 
             // 3. Create Order for each merchant
@@ -266,12 +308,6 @@ class TransactionController extends Controller
                     OrderItem::create($orderItemData);
                 }
 
-                // Send notification to merchant
-                $this->notificationController->sendNewTransactionNotification(
-                    $merchantId,
-                    $order->id,
-                    $transaction->id
-                );
             }
 
             // Load relationships
@@ -322,12 +358,8 @@ class TransactionController extends Controller
                 'shipping_details' => $responseData['shipping_details']
             ]);
 
-            // Clear shipping calculation from database cache after successful transaction
-            DB::table('cache')->where('key', $cacheKey)->delete();
-            Log::info('Cleared shipping calculation from cache', [
-                'key' => $cacheKey,
-                'user_id' => Auth::id()
-            ]);
+            // Keep shipping calculation in cache for courier assignment
+            // Cache will be cleared when transaction is completed or canceled
 
             return ResponseFormatter::success($responseData, 'Transaction created successfully');
         } catch (Exception $e) {

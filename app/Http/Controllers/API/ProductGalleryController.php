@@ -44,36 +44,40 @@ class ProductGalleryController extends Controller
 
             DB::beginTransaction();
             try {
-                // Delete the old image file
-                $oldPath = str_replace('storage/', '', $gallery->url);
+                // Delete the old image from S3
                 try {
-                    if (Storage::disk('public')->exists($oldPath)) {
-                        Storage::disk('public')->delete($oldPath);
+                    if (Storage::disk('s3')->exists($gallery->url)) {
+                        Storage::disk('s3')->delete($gallery->url);
                     }
                 } catch (\Exception $e) {
-                    Log::error('Error deleting old gallery file: ' . $e->getMessage(), [
+                    Log::error('Error deleting old gallery file from S3: ' . $e->getMessage(), [
                         'gallery_id' => $gallery->id,
-                        'path' => $oldPath
+                        'path' => $gallery->url
                     ]);
                     // Continue even if old file deletion fails
                 }
 
-                // Store the new file
-                $path = $request->file('gallery')->store('product-galleries', 'public');
+                // Store the new file in S3
+                $file = $request->file('gallery');
+                $s3ImagePath = 'products/images/' . $product->id . '-' . time() . '-' . $file->getClientOriginalName();
 
-                // Update gallery record
-                $gallery->url = $path;
-                $gallery->save();
+                if (Storage::disk('s3')->put($s3ImagePath, file_get_contents($file->getPathname()))) {
+                    // Update gallery record
+                    $gallery->url = $s3ImagePath;
+                    $gallery->save();
 
-                DB::commit();
-                return ResponseFormatter::success(
-                    [
-                        'id' => $gallery->id,
-                        'url' => asset('storage/' . $path),
-                        'product_id' => $gallery->product_id
-                    ],
-                    'Gallery image updated successfully'
-                );
+                    DB::commit();
+                    return ResponseFormatter::success(
+                        [
+                            'id' => $gallery->id,
+                            'url' => Storage::disk('s3')->url($s3ImagePath),
+                            'product_id' => $gallery->product_id
+                        ],
+                        'Gallery image updated successfully'
+                    );
+                }
+
+                throw new \Exception('Failed to upload file to S3');
             } catch (\Exception $e) {
                 DB::rollBack();
                 Log::error('Error updating gallery: ' . $e->getMessage(), [
@@ -108,16 +112,15 @@ class ProductGalleryController extends Controller
 
             DB::beginTransaction();
             try {
-                // Delete the image file
-                $path = str_replace('storage/', '', $gallery->url);
+                // Delete the image file from S3
                 try {
-                    if (Storage::disk('public')->exists($path)) {
-                        Storage::disk('public')->delete($path);
+                    if (Storage::disk('s3')->exists($gallery->url)) {
+                        Storage::disk('s3')->delete($gallery->url);
                     }
                 } catch (\Exception $e) {
-                    Log::error('Error deleting gallery file: ' . $e->getMessage(), [
+                    Log::error('Error deleting gallery file from S3: ' . $e->getMessage(), [
                         'gallery_id' => $gallery->id,
-                        'path' => $path
+                        'path' => $gallery->url
                     ]);
                     // Continue even if file deletion fails
                 }
@@ -194,21 +197,23 @@ class ProductGalleryController extends Controller
                     $files = [$files];
                 }
 
-                foreach ($files as $file) {
+                foreach ($files as $index => $file) {
                     try {
-                        // Store file
-                        $path = $file->store('product-galleries', 'public');
+                        $localImagePath = $file->getPathname();
+                        $s3ImagePath = 'products/images/' . $product->id . '-' . $index . '-' . $file->getClientOriginalName();
 
-                        // Create gallery record
-                        $gallery = $product->galleries()->create([
-                            'url' => $path
-                        ]);
+                        if (Storage::disk('s3')->put($s3ImagePath, file_get_contents($localImagePath))) {
+                            // Create gallery record
+                            $gallery = $product->galleries()->create([
+                                'url' => $s3ImagePath
+                            ]);
 
-                        $galleries[] = [
-                            'id' => $gallery->id,
-                            'url' => asset('storage/' . $path),
-                            'product_id' => $product->id
-                        ];
+                            $galleries[] = [
+                                'id' => $gallery->id,
+                                'url' => Storage::disk('s3')->url($s3ImagePath),
+                                'product_id' => $product->id
+                            ];
+                        }
                     } catch (\Exception $e) {
                         Log::error('Error processing file: ' . $e->getMessage());
                         continue;

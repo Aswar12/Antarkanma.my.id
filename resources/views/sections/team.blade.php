@@ -53,7 +53,7 @@
                                 <div
                                     class="absolute inset-0 bg-gradient-conic from-[#FF6600] via-[#020238] to-[#FF6600] rounded-2xl opacity-30 animate-spin-slow">
                                 </div>
-                                <img src="{{ asset('images/fotoku.jpeg') }}" alt="Aswar Sumarlin"
+                                <img src="{{ Storage::disk('s3')->url('team/fotoku.jpeg') }}" alt="Aswar Sumarlin"
                                     class="relative w-full h-full object-cover rounded-2xl ring-4 ring-white shadow-lg transition-all duration-500 group-hover:scale-105 group-hover:shadow-2xl">
                             </div>
 
@@ -151,39 +151,9 @@
             <div class="flex gap-6 animate-auto-scroll hover:pause-animation cursor-grab active:cursor-grabbing touch-pan-x">
                 <!-- First set of cards -->
                 <div class="flex gap-6 shrink-0 select-none">
+                @inject('teamController', 'App\Http\Controllers\TeamController')
                 @php
-                $members = [
-                    [
-                        'name' => 'Husain',
-                        'role' => 'Marketing',
-                        'image' => 'husain.jpeg',
-                        'description' => 'Ahli dalam pengembangan strategi pemasaran dan pertumbuhan bisnis'
-                    ],
-                    [
-                        'name' => 'Akbar',
-                        'role' => 'Facility & Infrastructure Manager',
-                        'image' => 'akbar.jpeg',
-                        'description' => 'Mengoptimalkan lingkungan kerja dan infrastruktur teknis untuk mendukung inovasi dan produktivitas tim'
-                    ],
-                    [
-                        'name' => 'Ichal',
-                        'role' => 'Design',
-                        'image' => 'ichal.jpeg',
-                        'description' => 'Spesialis dalam UI/UX design dan pengalaman pengguna'
-                    ],
-                    [
-                        'name' => 'Firman',
-                        'role' => 'Advisor',
-                        'image' => 'firman.jpeg',
-                        'description' => 'Mentor dan penasehat strategis dengan pengalaman industri yang luas'
-                    ],
-                    [
-                        'name' => 'Hegar',
-                        'role' => 'Data Analyst',
-                        'image' => 'hegar.jpeg',
-                        'description' => 'Spesialis dalam analisis data dan pengambilan keputusan berbasis data'
-                    ]
-                ];
+                    $members = $teamController->teamMembers;
                 @endphp
 
                 @foreach($members as $index => $member)
@@ -194,7 +164,7 @@
                                 <!-- Profile Image -->
                                 <div class="relative w-40 h-40 mx-auto mb-6 transform-gpu transition-all duration-500 group-hover:scale-105">
                                     <div class="absolute inset-0 bg-gradient-to-r from-[#020238] to-[#FF6600] rounded-2xl opacity-20 group-hover:opacity-30"></div>
-                                    <img src="{{ file_exists(public_path('images/' . $member['image'])) ? asset('images/' . $member['image']) : asset('images/default-avatar.png') }}"
+                                    <img src="{{ Storage::disk('s3')->url($member['image']) }}"
                                          alt="{{ $member['name'] }}"
                                          class="relative w-full h-full object-cover rounded-2xl ring-4 ring-white shadow-lg transition-all duration-500 group-hover:shadow-xl">
                                 </div>
@@ -227,7 +197,7 @@
                                 <!-- Profile Image -->
                                 <div class="relative w-40 h-40 mx-auto mb-6 transform-gpu transition-all duration-500 group-hover:scale-105">
                                     <div class="absolute inset-0 bg-gradient-to-r from-[#020238] to-[#FF6600] rounded-2xl opacity-20 group-hover:opacity-30"></div>
-                                    <img src="{{ file_exists(public_path('images/' . $member['image'])) ? asset('images/' . $member['image']) : asset('images/default-avatar.png') }}"
+                                    <img src="{{ Storage::disk('s3')->url($member['image']) }}"
                                          alt="{{ $member['name'] }}"
                                          class="relative w-full h-full object-cover rounded-2xl ring-4 ring-white shadow-lg transition-all duration-500 group-hover:shadow-xl">
                                 </div>
@@ -253,39 +223,43 @@
         </div>
 
         <!-- Join Team CTA -->
-        <div class="relative mt-20 py-16 rounded-3xl overflow-hidden" x-data="{ shown: false }" x-intersect="shown = true">
-            <!-- Background -->
+        <div class="relative mt-20 py-16 rounded-3xl overflow-hidden bg-gradient-to-r from-[#020238] to-[#FF6600]">
+            <!-- Animated Background Elements -->
             <div class="absolute inset-0">
-                <!-- Base Gradient -->
-                <div class="absolute inset-0 bg-gradient-to-r from-[#020238] to-[#FF6600] opacity-90"></div>
+                <!-- Animated Blobs -->
+                <div class="absolute w-[500px] h-[500px] -top-32 -left-32 bg-white/10 rounded-full mix-blend-overlay animate-blob"></div>
+                <div class="absolute w-[500px] h-[500px] -bottom-32 -right-32 bg-white/10 rounded-full mix-blend-overlay animate-blob animation-delay-2000"></div>
 
-                <!-- Animated Elements -->
-                <div class="absolute inset-0">
-                    <div class="absolute w-96 h-96 -top-48 left-1/4 bg-white/20 rounded-full mix-blend-overlay animate-blob"></div>
-                    <div class="absolute w-96 h-96 top-48 right-1/4 bg-white/20 rounded-full mix-blend-overlay animate-blob animation-delay-2000"></div>
+                <!-- Decorative Pattern -->
+                <div class="absolute inset-0 opacity-10">
+                    <div class="absolute inset-0 bg-grid-white/10 bg-grid-8"></div>
                 </div>
             </div>
 
-            <!-- Content -->
+            <!-- Content Container -->
             <div class="relative z-10 max-w-4xl mx-auto px-8 text-center">
-                <h3 class="text-5xl font-bold text-white mb-8 transform transition-all duration-700"
-                    :class="shown ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'">
+                <!-- Title -->
+                <h3 class="text-5xl font-bold text-white mb-8 animate-fade-in">
                     Bergabung dengan Tim Kami
                 </h3>
 
-                <p class="text-xl text-white/90 mb-12 transform transition-all duration-700 delay-100"
-                   :class="shown ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'">
+                <!-- Description -->
+                <p class="text-xl text-white/90 mb-12 animate-fade-in" style="animation-delay: 200ms">
                     Kami selalu mencari talenta-talenta terbaik untuk bergabung dengan tim kami.
                     Jika Anda memiliki <span class="font-semibold">passion dalam teknologi dan pengiriman</span>,
                     mari bergabung bersama kami.
                 </p>
 
-                <div class="transform transition-all duration-700 delay-200"
-                     :class="shown ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'">
+                <!-- CTA Button -->
+                <div class="animate-fade-in" style="animation-delay: 400ms">
                     <a href="/careers"
-                       class="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-[#020238] bg-white rounded-full shadow-xl hover:shadow-2xl transform transition-all duration-300 hover:scale-105 hover:-translate-y-1 group">
-                        <span>Lihat Lowongan Tersedia</span>
-                        <svg class="w-6 h-6 ml-3 transform transition-all duration-300 group-hover:translate-x-1"
+                       class="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-[#020238] bg-white rounded-full shadow-xl hover:shadow-2xl transform transition-all duration-300 hover:scale-105 hover:-translate-y-1 group relative overflow-hidden">
+                        <!-- Button Gradient Hover Effect -->
+                        <div class="absolute inset-0 bg-gradient-to-r from-[#FF6600]/10 to-[#020238]/10 opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+
+                        <!-- Button Content -->
+                        <span class="relative z-10">Lihat Lowongan Tersedia</span>
+                        <svg class="w-6 h-6 ml-3 relative z-10 transform transition-all duration-300 group-hover:translate-x-1"
                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                   d="M13 7l5 5m0 0l-5 5m5-5H6"/>

@@ -62,7 +62,7 @@ trait HasFcmTokens
     public function sendNotification($title, $body, $data = [])
     {
         $tokens = $this->getActiveFcmTokens();
-        
+
         if (empty($tokens)) {
             return false;
         }

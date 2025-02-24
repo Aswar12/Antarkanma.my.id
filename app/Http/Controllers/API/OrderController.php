@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Helpers\ResponseFormatter;
+use Carbon\Carbon;
 
 class OrderController extends Controller
 {
@@ -27,9 +28,15 @@ class OrderController extends Controller
     public function getByMerchant($merchantId, Request $request)
     {
         try {
-            $perPage = $request->input('per_page', 10); // Default to 10 items per page
-            $status = $request->input('status'); // Get status from request
-            
+            $perPage = $request->input('per_page', 10);
+            $status = $request->input('status');
+            $startDate = $request->input('start_date');
+            $endDate = $request->input('end_date');
+            $search = $request->input('search');
+            $sortBy = $request->input('sort_by', 'created_at');
+            $sortOrder = $request->input('sort_order', 'desc');
+
+            // Base query with eager loading
             $query = Order::with([
                 'orderItems' => function ($query) {
                     $query->with([
@@ -39,32 +46,94 @@ class OrderController extends Controller
                     ]);
                 },
                 'transaction',
-                'user'
+                'user:id,name,email,phone'
             ])
-                ->where('merchant_id', $merchantId)
-                ->whereHas('transaction', function($q) {
-                    $q->where('courier_approval', 'APPROVED');
-                });
+            ->where('merchant_id', $merchantId)
+            ->where(function($q) {
+                $q->where('order_status', Order::STATUS_WAITING_APPROVAL)
+                  ->orWhere('order_status', '!=', Order::STATUS_PENDING);
+            })
+            ->whereHas('transaction', function($q) {
+                $q->where('courier_approval', Transaction::COURIER_APPROVED);
+            });
 
-            // Filter by status if provided
+            // Apply filters
             if ($status) {
                 $query->where('order_status', $status);
             }
 
-            // Exclude PENDING orders since they shouldn't be visible to merchant
-            $query->where('order_status', '!=', Order::STATUS_PENDING);
+            if ($startDate) {
+                $query->whereDate('created_at', '>=', Carbon::parse($startDate));
+            }
 
-            $orders = $query->orderBy('created_at', 'desc')
-                ->paginate($perPage);
+            if ($endDate) {
+                $query->whereDate('created_at', '<=', Carbon::parse($endDate));
+            }
 
-            // Get count for each status in a single query
-            $statusCounts = Order::where('merchant_id', $merchantId)
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->whereHas('user', function($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%")
+                            ->orWhere('phone', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('orderItems.product', function($productQuery) use ($search) {
+                        $productQuery->where('name', 'like', "%{$search}%");
+                    });
+                });
+            }
+
+            // Apply sorting
+            $query->orderBy($sortBy, $sortOrder);
+
+            // Get paginated orders
+            $orders = $query->paginate($perPage);
+
+            // Calculate total amount for each order
+            foreach ($orders as $order) {
+                $order->total = $order->orderItems->sum(function ($item) {
+                    return $item->quantity * $item->price;
+                });
+            }
+
+            // Get status counts with date and search filters
+            $statusCountsQuery = Order::where('merchant_id', $merchantId)
+                ->where(function($q) {
+                    $q->where('order_status', Order::STATUS_WAITING_APPROVAL)
+                      ->orWhere('order_status', '!=', Order::STATUS_PENDING);
+                })
+                ->whereHas('transaction', function($q) {
+                    $q->where('courier_approval', Transaction::COURIER_APPROVED);
+                });
+
+            if ($startDate) {
+                $statusCountsQuery->whereDate('created_at', '>=', Carbon::parse($startDate));
+            }
+
+            if ($endDate) {
+                $statusCountsQuery->whereDate('created_at', '<=', Carbon::parse($endDate));
+            }
+
+            if ($search) {
+                $statusCountsQuery->where(function($q) use ($search) {
+                    $q->whereHas('user', function($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%")
+                            ->orWhere('phone', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('orderItems.product', function($productQuery) use ($search) {
+                        $productQuery->where('name', 'like', "%{$search}%");
+                    });
+                });
+            }
+
+            $statusCounts = $statusCountsQuery
                 ->select('order_status', DB::raw('count(*) as total'))
                 ->groupBy('order_status')
                 ->pluck('total', 'order_status')
                 ->toArray();
 
-            // Ensure all statuses have a count, even if zero
+            // Ensure all statuses have a count
             $allStatuses = [
                 Order::STATUS_PENDING,
                 Order::STATUS_WAITING_APPROVAL,
@@ -81,10 +150,29 @@ class OrderController extends Controller
                 }
             }
 
+            // Get summary statistics
+            $summary = [
+                'total_orders' => array_sum($statusCounts),
+                'total_completed' => $statusCounts[Order::STATUS_COMPLETED] ?? 0,
+                'total_processing' => $statusCounts[Order::STATUS_PROCESSING] ?? 0,
+                'total_pending' => $statusCounts[Order::STATUS_PENDING] ?? 0,
+                'total_canceled' => $statusCounts[Order::STATUS_CANCELED] ?? 0,
+            ];
+
             return ResponseFormatter::success([
                 'orders' => $orders,
-                'status_counts' => $statusCounts
+                'status_counts' => $statusCounts,
+                'summary' => $summary,
+                'filters' => [
+                    'status' => $status,
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'search' => $search,
+                    'sort_by' => $sortBy,
+                    'sort_order' => $sortOrder
+                ]
             ], 'Merchant orders retrieved successfully');
+
         } catch (\Exception $e) {
             return ResponseFormatter::error(
                 null,
@@ -93,8 +181,6 @@ class OrderController extends Controller
             );
         }
     }
-
-
 
     public function approveOrder(Request $request, $orderId)
     {

@@ -2,338 +2,260 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
-use App\Models\Order;
+use App\Helpers\ResponseFormatter;
 use App\Models\Transaction;
+use App\Models\Courier;
+use App\Services\FirebaseService;
+use App\Services\OsrmService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CourierController extends Controller
 {
-    public function profile(Request $request)
+    protected $firebaseService;
+    protected $osrmService;
+
+    public function __construct(FirebaseService $firebaseService, OsrmService $osrmService)
     {
-        $user = $request->user();
-        $courier = $user->courier()->with(['user', 'transactions', 'deliveries'])->first();
-
-        if (!$courier) {
-            return ResponseFormatter::error(
-                null,
-                'Akun kurir tidak ditemukan',
-                404
-            );
-        }
-
-        // Get active transactions count
-        $activeTransactionsCount = $courier->transactions()
-            ->whereNotIn('status', [Transaction::STATUS_COMPLETED, Transaction::STATUS_CANCELED])
-            ->count();
-
-        // Get completed transactions count
-        $completedTransactionsCount = $courier->transactions()
-            ->where('status', Transaction::STATUS_COMPLETED)
-            ->count();
-
-        // Get active deliveries
-        $activeDeliveries = $courier->deliveries()
-            ->with(['transaction.orders.merchant', 'transaction.userLocation'])
-            ->whereHas('transaction', function($query) {
-                $query->whereNotIn('status', [Transaction::STATUS_COMPLETED, Transaction::STATUS_CANCELED]);
-            })
-            ->get();
-
-        $data = [
-            'id' => $courier->id,
-            'user' => $courier->user,
-            'vehicle_type' => $courier->vehicle_type,
-            'license_plate' => $courier->license_plate,
-            'full_details' => $courier->full_details,
-            'statistics' => [
-                'active_transactions' => $activeTransactionsCount,
-                'completed_transactions' => $completedTransactionsCount,
-                'total_transactions' => $activeTransactionsCount + $completedTransactionsCount
-            ],
-            'active_deliveries' => $activeDeliveries
-        ];
-
-        return ResponseFormatter::success(
-            $data,
-            'Data profil kurir berhasil diambil'
-        );
+        $this->firebaseService = $firebaseService;
+        $this->osrmService = $osrmService;
     }
 
-    public function index(Request $request)
-    {
-        $courier = Auth::user()->courier;
-        $limit = $request->input('limit', 10);
-        $status = $request->input('status');
-
-        if (!$courier) {
-            return ResponseFormatter::error(
-                null,
-                'Akun kurir tidak ditemukan',
-                404
-            );
-        }
-
-        $transactions = Transaction::with([
-                'orders.merchant', 
-                'orders.orderItems.product', 
-                'userLocation',
-                'user'
-            ])
-            ->where('courier_id', $courier->id);
-
-        if ($status) {
-            $transactions->where('status', $status);
-        }
-
-        return ResponseFormatter::success(
-            $transactions->paginate($limit),
-            'Data list transaksi berhasil diambil'
-        );
-    }
-
-    public function show($id)
-    {
-        $courier = Auth::user()->courier;
-
-        if (!$courier) {
-            return ResponseFormatter::error(
-                null,
-                'Akun kurir tidak ditemukan',
-                404
-            );
-        }
-
-        $transaction = Transaction::with([
-                'orders.merchant', 
-                'orders.orderItems.product',
-                'userLocation',
-                'user'
-            ])
-            ->where('courier_id', $courier->id)
-            ->find($id);
-
-        if (!$transaction) {
-            return ResponseFormatter::error(
-                null,
-                'Data transaksi tidak ditemukan',
-                404
-            );
-        }
-
-        return ResponseFormatter::success(
-            $transaction,
-            'Data transaksi berhasil diambil'
-        );
-    }
-
-    public function approveTransaction($id)
+    public function getNewTransactions(Request $request)
     {
         try {
+            // Check if user has courier role
+            if ($request->user()->roles !== 'COURIER') {
+                return ResponseFormatter::error(
+                    null,
+                    'Unauthorized: User is not a courier',
+                    403
+                );
+            }
+
+            $perPage = $request->input('per_page', 10);
+            $userId = $request->user()->id;
+
+            // First, cancel any timed out transactions
+            $timedOutTransactions = Transaction::where('status', Transaction::STATUS_PENDING)
+                ->where('courier_approval', Transaction::COURIER_PENDING)
+                ->where('timeout_at', '<', now())
+                ->get();
+
+            foreach ($timedOutTransactions as $transaction) {
+                $transaction->status = Transaction::STATUS_CANCELED;
+                $transaction->save();
+
+                // Cancel all associated orders
+                $transaction->orders()->update([
+                    'order_status' => 'CANCELED'
+                ]);
+
+                Log::info("Transaction {$transaction->id} automatically canceled due to timeout");
+            }
+
+            // Get courier's current location
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+
+            if (!$latitude || !$longitude) {
+                return ResponseFormatter::error(
+                    null,
+                    'Latitude and longitude are required',
+                    422
+                );
+            }
+
+            // Get valid transactions with base merchant and user location
+            $transactions = Transaction::with([
+                'baseMerchant',
+                'orders.orderItems.product.merchant',
+                'user',
+                'userLocation'
+            ])
+                ->where('courier_approval', Transaction::COURIER_PENDING)
+                ->whereNull('courier_id')
+                ->where('status', Transaction::STATUS_PENDING)
+                ->where('timeout_at', '>', now())
+                ->get();
+
+            // Calculate distance using OSRM and add it to each transaction
+            $transactionsWithDistance = $transactions->map(function ($transaction) use ($latitude, $longitude) {
+                $route = $this->osrmService->getRouteDistance(
+                    $latitude,
+                    $longitude,
+                    $transaction->baseMerchant->latitude,
+                    $transaction->baseMerchant->longitude
+                );
+
+                $transaction = $transaction->toArray();
+                if ($route) {
+                    // OSRM service already returns distance in kilometers
+                    $transaction['distance'] = $route['distance'];
+                    // Duration is already in minutes from OSRM service
+                    $transaction['duration'] = $route['duration'];
+                    $transaction['is_fallback'] = $route['is_fallback'] ?? false;
+                }
+
+                // Add user location details if available
+                if (isset($transaction['user_location'])) {
+                    $userLocation = $transaction['user_location'];
+                    $transaction['delivery_location'] = [
+                        'address' => $userLocation['address'],
+                        'latitude' => $userLocation['latitude'],
+                        'longitude' => $userLocation['longitude'],
+                        'notes' => $userLocation['notes'] ?? null
+                    ];
+                }
+
+                unset($transaction['courier']); // Remove courier data since it's not approved yet
+
+                return $transaction;
+            })->sortBy('distance')->values();
+
+            // Paginate the sorted results
+            $page = $request->input('page', 1);
+            $paginatedTransactions = new \Illuminate\Pagination\LengthAwarePaginator(
+                $transactionsWithDistance->forPage($page, $perPage),
+                $transactionsWithDistance->count(),
+                $perPage,
+                $page
+            );
+
+            return ResponseFormatter::success(
+                $paginatedTransactions,
+                'New transactions retrieved successfully'
+            );
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Failed to retrieve new transactions: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+    public function approveTransaction(Request $request, $id)
+    {
+        try {
+            // Check if user has courier role
+            if ($request->user()->roles !== 'COURIER') {
+                return ResponseFormatter::error(
+                    null,
+                    'Unauthorized: User is not a courier',
+                    403
+                );
+            }
+
+            $transaction = Transaction::with([
+                'orders.orderItems.product.merchant',
+                'courier.user',
+                'user',
+                'userLocation',
+                'baseMerchant'
+            ])->findOrFail($id);
+
+            // Check if transaction can be approved
+            if ($transaction->courier_approval !== Transaction::COURIER_PENDING) {
+                return ResponseFormatter::error(
+                    null,
+                    'Transaksi tidak dapat disetujui: Status tidak valid',
+                    422
+                );
+            }
+
+            if (!is_null($transaction->courier_id)) {
+                return ResponseFormatter::error(
+                    null,
+                    'Transaksi sudah diambil kurir lain',
+                    422
+                );
+            }
+
             DB::beginTransaction();
 
-            $courier = Auth::user()->courier;
-            
+            // Get the courier record for this user
+            $courier = Courier::where('user_id', $request->user()->id)->first();
+
             if (!$courier) {
                 return ResponseFormatter::error(
                     null,
-                    'Akun kurir tidak ditemukan',
-                    404
+                    'Unauthorized: User is not registered as a courier',
+                    403
                 );
             }
 
-            $transaction = Transaction::where('courier_approval', Transaction::COURIER_PENDING)
-                ->find($id);
-
-            if (!$transaction) {
-                return ResponseFormatter::error(
-                    null,
-                    'Data transaksi tidak ditemukan',
-                    404
-                );
-            }
-
-            if ($transaction->isTimedOut()) {
-                return ResponseFormatter::error(
-                    null,
-                    'Transaksi sudah timeout',
-                    400
-                );
-            }
-
-            if (!$transaction->needsCourierApproval()) {
-                return ResponseFormatter::error(
-                    null,
-                    'Transaksi tidak dapat diapprove',
-                    400
-                );
-            }
-
-            // Update transaction
+            // Update transaction with courier_id from couriers table
             $transaction->courier_id = $courier->id;
             $transaction->courier_approval = Transaction::COURIER_APPROVED;
             $transaction->save();
 
-            // Update all orders to WAITING_APPROVAL
-            $transaction->orders()->update([
-                'order_status' => Order::STATUS_WAITING_APPROVAL
-            ]);
-
-            DB::commit();
-
-            return ResponseFormatter::success(
-                $transaction,
-                'Transaksi berhasil diapprove'
-            );
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return ResponseFormatter::error(
-                null,
-                'Terjadi kesalahan saat approve transaksi: ' . $e->getMessage(),
-                500
-            );
-        }
-    }
-
-    public function rejectTransaction($id)
-    {
-        try {
-            DB::beginTransaction();
-
-            $courier = Auth::user()->courier;
-            
-            if (!$courier) {
-                return ResponseFormatter::error(
-                    null,
-                    'Akun kurir tidak ditemukan',
-                    404
-                );
-            }
-
-            $transaction = Transaction::where('courier_approval', Transaction::COURIER_PENDING)
-                ->find($id);
-
-            if (!$transaction) {
-                return ResponseFormatter::error(
-                    null,
-                    'Data transaksi tidak ditemukan',
-                    404
-                );
-            }
-
-            if (!$transaction->needsCourierApproval()) {
-                return ResponseFormatter::error(
-                    null,
-                    'Transaksi tidak dapat direject',
-                    400
-                );
-            }
-
-            // Update transaction
-            $transaction->courier_approval = Transaction::COURIER_REJECTED;
-            $transaction->status = Transaction::STATUS_CANCELED;
-            $transaction->save();
-
-            // Cancel all orders
-            $transaction->orders()->update([
-                'order_status' => Order::STATUS_CANCELED
-            ]);
-
-            DB::commit();
-
-            return ResponseFormatter::success(
-                $transaction,
-                'Transaksi berhasil direject'
-            );
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return ResponseFormatter::error(
-                null,
-                'Terjadi kesalahan saat reject transaksi: ' . $e->getMessage(),
-                500
-            );
-        }
-    }
-
-    public function updateOrderStatus(Request $request, $orderId)
-    {
-        try {
-            DB::beginTransaction();
-
-            $courier = Auth::user()->courier;
-            
-            if (!$courier) {
-                return ResponseFormatter::error(
-                    null,
-                    'Akun kurir tidak ditemukan',
-                    404
-                );
-            }
-
-            $order = Order::whereHas('transaction', function($query) use ($courier) {
-                $query->where('courier_id', $courier->id);
-            })->find($orderId);
-
-            if (!$order) {
-                return ResponseFormatter::error(
-                    null,
-                    'Order tidak ditemukan',
-                    404
-                );
-            }
-
-            $newStatus = $request->input('status');
-            $allowedStatuses = [Order::STATUS_PICKED_UP, Order::STATUS_COMPLETED];
-
-            if (!in_array($newStatus, $allowedStatuses)) {
-                return ResponseFormatter::error(
-                    null,
-                    'Status tidak valid',
-                    400
-                );
-            }
-
-            // Validate status transition
-            $validTransitions = [
-                Order::STATUS_READY => [Order::STATUS_PICKED_UP],
-                Order::STATUS_PICKED_UP => [Order::STATUS_COMPLETED]
-            ];
-
-            if (!isset($validTransitions[$order->order_status]) || 
-                !in_array($newStatus, $validTransitions[$order->order_status])) {
-                return ResponseFormatter::error(
-                    null,
-                    'Perubahan status tidak valid',
-                    400
-                );
-            }
-
-            $order->order_status = $newStatus;
-            $order->save();
-
-            // Update transaction status if all orders are completed
-            if ($newStatus === Order::STATUS_COMPLETED) {
-                $transaction = $order->transaction;
-                if ($transaction->allOrdersCompleted()) {
-                    $transaction->status = Transaction::STATUS_COMPLETED;
-                    $transaction->save();
+            // Send notifications to all parties
+            try {
+                // Notify merchants
+                foreach ($transaction->orders as $order) {
+                    $this->firebaseService->sendNotification(
+                        'merchant_' . $order->merchant_id,
+                        'Pesanan Baru',
+                        'Kurir telah menerima pesanan #' . $transaction->id,
+                        [
+                            'type' => 'order_approved',
+                            'order_id' => $order->id,
+                            'transaction_id' => $transaction->id
+                        ]
+                    );
                 }
+
+                // Notify courier
+                if ($transaction->courier && $transaction->courier->user) {
+                    $fcmTokens = $transaction->courier->user->fcmTokens()->pluck('token')->toArray();
+                    foreach ($fcmTokens as $token) {
+                        $this->firebaseService->sendNotification(
+                            $token,
+                            'Pesanan Diterima',
+                            'Anda telah menerima pesanan #' . $transaction->id,
+                            [
+                                'type' => 'order_assigned',
+                                'transaction_id' => $transaction->id
+                            ]
+                        );
+                    }
+                }
+
+                // Notify customer
+                if ($transaction->user) {
+                    $fcmTokens = $transaction->user->fcmTokens()->pluck('token')->toArray();
+                    foreach ($fcmTokens as $token) {
+                        $this->firebaseService->sendNotification(
+                            $token,
+                            'Kurir Ditemukan',
+                            'Kurir telah menerima pesanan Anda #' . $transaction->id,
+                            [
+                                'type' => 'courier_found',
+                                'transaction_id' => $transaction->id
+                            ]
+                        );
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to send notifications: ' . $e->getMessage());
             }
 
             DB::commit();
 
             return ResponseFormatter::success(
-                $order,
-                'Status order berhasil diperbarui'
+                null,
+                'Transaksi berhasil disetujui, menunggu persetujuan merchant'
             );
+
         } catch (\Exception $e) {
             DB::rollBack();
             return ResponseFormatter::error(
                 null,
-                'Terjadi kesalahan saat memperbarui status: ' . $e->getMessage(),
+                'Gagal menyetujui transaksi: ' . $e->getMessage(),
                 500
             );
         }

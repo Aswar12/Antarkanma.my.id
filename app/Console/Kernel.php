@@ -23,6 +23,7 @@ class Kernel extends ConsoleKernel
         Commands\ResetAndSeedWithS3Images::class,
         Commands\ResetAndSeedDatabase::class,
         Commands\TestS3Upload::class,
+        Commands\CancelTimedOutTransactions::class,
     ];
 
     /**
@@ -30,7 +31,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Check and cancel timed out transactions every minute
+        $schedule->command('transactions:cancel-timed-out')->everyMinute();
     }
 
     /**

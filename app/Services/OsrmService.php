@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 class OsrmService
 {
     protected $baseUrl = 'http://router.project-osrm.org';
-    
+
     const PROXIMITY_THRESHOLD = 1000; // 1 kilometer
     const DIRECTION_THRESHOLD = 90; // 90 derajat
 
@@ -19,7 +19,7 @@ class OsrmService
     public function getDistancesToMerchants($userLat, $userLon, $merchants)
     {
         $distances = [];
-        
+
         foreach ($merchants as $merchant) {
             if ($merchant->latitude && $merchant->longitude) {
                 $route = $this->getRouteDistance(
@@ -28,13 +28,13 @@ class OsrmService
                     $merchant->latitude,
                     $merchant->longitude
                 );
-                
+
                 if ($route) {
                     $distances[$merchant->id] = $route;
                 }
             }
         }
-        
+
         return $distances;
     }
 
@@ -52,7 +52,7 @@ class OsrmService
                     'steps' => 'false',
                     'annotations' => 'false'
                 ]);
-                
+
                 if ($response->successful() && isset($response->json()['routes'][0])) {
                     // Calculate angle for this route
                     $angle = $this->calculateAngle(
@@ -74,7 +74,7 @@ class OsrmService
 
             // Fallback to direct distance
             $directDistance = $this->calculateDistance($startLat, $startLon, $endLat, $endLon);
-            
+
             // Calculate angle even for fallback
             $angle = $this->calculateAngle(
                 ['lat' => $startLat, 'lon' => $startLon],
@@ -111,7 +111,7 @@ class OsrmService
 
             // Get base route (first route in group)
             $baseRoute = $existingRoutes[0];
-            
+
             // Get route details for new merchant
             $newRoute = $this->getRouteDistance($newMerchantLat, $newMerchantLon, $userLat, $userLon);
             if (!$newRoute) {
@@ -198,7 +198,7 @@ class OsrmService
         }
     }
 
-    private function calculateAngle($route1Start, $route1End, $route2Start, $route2End) 
+    private function calculateAngle($route1Start, $route1End, $route2Start, $route2End)
     {
         $v1x = $route1End['lon'] - $route1Start['lon'];
         $v1y = $route1End['lat'] - $route1Start['lat'];
@@ -236,7 +236,7 @@ class OsrmService
         $a = sin($dLat/2) * sin($dLat/2) +
              cos($lat1) * cos($lat2) *
              sin($dLon/2) * sin($dLon/2);
-             
+
         $c = 2 * atan2(sqrt($a), sqrt(1-$a));
 
         return $earthRadius * $c;

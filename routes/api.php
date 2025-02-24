@@ -8,10 +8,10 @@ use App\Http\Controllers\API\MerchantController;
 use App\Http\Controllers\API\ProductController;
 use App\Http\Controllers\API\UserLocationController;
 use App\Http\Controllers\API\OrderController;
+use App\Http\Controllers\API\CourierController;
 use App\Http\Controllers\API\TransactionController;
 use App\Http\Controllers\API\ProductCategoryController;
 use App\Http\Controllers\API\DeliveryController;
-use App\Http\Controllers\API\CourierController;
 use App\Http\Controllers\API\ProductReviewController;
 use App\Http\Controllers\API\FcmController;
 use App\Http\Controllers\API\OrderStatusController;
@@ -19,6 +19,7 @@ use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\ProductGalleryController;
 use App\Http\Controllers\API\ShippingController;
 use App\Http\Controllers\S3TestController;
+use App\Http\Controllers\API\NotificationTestController;
 
 // Public Product Review Routes
 Route::get('products/{productId}/reviews', [ProductReviewController::class, 'getByProduct']);
@@ -26,8 +27,7 @@ Route::get('products/{productId}/reviews', [ProductReviewController::class, 'get
 // Grup rute untuk pengguna dengan middleware auth:sanctum
 Route::middleware('auth:sanctum')->group(function () {
     // FCM Routes
-    Route::post('/fcm/token', [FcmController::class, 'updateToken']);
-    Route::post('/fcm/token/create', [FcmController::class, 'store']);
+    Route::post('/fcm/token', [FcmController::class, 'storeOrUpdateToken']);
     Route::delete('/fcm/token', [FcmController::class, 'removeToken']);
     Route::post('/fcm/topic/subscribe', [FcmController::class, 'subscribeTopic']);
     Route::post('/notifications/test/merchant', [NotificationController::class, 'testMerchantNotification']);
@@ -108,21 +108,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('merchants/orders/{orderId}/reject', [OrderController::class, 'rejectOrder']);
     Route::put('merchants/orders/{orderId}/ready', [OrderController::class, 'markAsReady']);
 
-    Route::get('/couriers', [CourierController::class, 'index']);
+    // Courier Transaction Routes
+    Route::prefix('courier')->group(function () {
+        // Route::get('transactions', [CourierController::class, 'getTransactions']); // Removed unused route
+        Route::get('new-transactions', [CourierController::class, 'getNewTransactions']);
+        Route::post('transactions/{id}/status', [CourierController::class, 'updateTransactionStatus']);
+        Route::post('transactions/{id}/approve', [CourierController::class, 'approveTransaction']);
+        Route::post('transactions/{id}/reject', [CourierController::class, 'rejectTransaction']);
+    });
+
     Route::post('/couriers', [CourierController::class, 'store']);
     Route::get('/couriers/{id}', [CourierController::class, 'show']);
     Route::put('/couriers/{id}', [CourierController::class, 'update']);
     Route::delete('/couriers/{id}', [CourierController::class, 'destroy']);
-
-    // Courier Transaction Routes
-    Route::prefix('courier')->group(function () {
-        Route::get('profile', [CourierController::class, 'profile']);
-        Route::get('transactions', [CourierController::class, 'index']);
-        Route::get('transactions/{id}', [CourierController::class, 'show']);
-        Route::post('transactions/{id}/approve', [CourierController::class, 'approveTransaction']);
-        Route::post('transactions/{id}/reject', [CourierController::class, 'rejectTransaction']);
-        Route::post('orders/{id}/status', [CourierController::class, 'updateOrderStatus']);
-    });
 
     Route::post('/transactions', [TransactionController::class, 'create']);
     Route::get('/transactions/{id}', [TransactionController::class, 'get']);
@@ -140,9 +138,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/user-locations/{id}/set-default', [UserLocationController::class, 'setDefault']);
 });
 
-
-
-
 // Public routes
 Route::post('register', [UserController::class, 'register']);
 Route::get('products', [ProductController::class, 'index']);
@@ -153,7 +148,6 @@ Route::get('/categories/{id}', [ProductCategoryController::class, 'get']);
 // Shipping routes
 Route::post('/shipping/calculate', [ShippingController::class, 'previewCosts'])->middleware('auth:sanctum'); // For backward compatibility
 Route::post('/shipping/preview', [ShippingController::class, 'previewCosts'])->middleware('auth:sanctum'); // New endpoint
-
 
 // Public Merchant routes
 Route::get('merchants', [MerchantController::class, 'index']); // List merchant (with optional distance)
@@ -167,3 +161,4 @@ Route::get('merchants/{merchantId}/products', [ProductController::class, 'getPro
 
 // S3 Storage Test Route
 Route::post('/test/upload-image', [S3TestController::class, 'uploadImage']);
+Route::post('/notifications/test', [NotificationTestController::class, 'sendTestNotification']);

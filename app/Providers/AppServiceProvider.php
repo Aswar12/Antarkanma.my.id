@@ -27,26 +27,24 @@ class AppServiceProvider extends ServiceProvider
             return new ShippingController($app->make(OsrmService::class));
         });
 
-        // Only register Firebase services if both project ID and credentials are available
-        if (config('firebase.project_id') && 
-            config('firebase.credentials.file') && 
-            file_exists(config('firebase.credentials.file'))) {
-            
-            // Register Firebase Messaging service
-            $this->app->singleton(Messaging::class, function ($app) {
-                return (new \Kreait\Firebase\Factory)
-                    ->withServiceAccount(config('firebase.credentials.file'))
-                    ->withProjectId(config('firebase.project_id'))
-                    ->createMessaging();
-            });
+        // Register Firebase Service wrapper
+        $this->app->singleton(FirebaseService::class, function ($app) {
+            $messaging = null;
 
-            // Register Firebase Service wrapper
-            $this->app->singleton(FirebaseService::class, function ($app) {
-                return new FirebaseService(
-                    $app->make(Messaging::class)
-                );
-            });
-        }
+            // Only create Messaging instance if Firebase is configured
+            if (config('firebase.projects.app.credentials') &&
+                file_exists(config('firebase.projects.app.credentials'))) {
+                try {
+                    $messaging = (new \Kreait\Firebase\Factory)
+                        ->withServiceAccount(config('firebase.projects.app.credentials'))
+                        ->createMessaging();
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to initialize Firebase Messaging: ' . $e->getMessage());
+                }
+            }
+
+            return new FirebaseService($messaging);
+        });
     }
 
     /**

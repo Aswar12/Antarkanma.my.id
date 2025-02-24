@@ -1,4 +1,4 @@
-FROM dunglas/frankenphp:1.0
+FROM dunglas/frankenphp:latest
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \

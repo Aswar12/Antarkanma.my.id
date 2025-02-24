@@ -12,7 +12,7 @@ class Courier extends Model
     protected $fillable = ['user_id', 'vehicle_type', 'license_plate'];
 
     protected $with = ['user'];
-    
+
     protected $appends = ['name', 'full_details'];
 
     public function user()
@@ -32,14 +32,11 @@ class Courier extends Model
 
     public function getNameAttribute(): string
     {
-        return $this->user?->name ?? 'Unknown Courier';
+        return $this->user->name ?? 'Unknown Courier';
     }
 
     public function getFullDetailsAttribute(): string
     {
-        if (!$this->user) {
-            return 'Unknown Courier';
-        }
-        return "{$this->user->name} ({$this->vehicle_type} - {$this->license_plate})";
+        return "{$this->name} ({$this->vehicle_type} - {$this->license_plate})";
     }
 }

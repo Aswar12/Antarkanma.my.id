@@ -11,16 +11,26 @@ class FirebaseService
 {
     protected $messaging;
 
-    public function __construct(Messaging $messaging = null)
+    public function __construct(?Messaging $messaging = null)
     {
         $this->messaging = $messaging;
     }
 
-    private function isConfigured(): bool
+    public function isConfigured(): bool
     {
-        return $this->messaging !== null && 
-               config('firebase.credentials.file') !== null &&
-               config('firebase.project_id') !== null;
+        $hasMessaging = $this->messaging !== null;
+        $hasCredentials = env('FIREBASE_CREDENTIALS') !== null;
+        $hasProjectId = env('FIREBASE_PROJECT_ID') !== null;
+
+        Log::info('Firebase configuration status:', [
+            'messaging' => $hasMessaging,
+            'credentials' => $hasCredentials,
+            'project_id' => $hasProjectId,
+            'credentials_path' => env('FIREBASE_CREDENTIALS'),
+            'project_id_value' => env('FIREBASE_PROJECT_ID')
+        ]);
+
+        return $hasMessaging && $hasCredentials && $hasProjectId;
     }
 
     /**
@@ -102,7 +112,7 @@ class FirebaseService
 
         // Filter out any empty tokens
         $tokens = array_filter($tokens);
-        
+
         if (empty($tokens)) {
             Log::warning('No valid FCM tokens provided');
             return false;
@@ -125,7 +135,7 @@ class FirebaseService
             // Log success and failures
             $successCount = $response->successes()->count();
             $failureCount = $response->failures()->count();
-            
+
             Log::info('FCM Multicast Response:', [
                 'success_count' => $successCount,
                 'failure_count' => $failureCount,

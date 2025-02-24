@@ -13,6 +13,7 @@ class Transaction extends Model
         'user_id',
         'user_location_id',
         'courier_id',
+        'base_merchant_id',
         'total_price',
         'shipping_price',
         'payment_date',
@@ -32,7 +33,7 @@ class Transaction extends Model
         'rating' => 'integer'
     ];
 
-    protected $with = ['user', 'courier', 'orders'];
+    protected $with = ['user', 'courier.user', 'orders', 'baseMerchant'];
 
     public function orders()
     {
@@ -51,7 +52,18 @@ class Transaction extends Model
 
     public function courier()
     {
-        return $this->belongsTo(Courier::class)->withDefault();
+        return $this->belongsTo(Courier::class, 'courier_id')->withDefault();
+    }
+
+    public function baseMerchant()
+    {
+        return $this->belongsTo(Merchant::class, 'base_merchant_id')->withDefault();
+    }
+
+    // Add a method to get the courier's details
+    public function getCourierDetails()
+    {
+        return $this->courier()->first();
     }
 
     public function orderItems()
@@ -157,7 +169,7 @@ class Transaction extends Model
         DB::transaction(function () {
             // Update courier approval status
             $this->update(['courier_approval' => self::COURIER_APPROVED]);
-            
+
             // Update all associated orders to waiting approval status
             $this->orders()->update([
                 'order_status' => Order::STATUS_WAITING_APPROVAL
@@ -193,6 +205,17 @@ class Transaction extends Model
             ->where('order_status', '!=', Order::STATUS_CANCELED)
             ->exists();
     }
+
+    public function clearShippingCache(): void
+    {
+        $cacheKey = 'shipping_calculation_' . $this->user_id;
+        DB::table('cache')->where('key', $cacheKey)->delete();
+        Log::info('Cleared shipping calculation from cache', [
+            'transaction_id' => $this->id,
+            'user_id' => $this->user_id
+        ]);
+    }
+
 
     public function calculateShippingPrice()
     {
