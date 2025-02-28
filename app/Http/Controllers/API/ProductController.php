@@ -19,7 +19,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         try {
-            $products = Product::with(['merchant', 'category', 'galleries'])
+            $products = Product::with(['merchant', 'category', 'galleries', 'variants'])
                 ->withAvg('reviews', 'rating')
                 ->withCount('reviews')
                 ->when($request->has('merchant_id'), fn($q) => $q->where('merchant_id', $request->merchant_id))
@@ -39,7 +39,7 @@ class ProductController extends Controller
                 'request' => $request->all(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return ResponseFormatter::error(
                 null,
                 'Terjadi kesalahan saat mengambil data produk',
@@ -57,7 +57,12 @@ class ProductController extends Controller
                 'price' => 'required|numeric|min:0',
                 'category_id' => 'required|exists:product_categories,id',
                 'merchant_id' => 'required|exists:merchants,id',
-                'status' => 'in:ACTIVE,INACTIVE,OUT_OF_STOCK'
+                'status' => 'in:ACTIVE,INACTIVE,OUT_OF_STOCK',
+                'variants' => 'array',
+                'variants.*.name' => 'required|string|max:255',
+                'variants.*.value' => 'required|string',
+                'variants.*.price_adjustment' => 'required|numeric',
+                'variants.*.status' => 'in:ACTIVE,INACTIVE,OUT_OF_STOCK'
             ]);
 
             if ($validator->fails()) {
@@ -79,11 +84,26 @@ class ProductController extends Controller
                     'status' => $request->status ?? 'ACTIVE'
                 ]);
 
+                // Create variants if provided
+                if ($request->has('variants')) {
+                    foreach ($request->variants as $variantData) {
+                        $product->variants()->create([
+                            'name' => $variantData['name'],
+                            'value' => $variantData['value'],
+                            'price_adjustment' => $variantData['price_adjustment'],
+                            'status' => $variantData['status'] ?? 'ACTIVE'
+                        ]);
+                    }
+                }
+
                 // Add rating info consistently with other methods
                 $product->rating_info = [
                     'average_rating' => 0.0,
                     'total_reviews' => 0
                 ];
+
+                // Load variants relationship for response
+                $product->load('variants');
 
                 DB::commit();
 
@@ -119,17 +139,18 @@ class ProductController extends Controller
                 try {
                     $result = Product::query()
                         ->with([
-                            'merchant:id,name,owner_id', 
-                            'category:id,name', 
-                            'galleries:id,product_id,url'
+                            'merchant:id,name,owner_id',
+                            'category:id,name',
+                            'galleries:id,product_id,url',
+                            'variants:id,product_id,name,price,status'
                         ])
                         ->select([
-                            'products.id', 
-                            'products.name', 
-                            'products.description', 
+                            'products.id',
+                            'products.name',
+                            'products.description',
                             'products.price',
-                            'products.status', 
-                            'products.category_id', 
+                            'products.status',
+                            'products.category_id',
                             'products.merchant_id',
                             'products.created_at'
                         ])
@@ -187,7 +208,7 @@ class ProductController extends Controller
                 'params' => $request->all(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             // Return empty result instead of error
             return ResponseFormatter::success(
                 [],
@@ -206,12 +227,12 @@ class ProductController extends Controller
         $products = Cache::remember($cacheKey, $cacheDuration, function () use ($request) {
             $result = Product::query()
                 ->select([
-                    'products.id', 
-                    'products.name', 
-                    'products.description', 
+                    'products.id',
+                    'products.name',
+                    'products.description',
                     'products.price',
-                    'products.status', 
-                    'products.category_id', 
+                    'products.status',
+                    'products.category_id',
                     'products.merchant_id',
                     'products.created_at',
                     DB::raw('COALESCE(AVG(product_reviews.rating), 0) as average_rating'),
@@ -219,9 +240,10 @@ class ProductController extends Controller
                 ])
                 ->leftJoin('product_reviews', 'products.id', '=', 'product_reviews.product_id')
                 ->with([
-                    'merchant:id,name,owner_id', 
-                    'category:id,name', 
-                    'galleries:id,product_id,url'
+                    'merchant:id,name,owner_id',
+                    'category:id,name',
+                    'galleries:id,product_id,url',
+                    'variants:id,product_id,name,price,status'
                 ])
                 ->groupBy('products.id')
                 ->havingRaw('COALESCE(AVG(product_reviews.rating), 0) >= ?', [$request->input('min_rating', 4.0)])
@@ -275,17 +297,18 @@ class ProductController extends Controller
         $product = Cache::remember($cacheKey, $cacheDuration, function () use ($id) {
             $product = Product::query()
                 ->with([
-                    'merchant:id,name,owner_id', 
-                    'category:id,name', 
-                    'galleries:id,product_id,url'
+                    'merchant:id,name,owner_id',
+                    'category:id,name',
+                    'galleries:id,product_id,url',
+                    'variants:id,product_id,name,price,status'
                 ])
                 ->select([
-                    'products.id', 
-                    'products.name', 
-                    'products.description', 
+                    'products.id',
+                    'products.name',
+                    'products.description',
                     'products.price',
-                    'products.status', 
-                    'products.category_id', 
+                    'products.status',
+                    'products.category_id',
                     'products.merchant_id',
                     'products.created_at',
                     DB::raw('COALESCE((SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id), 0) as average_rating'),
@@ -366,12 +389,12 @@ class ProductController extends Controller
             foreach ($categories as $category) {
                 $topProducts = Product::query()
                     ->select([
-                        'products.id', 
-                        'products.name', 
-                        'products.description', 
+                        'products.id',
+                        'products.name',
+                        'products.description',
                         'products.price',
-                        'products.status', 
-                        'products.category_id', 
+                        'products.status',
+                        'products.category_id',
                         'products.merchant_id',
                         'products.created_at',
                         DB::raw('COALESCE(AVG(product_reviews.rating), 0) as average_rating'),
@@ -441,29 +464,34 @@ class ProductController extends Controller
         $products = Cache::remember($cacheKey, $cacheDuration, function () use ($request, $merchantId) {
             $query = Product::query()
                 ->with([
-                    'merchant:id,name,owner_id', 
-                    'category:id,name', 
-                    'galleries:id,product_id,url'
+                    'merchant:id,name,owner_id',
+                    'category:id,name',
+                    'galleries:id,product_id,url',
+                    'variants:id,product_id,name,value,price_adjustment,status'
                 ])
                 ->select([
-                    'products.id', 
-                    'products.name', 
-                    'products.description', 
+                    'products.id',
+                    'products.name',
+                    'products.description',
                     'products.price',
-                    'products.status', 
-                    'products.category_id', 
+                    'products.status',
+                    'products.category_id',
                     'products.merchant_id',
                     'products.created_at',
                     DB::raw('COALESCE((SELECT AVG(rating) FROM product_reviews WHERE product_id = products.id), 0) as average_rating'),
                     DB::raw('COALESCE((SELECT COUNT(*) FROM product_reviews WHERE product_id = products.id), 0) as total_reviews')
                 ])
                 ->where('merchant_id', $merchantId)
+                ->when($request->input('search'), function($q, $search) {
+                    return $q->where('name', 'like', '%' . $search . '%')
+                            ->orWhere('description', 'like', '%' . $search . '%');
+                })
                 ->when($request->input('price_from'), fn($q, $price) => $q->where('price', '>=', $price))
                 ->when($request->input('price_to'), fn($q, $price) => $q->where('price', '<=', $price))
                 ->orderBy('created_at', 'desc');
 
-            $result = $request->input('get_all') 
-                ? $query->get() 
+            $result = $request->input('get_all')
+                ? $query->get()
                 : $query->paginate($request->input('limit', 10));
 
             $collection = $request->input('get_all') ? $result : $result->getCollection();
@@ -564,7 +592,7 @@ class ProductController extends Controller
 
                     // Reload product with variants and transform data
                     $product->load('variants');
-                    
+
                     // Add rating info consistently with other methods
                     $product->rating_info = [
                         'average_rating' => round($product->average_rating ?? 0, 1),
@@ -660,9 +688,9 @@ class ProductController extends Controller
         }
     }
 
-   
 
-  
 
-    
+
+
+
 }

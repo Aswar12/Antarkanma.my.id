@@ -30,22 +30,19 @@ class FcmController extends Controller
             // Validate request
             $validated = $request->validate([
                 'token' => 'required|string',
-                'device_type' => 'required|string|in:web,android,ios',
-                'device_id' => 'required|string'
+                'device_type' => 'required|string|in:web,android,ios'
             ]);
 
             $user = Auth::user();
 
-            // Check if token already exists for this device
-            $existingToken = FcmToken::where('device_id', $validated['device_id'])
-                                   ->where('tokenable_id', $user->id)
-                                   ->where('tokenable_type', get_class($user))
+            // Check if token already exists
+            $existingToken = FcmToken::where('token', $validated['token'])
+                                   ->where('user_id', $user->id)
                                    ->first();
 
             if ($existingToken) {
                 // Update existing token
                 $existingToken->update([
-                    'token' => $validated['token'],
                     'device_type' => $validated['device_type'],
                     'is_active' => true
                 ]);
@@ -53,21 +50,12 @@ class FcmController extends Controller
                 $fcmToken = $existingToken;
             } else {
                 // Create new token
-                $fcmToken = $user->addFcmToken(
-                    $validated['token'],
-                    $validated['device_id'],
-                    $validated['device_type']
-                );
-            }
-
-            // Subscribe to relevant topics
-            $user->subscribeToTopic('all_products');
-
-            // Subscribe to product categories if user has preferences
-            if ($user->preferred_categories) {
-                foreach ($user->preferred_categories as $categoryId) {
-                    $user->subscribeToTopic('product_category_' . $categoryId);
-                }
+                $fcmToken = FcmToken::create([
+                    'user_id' => $user->id,
+                    'token' => $validated['token'],
+                    'device_type' => $validated['device_type'],
+                    'is_active' => true
+                ]);
             }
 
             return ResponseFormatter::success(
@@ -99,7 +87,9 @@ class FcmController extends Controller
             ]);
 
             $user = $request->user();
-            $user->removeFcmToken($request->token);
+            FcmToken::where('user_id', $user->id)
+                   ->where('token', $request->token)
+                   ->delete();
 
             return ResponseFormatter::success(
                 null,

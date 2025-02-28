@@ -15,7 +15,9 @@ class Order extends Model
         'merchant_id',
         'total_amount',
         'order_status',
-        'merchant_approval'
+        'merchant_approval',
+        'rejection_reason',
+        'customer_note'
     ];
 
     protected $casts = [

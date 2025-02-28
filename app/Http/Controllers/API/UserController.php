@@ -42,10 +42,26 @@ class UserController extends Controller
             $user::where('email', $request->email)->first();
             $token = $user->createToken('authToken')->plainTextToken;
 
+            // Determine user role and fetch related data
+            $roleData = null;
+            if ($user->merchant) {
+                $roleData = $user->merchant; // Fetch merchant data
+            } elseif ($user->courier) {
+                $roleData = $user->courier; // Fetch courier data
+            }
+
+            // Determine user role and fetch related data
+            $roleData = null;
+            if ($user->merchant) {
+                $roleData = $user->merchant; // Fetch merchant data
+            } elseif ($user->courier) {
+                $roleData = $user->courier; // Fetch courier data
+            }
+
             return ResponseFormatter::success([
+                'user' => $user, // Include user data
                 'access_token' => $token,
                 'token_type' => 'Bearer',
-                'user' => $user,
             ], 'Regsitrasi Akun Berhasil', 200);
         } catch (Exception $e) {
             return ResponseFormatter::error('Registration failed: ' . $e->getMessage(), 500);
@@ -74,6 +90,14 @@ class UserController extends Controller
 
             $token = $user->createToken('authToken')->plainTextToken;
 
+            // Determine user role and fetch related data
+            $roleData = null;
+            if ($user->merchant) {
+                $roleData = $user->merchant; // Fetch merchant data
+            } elseif ($user->courier) {
+                $roleData = $user->courier; // Fetch courier data
+            }
+
             return ResponseFormatter::success([
                 'user' => $user,
                 'access_token' => $token,
@@ -94,15 +118,15 @@ class UserController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             // Revoke current token
             if ($request->bearerToken()) {
                 $user->tokens()->where('id', $user->currentAccessToken()->id)->delete();
             }
-            
+
             // Create new token
             $token = $user->createToken('authToken')->plainTextToken;
-            
+
             return ResponseFormatter::success([
                 'access_token' => $token,
                 'token_type' => 'Bearer',
@@ -117,7 +141,7 @@ class UserController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             $validator = Validator::make($request->all(), [
                 'name' => 'string|max:255',
                 'email' => 'email|unique:users,email,'.$user->id,
@@ -171,14 +195,14 @@ class UserController extends Controller
 
                 // Generate filename
                 $filename = 'user-' . $user->id . '-' . Str::random(8) . '.' . $request->file('photo')->getClientOriginalExtension();
-                
+
                 // Store new photo in S3
                 $path = $request->file('photo')->storeAs(
                     'profile-photos',
                     $filename,
                     ['disk' => 's3', 'visibility' => 'public']
                 );
-                
+
                 // Update user profile photo
                 User::where('id', $user->id)->update([
                     'profile_photo_path' => $path

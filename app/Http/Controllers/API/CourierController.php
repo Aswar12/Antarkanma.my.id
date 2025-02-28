@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Helpers\ResponseFormatter;
 use App\Models\Transaction;
 use App\Models\Courier;
+use App\Models\Order;
 use App\Services\FirebaseService;
 use App\Services\OsrmService;
 use Illuminate\Http\Request;
@@ -50,7 +51,7 @@ class CourierController extends Controller
 
                 // Cancel all associated orders
                 $transaction->orders()->update([
-                    'order_status' => 'CANCELED'
+                    'order_status' => Order::STATUS_CANCELED
                 ]);
 
                 Log::info("Transaction {$transaction->id} automatically canceled due to timeout");
@@ -193,50 +194,72 @@ class CourierController extends Controller
             $transaction->courier_approval = Transaction::COURIER_APPROVED;
             $transaction->save();
 
+            // Update all orders status to WAITING_APPROVAL
+            foreach ($transaction->orders as $order) {
+                $order->order_status = Order::STATUS_WAITING_APPROVAL;
+                $order->save();
+            }
+
             // Send notifications to all parties
             try {
                 // Notify merchants
                 foreach ($transaction->orders as $order) {
-                    $this->firebaseService->sendNotification(
-                        'merchant_' . $order->merchant_id,
-                        'Pesanan Baru',
-                        'Kurir telah menerima pesanan #' . $transaction->id,
-                        [
-                            'type' => 'order_approved',
-                            'order_id' => $order->id,
-                            'transaction_id' => $transaction->id
-                        ]
-                    );
+                    // Get merchant's FCM tokens
+                    $merchantTokens = $order->merchant->owner->fcmTokens()
+                        ->where('is_active', true)
+                        ->pluck('token')
+                        ->toArray();
+
+                    if (!empty($merchantTokens)) {
+                        $this->firebaseService->sendToUser(
+                            $merchantTokens,
+                            [
+                                'type' => 'transaction_approved',
+                                'transaction_id' => $transaction->id,
+                                'order_id' => $order->id
+                            ],
+                            'Transaksi Disetujui',
+                            'Transaksi #' . $transaction->id . ' telah disetujui. Anda memiliki order yang perlu diproses.'
+                        );
+                    }
                 }
 
                 // Notify courier
                 if ($transaction->courier && $transaction->courier->user) {
-                    $fcmTokens = $transaction->courier->user->fcmTokens()->pluck('token')->toArray();
-                    foreach ($fcmTokens as $token) {
-                        $this->firebaseService->sendNotification(
-                            $token,
-                            'Pesanan Diterima',
-                            'Anda telah menerima pesanan #' . $transaction->id,
+                    $courierTokens = $transaction->courier->user->fcmTokens()
+                        ->where('is_active', true)
+                        ->pluck('token')
+                        ->toArray();
+
+                    if (!empty($courierTokens)) {
+                        $this->firebaseService->sendToUser(
+                            $courierTokens,
                             [
                                 'type' => 'order_assigned',
                                 'transaction_id' => $transaction->id
-                            ]
+                            ],
+                            'Pesanan Diterima',
+                            'Anda telah menerima pesanan #' . $transaction->id
                         );
                     }
                 }
 
                 // Notify customer
                 if ($transaction->user) {
-                    $fcmTokens = $transaction->user->fcmTokens()->pluck('token')->toArray();
-                    foreach ($fcmTokens as $token) {
-                        $this->firebaseService->sendNotification(
-                            $token,
-                            'Kurir Ditemukan',
-                            'Kurir telah menerima pesanan Anda #' . $transaction->id,
+                    $customerTokens = $transaction->user->fcmTokens()
+                        ->where('is_active', true)
+                        ->pluck('token')
+                        ->toArray();
+
+                    if (!empty($customerTokens)) {
+                        $this->firebaseService->sendToUser(
+                            $customerTokens,
                             [
                                 'type' => 'courier_found',
                                 'transaction_id' => $transaction->id
-                            ]
+                            ],
+                            'Kurir Ditemukan',
+                            'Kurir telah menerima pesanan Anda #' . $transaction->id
                         );
                     }
                 }

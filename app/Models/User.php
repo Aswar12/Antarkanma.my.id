@@ -14,10 +14,10 @@ use Filament\Panel;
 
 class User extends Authenticatable implements FilamentUser
 {
-    use HasApiTokens, 
-        HasFactory, 
-        HasProfilePhoto, 
-        Notifiable, 
+    use HasApiTokens,
+        HasFactory,
+        HasProfilePhoto,
+        Notifiable,
         TwoFactorAuthenticatable,
         HasFcmTokens;
 
@@ -81,7 +81,7 @@ class User extends Authenticatable implements FilamentUser
         \Log::warning('Unknown panel access attempt', [
             'panel_id' => $panel->getId()
         ]);
-        
+
         return false;
     }
 
