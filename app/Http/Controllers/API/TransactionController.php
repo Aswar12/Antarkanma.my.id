@@ -75,7 +75,8 @@ class TransactionController extends Controller
                 'items' => 'required|array|min:1',
                 'items.*.product_id' => 'required|exists:products,id',
                 'items.*.variant_id' => 'nullable|exists:product_variants,id',
-                'items.*.quantity' => 'required|integer|min:1'
+                'items.*.quantity' => 'required|integer|min:1',
+                'items.*.customer_note' => 'nullable|string|max:500'
             ]);
 
             Log::info('Validating transaction request:', [
@@ -201,7 +202,8 @@ class TransactionController extends Controller
                     'quantity' => $item['quantity'],
                     'price' => $price,
                     'merchant_id' => $product->merchant->id,
-                    'subtotal' => $price * $item['quantity']
+                    'subtotal' => $price * $item['quantity'],
+                    'customer_note' => $item['customer_note'] ?? null
                 ];
             });
 
@@ -301,7 +303,8 @@ class TransactionController extends Controller
                         'product_variant_id' => $item['variant_id'], // Changed from variant_id to product_variant_id
                         'merchant_id' => $merchantId,
                         'quantity' => (int) $item['quantity'],
-                        'price' => (float) $item['price']
+                        'price' => (float) $item['price'],
+                        'customer_note' => $item['customer_note'] ?? null
                     ];
 
                     Log::info('Creating Order Item:', $orderItemData);

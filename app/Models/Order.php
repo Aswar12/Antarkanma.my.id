@@ -23,7 +23,14 @@ class Order extends Model
     protected $casts = [
         'order_status' => 'string',
         'merchant_approval' => 'string',
-        'total_amount' => 'decimal:2'
+        'total_amount' => 'decimal:2',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
+    ];
+
+    protected $dates = [
+        'created_at',
+        'updated_at'
     ];
 
     // Status Constants
@@ -40,7 +47,8 @@ class Order extends Model
     const MERCHANT_APPROVED = 'APPROVED';
     const MERCHANT_REJECTED = 'REJECTED';
 
-    protected $with = ['orderItems.product.merchant'];
+    // Remove default eager loading to prevent conflicts
+    protected $with = [];
 
     public function transaction()
     {

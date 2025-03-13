@@ -16,6 +16,25 @@ use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
+    public function toggleActive(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            $user->is_active = !$user->is_active;
+            $user->save();
+
+            return ResponseFormatter::success([
+                'is_active' => $user->is_active
+            ], 'Status berhasil diperbarui');
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Gagal mengubah status: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
     public function register(Request $request)
     {
         // Validasi input
@@ -42,20 +61,11 @@ class UserController extends Controller
             $user::where('email', $request->email)->first();
             $token = $user->createToken('authToken')->plainTextToken;
 
-            // Determine user role and fetch related data
-            $roleData = null;
-            if ($user->merchant) {
-                $roleData = $user->merchant; // Fetch merchant data
-            } elseif ($user->courier) {
-                $roleData = $user->courier; // Fetch courier data
-            }
-
-            // Determine user role and fetch related data
-            $roleData = null;
-            if ($user->merchant) {
-                $roleData = $user->merchant; // Fetch merchant data
-            } elseif ($user->courier) {
-                $roleData = $user->courier; // Fetch courier data
+            // Load relationships based on user role
+            if ($user->roles === 'MERCHANT') {
+                $user->load('merchant');
+            } elseif ($user->roles === 'COURIER') {
+                $user->load('courier');
             }
 
             return ResponseFormatter::success([
@@ -90,12 +100,11 @@ class UserController extends Controller
 
             $token = $user->createToken('authToken')->plainTextToken;
 
-            // Determine user role and fetch related data
-            $roleData = null;
-            if ($user->merchant) {
-                $roleData = $user->merchant; // Fetch merchant data
-            } elseif ($user->courier) {
-                $roleData = $user->courier; // Fetch courier data
+            // Load relationships based on user role
+            if ($user->roles === 'MERCHANT') {
+                $user->load('merchant');
+            } elseif ($user->roles === 'COURIER') {
+                $user->load('courier');
             }
 
             return ResponseFormatter::success([
@@ -126,6 +135,13 @@ class UserController extends Controller
 
             // Create new token
             $token = $user->createToken('authToken')->plainTextToken;
+
+            // Load relationships based on user role
+            if ($user->roles === 'MERCHANT') {
+                $user->load('merchant');
+            } elseif ($user->roles === 'COURIER') {
+                $user->load('courier');
+            }
 
             return ResponseFormatter::success([
                 'access_token' => $token,
@@ -160,6 +176,13 @@ class UserController extends Controller
 
             $user = User::find($user->id);
 
+            // Load relationships based on user role
+            if ($user->roles === 'MERCHANT') {
+                $user->load('merchant');
+            } elseif ($user->roles === 'COURIER') {
+                $user->load('courier');
+            }
+
             return ResponseFormatter::success($user, 'Profile berhasil diperbarui');
         } catch (Exception $e) {
             return ResponseFormatter::error($e->getMessage(), 'Gagal memperbarui profile', 500);
@@ -168,8 +191,17 @@ class UserController extends Controller
 
     public function fetch(Request $request)
     {
+        $user = $request->user();
+
+        // Load relationships based on user role
+        if ($user->roles === 'MERCHANT') {
+            $user->load('merchant');
+        } elseif ($user->roles === 'COURIER') {
+            $user->load('courier');
+        }
+
         return ResponseFormatter::success(
-            $request->user(),
+            $user,
             'Data Profile User berhasil diambil'
         );
     }

@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class Transaction extends Model
 {
@@ -30,10 +32,21 @@ class Transaction extends Model
         'total_price' => 'decimal:2',
         'shipping_price' => 'decimal:2',
         'payment_date' => 'datetime',
+        'timeout_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
         'rating' => 'integer'
     ];
 
-    protected $with = ['user', 'courier.user', 'orders', 'baseMerchant'];
+    protected $dates = [
+        'payment_date',
+        'timeout_at',
+        'created_at',
+        'updated_at'
+    ];
+
+    // Remove default eager loading to prevent conflicts
+    protected $with = [];
 
     public function orders()
     {
@@ -191,12 +204,27 @@ class Transaction extends Model
 
     public function allOrdersCompleted()
     {
-        return !$this->orders()
+        $allCompleted = !$this->orders()
             ->whereNotIn('order_status', [
                 Order::STATUS_COMPLETED,
                 Order::STATUS_CANCELED
             ])
             ->exists();
+
+        // If all orders are completed, deduct fee from courier's wallet
+        if ($allCompleted && $this->courier) {
+            $this->courier->deductFee();
+        }
+
+        return $allCompleted;
+    }
+
+    /**
+     * Check if courier has sufficient balance before accepting order
+     */
+    public function canCourierAccept(): bool
+    {
+        return $this->courier && $this->courier->hasSufficientBalance();
     }
 
     public function allOrdersCanceled()

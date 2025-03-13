@@ -67,13 +67,13 @@ class Merchant extends Model
 
         // Generate filename with merchant ID
         $filename = 'merchant-' . $this->id . '.' . $file->getClientOriginalExtension();
-        
+
         // Store new logo with specific filename
         $path = $file->storeAs('merchants/logos', $filename, [
             'disk' => 's3',
             'visibility' => 'public'
         ]);
-        
+
         $this->logo = $path;
         $this->save();
 

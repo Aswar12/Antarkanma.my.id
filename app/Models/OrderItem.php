@@ -15,12 +15,20 @@ class OrderItem extends Model
         'product_variant_id',
         'merchant_id',
         'quantity',
-        'price'
+        'price',
+        'customer_note'
     ];
 
     protected $casts = [
         'quantity' => 'integer',
-        'price' => 'decimal:2'
+        'price' => 'decimal:2',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
+    ];
+
+    protected $dates = [
+        'created_at',
+        'updated_at'
     ];
 
     // Relasi untuk mendukung multi-merchant

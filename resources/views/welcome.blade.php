@@ -84,11 +84,12 @@
           activeSection =
               window.pageYOffset < 500 ? 'home' :
               window.pageYOffset < 1000 ? 'features' :
-              window.pageYOffset < 1500 ? 'merchants' :
-              window.pageYOffset < 2000 ? 'delivery' : 'team';
+              window.pageYOffset < 1500 ? 'story' :
+              window.pageYOffset < 2000 ? 'merchants' :
+              window.pageYOffset < 2500 ? 'delivery' : 'team';
       ">
 
-    <!-- Navigation -->
+    <!-- Navigation --> 
     @include('sections.navigation')
 
     <main class="overflow-hidden">
@@ -97,6 +98,9 @@
 
         <!-- Features Section -->
         @include('sections.features')
+
+        <!-- Story Section -->
+        @include('sections.story')
 
         <!-- Merchant Section -->
         @include('sections.merchant')

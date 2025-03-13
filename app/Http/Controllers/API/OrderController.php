@@ -33,7 +33,7 @@ class OrderController extends Controller
             ]);
 
             $order = Order::with([
-                'orderItems:id,order_id,product_id,quantity,price',
+                'orderItems:id,order_id,product_id,quantity,price,customer_note',
                 'orderItems.product:id,name,price,status',
                 'transaction:id,user_id,courier_id,status,payment_method,payment_status',
                 'transaction.user:id,name,phone_number,profile_photo_path',
@@ -66,34 +66,52 @@ class OrderController extends Controller
                 $order->save();
 
                 // Send notifications
-                if ($this->firebaseService) {
-                    // Notify courier
-                    if ($order->transaction && $order->transaction->courier_id) {
-                        $this->firebaseService->sendNotification(
-                            'user_' . $order->transaction->courier->user_id,
-                            'Pesanan Siap Diambil',
-                            'Pesanan #' . $order->id . ' sudah siap untuk diambil di merchant',
-                            [
-                                'type' => 'order_ready_for_pickup',
-                                'order_id' => $order->id,
-                                'transaction_id' => $order->transaction->id,
-                                'merchant_name' => $order->merchant->name,
-                                'merchant_address' => $order->merchant->address
-                            ]
-                        );
+                try {
+                    // Notify customer
+                    if ($order->transaction->user) {
+                        $customerTokens = $order->transaction->user->fcmTokens()
+                            ->where('is_active', true)
+                            ->pluck('token')
+                            ->toArray();
+
+                        if (!empty($customerTokens)) {
+                            $this->firebaseService->sendToUser(
+                                $customerTokens,
+                                [
+                                    'type' => 'order_ready',
+                                    'order_id' => $order->id,
+                                    'transaction_id' => $order->transaction->id
+                                ],
+                                'Pesanan Siap',
+                                'Pesanan #' . $order->id . ' sudah siap dan akan segera diambil oleh kurir'
+                            );
+                        }
                     }
 
-                    // Notify user
-                    $this->firebaseService->sendNotification(
-                        'user_' . $order->user_id,
-                        'Pesanan Siap',
-                        'Pesanan #' . $order->id . ' sudah siap dan akan segera diambil oleh kurir',
-                        [
-                            'type' => 'order_ready',
-                            'order_id' => $order->id,
-                            'transaction_id' => $order->transaction->id
-                        ]
-                    );
+                    // Notify courier
+                    if ($order->transaction && $order->transaction->courier && $order->transaction->courier->user) {
+                        $courierTokens = $order->transaction->courier->user->fcmTokens()
+                            ->where('is_active', true)
+                            ->pluck('token')
+                            ->toArray();
+
+                        if (!empty($courierTokens)) {
+                            $this->firebaseService->sendToUser(
+                                $courierTokens,
+                                [
+                                    'type' => 'order_ready_for_pickup',
+                                    'order_id' => $order->id,
+                                    'transaction_id' => $order->transaction->id,
+                                    'merchant_name' => $order->merchant->name,
+                                    'merchant_address' => $order->merchant->address
+                                ],
+                                'Pesanan Siap Diambil',
+                                'Pesanan #' . $order->id . ' sudah siap untuk diambil di merchant'
+                            );
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Failed to send notifications: ' . $e->getMessage());
                 }
 
                 DB::commit();
@@ -106,6 +124,7 @@ class OrderController extends Controller
                     return [
                         'quantity' => $item->quantity,
                         'price' => $item->price,
+                        'customer_note' => $item->customer_note,
                         'product' => [
                             'name' => $item->product->name,
                             'price' => $item->product->price,
@@ -177,7 +196,7 @@ class OrderController extends Controller
             ]);
 
             $order = Order::with([
-                'orderItems:id,order_id,product_id,quantity,price',
+                'orderItems:id,order_id,product_id,quantity,price,customer_note',
                 'orderItems.product:id,name,price,status',
                 'transaction:id,user_id,courier_id,status,payment_method,payment_status',
                 'transaction.user:id,name,phone_number,profile_photo_path',
@@ -224,38 +243,56 @@ class OrderController extends Controller
                 $order->save();
 
                 // Send notifications
-                if ($this->firebaseService) {
-                    // Notify user
-                    $this->firebaseService->sendNotification(
-                        'user_' . $order->user_id,
-                        $request->is_approved ? 'Pesanan Disetujui' : 'Pesanan Ditolak',
-                        $request->is_approved
-                            ? 'Pesanan #' . $order->id . ' telah disetujui dan sedang diproses'
-                            : 'Pesanan #' . $order->id . ' ditolak: ' . $request->reason,
-                        [
-                            'type' => $request->is_approved ? 'order_approved' : 'order_rejected',
-                            'order_id' => $order->id,
-                            'transaction_id' => $order->transaction->id,
-                            'reason' => $request->reason ?? null
-                        ]
-                    );
+                try {
+                    // Notify customer
+                    if ($order->transaction->user) {
+                        $customerTokens = $order->transaction->user->fcmTokens()
+                            ->where('is_active', true)
+                            ->pluck('token')
+                            ->toArray();
+
+                        if (!empty($customerTokens)) {
+                            $this->firebaseService->sendToUser(
+                                $customerTokens,
+                                [
+                                    'type' => $request->is_approved ? 'order_approved' : 'order_rejected',
+                                    'order_id' => $order->id,
+                                    'transaction_id' => $order->transaction->id,
+                                    'reason' => $request->reason ?? null
+                                ],
+                                $request->is_approved ? 'Pesanan Disetujui' : 'Pesanan Ditolak',
+                                $request->is_approved
+                                    ? 'Pesanan #' . $order->id . ' telah disetujui dan sedang diproses'
+                                    : 'Pesanan #' . $order->id . ' ditolak: ' . $request->reason
+                            );
+                        }
+                    }
 
                     // Notify courier if assigned
-                    if ($order->transaction && $order->transaction->courier_id) {
-                        $this->firebaseService->sendNotification(
-                            'user_' . $order->transaction->courier->user_id,
-                            'Status Pesanan Diperbarui',
-                            $request->is_approved
-                                ? 'Pesanan #' . $order->id . ' telah disetujui oleh merchant'
-                                : 'Pesanan #' . $order->id . ' telah ditolak oleh merchant',
-                            [
-                                'type' => $request->is_approved ? 'merchant_approved_order' : 'merchant_rejected_order',
-                                'order_id' => $order->id,
-                                'transaction_id' => $order->transaction->id,
-                                'reason' => $request->reason ?? null
-                            ]
-                        );
+                    if ($order->transaction && $order->transaction->courier && $order->transaction->courier->user) {
+                        $courierTokens = $order->transaction->courier->user->fcmTokens()
+                            ->where('is_active', true)
+                            ->pluck('token')
+                            ->toArray();
+
+                        if (!empty($courierTokens)) {
+                            $this->firebaseService->sendToUser(
+                                $courierTokens,
+                                [
+                                    'type' => $request->is_approved ? 'merchant_approved_order' : 'merchant_rejected_order',
+                                    'order_id' => $order->id,
+                                    'transaction_id' => $order->transaction->id,
+                                    'reason' => $request->reason ?? null
+                                ],
+                                'Status Pesanan Diperbarui',
+                                $request->is_approved
+                                    ? 'Pesanan #' . $order->id . ' telah disetujui oleh merchant'
+                                    : 'Pesanan #' . $order->id . ' telah ditolak oleh merchant'
+                            );
+                        }
                     }
+                } catch (\Exception $e) {
+                    Log::error('Failed to send notifications: ' . $e->getMessage());
                 }
 
                 DB::commit();
@@ -268,6 +305,7 @@ class OrderController extends Controller
                     return [
                         'quantity' => $item->quantity,
                         'price' => $item->price,
+                        'customer_note' => $item->customer_note,
                         'product' => [
                             'name' => $item->product->name,
                             'price' => $item->product->price,
@@ -345,6 +383,87 @@ class OrderController extends Controller
         return $this->updateMerchantApproval($request, $orderId);
     }
 
+    public function getMerchantOrdersSummary(Request $request, $merchantId)
+    {
+        try {
+            $totalOrders = Order::where('merchant_id', $merchantId)
+                ->whereHas('transaction', function($query) {
+                    $query->where('status', '!=', Transaction::STATUS_CANCELED);
+                })
+                ->count();
+
+            $completedOrders = Order::where('merchant_id', $merchantId)
+                ->where('order_status', Order::STATUS_COMPLETED)
+                ->whereHas('transaction', function($query) {
+                    $query->where('status', '!=', Transaction::STATUS_CANCELED);
+                })
+                ->count();
+
+            $processingOrders = Order::where('merchant_id', $merchantId)
+                ->where('order_status', Order::STATUS_PROCESSING)
+                ->whereHas('transaction', function($query) {
+                    $query->where('status', '!=', Transaction::STATUS_CANCELED);
+                })
+                ->count();
+
+            $pendingOrders = Order::where('merchant_id', $merchantId)
+                ->where('merchant_approval', Order::MERCHANT_PENDING)
+                ->whereHas('transaction', function($query) {
+                    $query->where('status', '!=', Transaction::STATUS_CANCELED);
+                })
+                ->count();
+
+            $readyForPickupOrders = Order::where('merchant_id', $merchantId)
+                ->where('order_status', Order::STATUS_READY)
+                ->whereHas('transaction', function($query) {
+                    $query->where('status', '!=', Transaction::STATUS_CANCELED);
+                })
+                ->count();
+
+            $pickedUpOrders = Order::where('merchant_id', $merchantId)
+                ->where('order_status', Order::STATUS_PICKED_UP)
+                ->whereHas('transaction', function($query) {
+                    $query->where('status', '!=', Transaction::STATUS_CANCELED);
+                })
+                ->count();
+
+            // Calculate total revenue from completed orders
+            $totalRevenue = Order::where('merchant_id', $merchantId)
+                ->where('order_status', Order::STATUS_COMPLETED)
+                ->whereHas('transaction', function($query) {
+                    $query->where('status', '!=', Transaction::STATUS_CANCELED);
+                })
+                ->sum('total_amount'); // Assuming 'total_amount' is the field for order total
+
+            // Count orders waiting for merchant approval
+            $waitingApprovalOrders = Order::where('merchant_id', $merchantId)
+                ->where('order_status', Order::STATUS_WAITING_APPROVAL)
+                ->where('merchant_approval', Order::MERCHANT_PENDING)
+                ->whereHas('transaction', function($query) {
+                    $query->where('status', '!=', Transaction::STATUS_CANCELED);
+                })
+                ->count();
+
+            return ResponseFormatter::success([
+                'total_orders' => $totalOrders,
+                'total_completed' => $completedOrders,
+                'total_processing' => $processingOrders,
+                'total_pending' => $pendingOrders,
+                'total_ready_for_pickup' => $readyForPickupOrders,
+                'total_picked_up' => $pickedUpOrders,
+                'total_waiting_approval' => $waitingApprovalOrders,
+                'total_revenue' => $totalRevenue,
+            ], 'Order summary retrieved successfully');
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Failed to retrieve order summary: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
     public function getByMerchant(Request $request, $merchantId)
     {
         try {
@@ -357,9 +476,9 @@ class OrderController extends Controller
             $sortOrder = $request->input('sort_order', 'desc');
 
             // Base query with optimized eager loading
-            $query = Order::select('id', 'transaction_id', 'total_amount', 'order_status', 'merchant_approval', 'created_at')
+            $query = Order::select('id', 'transaction_id', 'total_amount', 'order_status', 'merchant_approval', 'rejection_reason', 'created_at')
             ->with([
-                'orderItems:id,order_id,product_id,quantity,price',
+                'orderItems:id,order_id,product_id,quantity,price,customer_note',
                 'orderItems.product:id,name,price,status',
                 'orderItems.product.galleries:id,product_id,url',
                 'transaction:id,user_id,courier_id,status,payment_method,payment_status',
@@ -417,6 +536,7 @@ class OrderController extends Controller
                     return [
                         'quantity' => $item->quantity,
                         'price' => $item->price,
+                        'customer_note' => $item->customer_note,
                         'product' => [
                             'name' => $item->product->name,
                             'price' => $item->product->price,
@@ -438,6 +558,14 @@ class OrderController extends Controller
                     'phone' => $order->transaction->user->phone_number,
                     'photo' => $order->transaction->user->profile_photo_url
                 ];
+
+                // Add rejection reason and customer note if exists
+                if ($order->rejection_reason) {
+                    $orderArray['rejection_reason'] = $order->rejection_reason;
+                }
+                if ($order->customer_note) {
+                    $orderArray['customer_note'] = $order->customer_note;
+                }
 
                 // Add courier info with photo if exists
                 if ($order->transaction->courier) {

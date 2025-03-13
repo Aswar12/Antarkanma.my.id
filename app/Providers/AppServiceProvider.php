@@ -9,7 +9,6 @@ use App\Services\FirebaseService;
 use App\Services\OsrmService;
 use App\Http\Controllers\API\ShippingController;
 use Kreait\Firebase\Contract\Messaging;
-
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -17,6 +16,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+
         // Register OSRM Service
         $this->app->singleton(OsrmService::class, function ($app) {
             return new OsrmService();

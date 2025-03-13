@@ -50,9 +50,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rute untuk memperbarui foto profil pengguna
     Route::post('/user/profile/photo', [UserController::class, 'updatePhoto']);
+
+    // Rute untuk toggle status aktif
+    Route::post('/user/toggle-active', [UserController::class, 'toggleActive']);
+
     Route::post('/merchant', [MerchantController::class, 'store']);
 
     Route::put('/merchant/{id}', [MerchantController::class, 'update']);
+    Route::post('/merchant/{id}/logo', [MerchantController::class, 'updateLogo']);
     Route::delete('/merchant/{id}', [MerchantController::class, 'delete']);
     Route::get('/merchant/list', [MerchantController::class, 'list']);
     Route::get('/merchants/owner/{id}', [MerchantController::class, 'getByOwnerId']);
@@ -95,6 +100,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('orders', [OrderController::class, 'list']);
     Route::get('orders/{id}', [OrderController::class, 'get']);
 
+    // New route for order summary
+    Route::get('merchants/{merchantId}/order-summary', [OrderController::class, 'getMerchantOrdersSummary']);
+
     // Order Status routes
     Route::post('orders/{id}/process', [OrderStatusController::class, 'processOrder']);
     Route::post('orders/{id}/ready-for-pickup', [OrderStatusController::class, 'readyForPickup']);
@@ -110,11 +118,22 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Courier Transaction Routes
     Route::prefix('courier')->group(function () {
-        // Route::get('transactions', [CourierController::class, 'getTransactions']); // Removed unused route
-        Route::get('new-transactions', [CourierController::class, 'getNewTransactions']);
+        Route::get('new-transactions', [CourierController::class, 'getnewTransactions']);
+        Route::get('my-transactions', [CourierController::class, 'getCourierTransactions']);
         Route::post('transactions/{id}/status', [CourierController::class, 'updateTransactionStatus']);
         Route::post('transactions/{id}/approve', [CourierController::class, 'approveTransaction']);
         Route::post('transactions/{id}/reject', [CourierController::class, 'rejectTransaction']);
+
+        // Wallet Routes
+        Route::post('wallet/topup', [CourierController::class, 'topUpWallet']);
+        Route::get('wallet/balance', [CourierController::class, 'getWalletBalance']);
+
+        // Statistics Routes
+        Route::get('statistics/daily', [CourierController::class, 'getDailyStatistics']);
+        Route::get('transactions/status-counts', [CourierController::class, 'getStatusCounts']);
+
+        // Order Status Routes
+        Route::post('transactions/{id}/pickup', [CourierController::class, 'updateOrderStatus']);
     });
 
     Route::post('/couriers', [CourierController::class, 'store']);
@@ -140,6 +159,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Public routes
 Route::post('register', [UserController::class, 'register']);
+Route::post('register/merchant', [MerchantController::class, 'register']);
 Route::get('products', [ProductController::class, 'index']);
 Route::get('products/category/{categoryId}', [ProductController::class, 'getByCategory']);
 Route::post('/login', [UserController::class, 'login']);

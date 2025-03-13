@@ -32,7 +32,22 @@ return [
             'options' => [
                 'version' => 'latest',
                 'http' => [
-                    'verify' => false
+                    'verify' => false,
+                    'timeout' => 120,
+                    'connect_timeout' => 120
+                ],
+                'use_accelerate_endpoint' => false,
+                'use_path_style_endpoint' => true,
+                'bucket_endpoint' => false,
+                'scheme' => 'https'
+            ],
+            'cors' => [
+                [
+                    'AllowedHeaders' => ['*'],
+                    'AllowedMethods' => ['POST', 'PUT', 'DELETE', 'GET'],
+                    'AllowedOrigins' => ['https://dev.antarkanmaa.my.id'],
+                    'ExposeHeaders' => ['ETag'],
+                    'MaxAgeSeconds' => 3000
                 ]
             ],
         ],

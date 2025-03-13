@@ -9,19 +9,111 @@ use Illuminate\Http\Request;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
 use App\Services\OsrmService;
+use App\Services\ImageService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class MerchantController extends Controller
 {
     protected $osrmService;
+    protected $imageService;
 
-    public function __construct(OsrmService $osrmService)
+    public function __construct(OsrmService $osrmService, ImageService $imageService)
     {
         $this->osrmService = $osrmService;
+        $this->imageService = $imageService;
+    }
+
+    public function register(Request $request)
+    {
+        try {
+            $request->validate([
+                // User data
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users',
+                'password' => ['required', 'string', Password::min(8)],
+                'phone_number' => 'required|string|max:15',
+
+                // Merchant data
+                'merchant_name' => 'required|string|max:255',
+                'address' => 'required|string',
+                'description' => 'nullable|string',
+                'opening_time' => 'required|date_format:H:i',
+                'closing_time' => 'required|date_format:H:i',
+                'operating_days' => 'required|array',
+                'operating_days.*' => 'string|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
+                'latitude' => 'required|numeric',
+                'longitude' => 'required|numeric',
+                'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:20480',
+            ]);
+
+            DB::beginTransaction();
+
+            // Create user account
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'phone_number' => $request->phone_number,
+                'roles' => 'MERCHANT',
+                'is_active' => true,
+            ]);
+
+            // Create merchant account
+            $merchantData = [
+                'owner_id' => $user->id,
+                'name' => $request->merchant_name,
+                'phone_number' => $request->phone_number,
+                'address' => $request->address,
+                'description' => $request->description,
+                'opening_time' => $request->opening_time,
+                'closing_time' => $request->closing_time,
+                'operating_days' => implode(',', $request->operating_days),
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+                'status' => 'active',
+            ];
+
+            $merchant = Merchant::create($merchantData);
+
+            // Handle logo upload if present
+            if ($request->hasFile('logo')) {
+                $path = $this->imageService->compressAndStore(
+                    $request->file('logo'),
+                    'merchants/logos',
+                    'merchant-' . $merchant->id
+                );
+
+                if ($path) {
+                    $merchant->update(['logo' => $path]);
+                }
+            }
+
+            DB::commit();
+
+            // Generate token for the new user
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return ResponseFormatter::success([
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'user' => $user,
+                'merchant' => $merchant
+            ], 'Merchant account registered successfully');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseFormatter::error(
+                null,
+                'Failed to register merchant account: ' . $e->getMessage(),
+                500
+            );
+        }
     }
 
     public function index(Request $request)
@@ -30,9 +122,9 @@ class MerchantController extends Controller
             $merchants = Merchant::query()
                 ->where('status', 'active')
                 ->select([
-                    'id', 
-                    'name', 
-                    'address', 
+                    'id',
+                    'name',
+                    'address',
                     'phone_number',
                     'status',
                     'description',
@@ -85,10 +177,10 @@ class MerchantController extends Controller
                         $merchant->distance = $distances[$merchant->id]['distance'];
                         $merchant->duration = $distances[$merchant->id]['duration'];
                     }
-                    
+
                     // Ensure total_products is included
                     $merchant->total_products = (int) $merchant->total_products;
-                    
+
                     return $merchant;
                 });
             }
@@ -102,7 +194,7 @@ class MerchantController extends Controller
                 'request' => $request->all(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return ResponseFormatter::error(
                 null,
                 'Failed to retrieve merchants',
@@ -179,7 +271,7 @@ class MerchantController extends Controller
                 'phone_number' => 'required|string|max:15',
                 'status' => 'required|string',
                 'description' => 'nullable|string',
-                'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+                'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,heic|max:20480', // Increased max size to 20MB since we'll compress
                 'opening_time' => 'nullable|date_format:H:i',
                 'closing_time' => 'nullable|date_format:H:i',
                 'operating_days' => 'nullable|string|array',
@@ -196,15 +288,15 @@ class MerchantController extends Controller
 
             // Handle logo upload if present
             if ($request->hasFile('logo')) {
-                $filename = 'merchant-' . $merchant->id . '-' . Str::random(8) . '.' . $request->file('logo')->getClientOriginalExtension();
-                
-                $path = $request->file('logo')->storeAs(
+                $path = $this->imageService->compressAndStore(
+                    $request->file('logo'),
                     'merchants/logos',
-                    $filename,
-                    ['disk' => 's3', 'visibility' => 'public']
+                    'merchant-' . $merchant->id
                 );
 
-                $merchant->update(['logo' => $path]);
+                if ($path) {
+                    $merchant->update(['logo' => $path]);
+                }
             }
 
             // Reload merchant with logo URL
@@ -234,7 +326,7 @@ class MerchantController extends Controller
                 'phone_number' => 'sometimes|string|max:15',
                 'status' => 'sometimes|string',
                 'description' => 'sometimes|string',
-                'logo' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:5120',
+                'logo' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp,heic|max:20480', // Increased max size to 20MB since we'll compress
                 'opening_time' => 'nullable|date_format:H:i',
                 'closing_time' => 'nullable|date_format:H:i',
                 'operating_days' => 'nullable|array',
@@ -254,15 +346,15 @@ class MerchantController extends Controller
                     Storage::disk('s3')->delete($merchant->logo);
                 }
 
-                $filename = 'merchant-' . $merchant->id . '-' . Str::random(8) . '.' . $request->file('logo')->getClientOriginalExtension();
-                
-                $path = $request->file('logo')->storeAs(
+                $path = $this->imageService->compressAndStore(
+                    $request->file('logo'),
                     'merchants/logos',
-                    $filename,
-                    ['disk' => 's3', 'visibility' => 'public']
+                    'merchant-' . $merchant->id
                 );
 
-                $data['logo'] = $path;
+                if ($path) {
+                    $data['logo'] = $path;
+                }
             }
 
             $merchant->update($data);
@@ -287,12 +379,12 @@ class MerchantController extends Controller
     {
         try {
             $merchant = Merchant::findOrFail($id);
-            
+
             // Delete logo from S3 if exists
             if ($merchant->logo) {
                 Storage::disk('s3')->delete($merchant->logo);
             }
-            
+
             $merchant->delete();
 
             return ResponseFormatter::success(
@@ -303,6 +395,46 @@ class MerchantController extends Controller
             return ResponseFormatter::error(
                 null,
                 'Failed to delete merchant: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+    public function updateLogo(Request $request, $id)
+    {
+        try {
+            $merchant = Merchant::findOrFail($id);
+
+            $request->validate([
+                'logo' => 'required|image|mimes:jpeg,png,jpg,gif,webp,heic|max:20480', // Increased max size to 20MB since we'll compress
+            ]);
+
+            // Delete old logo if exists
+            if ($merchant->logo) {
+                Storage::disk('s3')->delete($merchant->logo);
+            }
+
+            $path = $this->imageService->compressAndStore(
+                $request->file('logo'),
+                'merchants/logos',
+                'merchant-' . $merchant->id
+            );
+
+            if ($path) {
+                $merchant->update(['logo' => $path]);
+            }
+
+            // Reload merchant to get fresh data with logo URL
+            $merchant = Merchant::find($merchant->id);
+
+            return ResponseFormatter::success(
+                $merchant,
+                'Merchant logo updated successfully'
+            );
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Failed to update merchant logo: ' . $e->getMessage(),
                 500
             );
         }

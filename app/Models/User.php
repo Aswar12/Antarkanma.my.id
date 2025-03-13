@@ -51,7 +51,7 @@ class User extends Authenticatable implements FilamentUser
     ];
 
     protected $appends = [
-        'profile_photo_url',
+        'profile_photo_url'
     ];
 
     protected $casts = [
@@ -88,6 +88,11 @@ class User extends Authenticatable implements FilamentUser
     public function merchant()
     {
         return $this->hasOne(Merchant::class, 'owner_id');
+    }
+
+    public function courier()
+    {
+        return $this->hasOne(Courier::class);
     }
 
     public function locations()

@@ -24,6 +24,11 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 # Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip intl
 
+# Set PHP timezone and upload limits
+RUN echo "date.timezone=Asia/Makassar" > /usr/local/etc/php/conf.d/timezone.ini && \
+    echo "upload_max_filesize=10M" >> /usr/local/etc/php/conf.d/uploads.ini && \
+    echo "post_max_size=12M" >> /usr/local/etc/php/conf.d/uploads.ini
+
 # Install composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 

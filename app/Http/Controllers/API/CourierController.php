@@ -24,6 +24,155 @@ class CourierController extends Controller
         $this->osrmService = $osrmService;
     }
 
+    public function updateOrderStatus(Request $request, $orderId)
+    {
+        try {
+            // Check if user has courier role
+            if ($request->user()->roles !== 'COURIER') {
+                return ResponseFormatter::error(
+                    null,
+                    'Unauthorized: User is not a courier',
+                    403
+                );
+            }
+
+            // Find the specific order
+            $order = Order::with(['transaction', 'orderItems.product.merchant'])->findOrFail($orderId);
+
+            // Verify this order belongs to the courier's transaction
+            if ($order->transaction->courier_id !== $request->user()->courier->id) {
+                return ResponseFormatter::error(
+                    null,
+                    'Unauthorized: Order does not belong to this courier',
+                    403
+                );
+            }
+
+            // Validate order status
+            if ($order->order_status !== Order::STATUS_READY) {
+                return ResponseFormatter::error(
+                    null,
+                    'Only orders that are ready can be picked up',
+                    422
+                );
+            }
+
+            DB::beginTransaction();
+
+            // Update order status to PICKED_UP
+            $order->order_status = Order::STATUS_PICKED_UP;
+            $order->save();
+
+            // Send notification to merchant
+            $merchantTokens = $order->merchant->owner->fcmTokens()
+                ->where('is_active', true)
+                ->pluck('token')
+                ->toArray();
+
+            if (!empty($merchantTokens)) {
+                $this->firebaseService->sendToUser(
+                    $merchantTokens,
+                    [
+                        'type' => 'order_picked_up',
+                        'order_id' => $order->id,
+                        'transaction_id' => $order->transaction->id
+                    ],
+                    'Pesanan Diambil',
+                    'Pesanan #' . $order->id . ' telah diambil oleh kurir'
+                );
+            }
+
+            // Notify customer
+            $customerTokens = $order->user->fcmTokens->pluck('token')->toArray();
+            if (!empty($customerTokens)) {
+                $this->firebaseService->sendToUser(
+                    $customerTokens,
+                    [
+                        'type' => 'order_in_transit',
+                        'order_id' => $order->id,
+                        'transaction_id' => $order->transaction->id
+                    ],
+                    'Pesanan Dalam Perjalanan',
+                    'Pesanan Anda sedang dalam perjalanan'
+                );
+            }
+
+            DB::commit();
+
+            return ResponseFormatter::success(
+                $order,
+                'Order picked up successfully'
+            );
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseFormatter::error(
+                null,
+                'Failed to update order status: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+    public function getStatusCounts(Request $request)
+    {
+        try {
+            // Check if user has courier role
+            if ($request->user()->roles !== 'COURIER') {
+                return ResponseFormatter::error(
+                    null,
+                    'Unauthorized: User is not a courier',
+                    403
+                );
+            }
+
+            $courier = $request->user()->courier;
+
+            // Get all possible order statuses
+            $statuses = [
+                Order::STATUS_PENDING,
+                Order::STATUS_WAITING_APPROVAL,
+                Order::STATUS_PROCESSING,
+                Order::STATUS_READY,
+                Order::STATUS_PICKED_UP,
+                Order::STATUS_COMPLETED,
+                Order::STATUS_CANCELED
+            ];
+
+            // Get counts for each status
+            $counts = Transaction::where('courier_id', $courier->id)
+                ->join('orders', 'transactions.id', '=', 'orders.transaction_id')
+                ->select('orders.order_status', DB::raw('count(*) as total'))
+                ->groupBy('orders.order_status')
+                ->pluck('total', 'order_status')
+                ->toArray();
+
+            // Initialize result array with all statuses set to 0
+            $result = array_fill_keys($statuses, 0);
+
+            // Update counts for statuses that have orders
+            foreach ($counts as $status => $count) {
+                if (isset($result[$status])) {
+                    $result[$status] = $count;
+                }
+            }
+
+            return ResponseFormatter::success(
+                $result,
+                'Status counts retrieved successfully'
+            );
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Failed to retrieve status counts: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+
+
     public function getNewTransactions(Request $request)
     {
         try {
@@ -73,6 +222,7 @@ class CourierController extends Controller
             $transactions = Transaction::with([
                 'baseMerchant',
                 'orders.orderItems.product.merchant',
+                'orders.orderItems.product.galleries',
                 'user',
                 'userLocation'
             ])
@@ -134,6 +284,127 @@ class CourierController extends Controller
             return ResponseFormatter::error(
                 null,
                 'Failed to retrieve new transactions: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+    public function getCourierTransactions(Request $request)
+    {
+        try {
+            // Check if user has courier role
+            if ($request->user()->roles !== 'COURIER') {
+                return ResponseFormatter::error(
+                    null,
+                    'Unauthorized: User is not a courier',
+                    403
+                );
+            }
+
+            $courier = $request->user()->courier;
+            $query = $courier->transactions()
+                ->with([
+                    'orders.orderItems.product.merchant',
+                    'orders.orderItems.product.galleries',
+                    'user',
+                    'userLocation',
+                    'baseMerchant'
+                ]);
+
+            // Filter by order status
+            if ($request->has('order_status')) {
+                $orderStatus = $request->order_status;
+                if (in_array($orderStatus, [
+                    Order::STATUS_PENDING,
+                    Order::STATUS_WAITING_APPROVAL,
+                    Order::STATUS_PROCESSING,
+                    Order::STATUS_READY,
+                    Order::STATUS_PICKED_UP,
+                    Order::STATUS_COMPLETED,
+                    Order::STATUS_CANCELED
+                ])) {
+                    $query->whereHas('orders', function ($q) use ($orderStatus) {
+                        $q->where('order_status', $orderStatus);
+                    });
+                }
+            }
+
+            // Filter by date range
+            if ($request->has('start_date') && $request->has('end_date')) {
+                $query->whereBetween('created_at', [
+                    $request->start_date . ' 00:00:00',
+                    $request->end_date . ' 23:59:59'
+                ]);
+            }
+
+            // Sort by created_at
+            $sortDirection = $request->input('sort_direction', 'desc');
+            if (!in_array($sortDirection, ['asc', 'desc'])) {
+                $sortDirection = 'desc';
+            }
+            $query->orderBy('created_at', $sortDirection);
+
+            $transactions = $query->paginate($request->input('per_page', 10));
+
+            return ResponseFormatter::success(
+                $transactions,
+                'Data transaksi berhasil diambil'
+            );
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Gagal mengambil data transaksi: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+    public function getDailyStatistics(Request $request)
+    {
+        try {
+            // Check if user has courier role
+            if ($request->user()->roles !== 'COURIER') {
+                return ResponseFormatter::error(
+                    null,
+                    'Unauthorized: User is not a courier',
+                    403
+                );
+            }
+
+            $courier = $request->user()->courier;
+            $today = now()->format('Y-m-d');
+
+            // Get today's statistics
+            $statistics = [
+                'total_orders' => Order::whereHas('transaction', function ($query) use ($courier) {
+                    $query->where('courier_id', $courier->id);
+                })->whereDate('created_at', $today)->count(),
+
+                'completed_orders' => Order::whereHas('transaction', function ($query) use ($courier) {
+                    $query->where('courier_id', $courier->id);
+                })->where('order_status', Order::STATUS_COMPLETED)
+                  ->whereDate('created_at', $today)->count(),
+
+                'total_earnings' => Transaction::where('courier_id', $courier->id)
+                    ->whereDate('created_at', $today)
+                    ->sum('delivery_fee'),
+
+                'average_delivery_time' => Order::whereHas('transaction', function ($query) use ($courier) {
+                    $query->where('courier_id', $courier->id);
+                })->where('order_status', Order::STATUS_COMPLETED)
+                  ->whereDate('created_at', $today)
+                  ->avg(DB::raw('TIMESTAMPDIFF(MINUTE, created_at, updated_at)'))
+            ];
+
+            return ResponseFormatter::success(
+                $statistics,
+                'Daily statistics retrieved successfully'
+            );
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Failed to retrieve daily statistics: ' . $e->getMessage(),
                 500
             );
         }

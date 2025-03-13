@@ -15,6 +15,12 @@ use App\Helpers\ResponseFormatter;
 
 class OrderStatusController extends Controller
 {
+    protected $firebaseService;
+
+    public function __construct(FirebaseService $firebaseService)
+    {
+        $this->firebaseService = $firebaseService;
+    }
     /**
      * Update order status to PROCESSING
      */
@@ -22,10 +28,14 @@ class OrderStatusController extends Controller
     {
         DB::beginTransaction();
         try {
-            $order = Order::with(['transaction', 'orderItems.product.merchant'])->findOrFail($id);
-            
+            $order = Order::with([
+                'transaction.user.fcmTokens',
+                'orderItems.product.merchant',
+                'transaction.courier.user.fcmTokens'
+            ])->findOrFail($id);
+
             // Validate current status
-            if ($order->order_status !== 'PENDING') {
+            if ($order->order_status !== Order::STATUS_PENDING) {
                 return ResponseFormatter::error(
                     null,
                     'Only pending orders can be processed',
@@ -35,7 +45,7 @@ class OrderStatusController extends Controller
 
             // For online payment, validate payment status
             // For COD (MANUAL), allow processing without payment
-            if ($order->transaction->payment_method === 'ONLINE' && 
+            if ($order->transaction->payment_method === 'ONLINE' &&
                 $order->transaction->payment_status !== 'COMPLETED') {
                 return ResponseFormatter::error(
                     null,
@@ -45,28 +55,29 @@ class OrderStatusController extends Controller
             }
 
             // Update order status
-            $order->order_status = 'PROCESSING';
+            $order->order_status = Order::STATUS_PROCESSING;
             $order->save();
 
             // Transaction status remains PENDING
             // For COD, payment will be completed upon delivery
-            
+
             // Send notification to customer
             $firebaseService = new FirebaseService();
             $customerTokens = $order->user->fcmTokens->pluck('token')->toArray();
             if (!empty($customerTokens)) {
-                $message = $order->transaction->payment_method === 'MANUAL' 
-                    ? 'Your COD order is being processed'
-                    : 'Your order is being processed';
+                $message = $order->transaction->payment_method === 'MANUAL'
+                    ? 'Pesanan COD Anda sedang diproses'
+                    : 'Pesanan Anda sedang diproses';
 
-                $firebaseService->sendToUser(
+                $this->firebaseService->sendToUser(
                     $customerTokens,
                     [
-                        'action' => 'order_processing',
+                        'type' => 'order_processing',
                         'order_id' => $order->id,
+                        'transaction_id' => $order->transaction->id,
                         'payment_method' => $order->transaction->payment_method
                     ],
-                    'Order Processing',
+                    'Pesanan Diproses',
                     $message
                 );
             }
@@ -91,9 +102,9 @@ class OrderStatusController extends Controller
         DB::beginTransaction();
         try {
             $order = Order::with(['transaction', 'orderItems.product.merchant'])->findOrFail($id);
-            
+
             // Validate current status
-            if ($order->order_status !== 'PROCESSING') {
+            if ($order->order_status !== Order::STATUS_PROCESSING) {
                 return ResponseFormatter::error(
                     null,
                     'Only processing orders can be marked as ready',
@@ -102,25 +113,8 @@ class OrderStatusController extends Controller
             }
 
             // Update order status
-            $order->order_status = 'READY_FOR_PICKUP';
+            $order->order_status = Order::STATUS_READY;
             $order->save();
-
-            // Create delivery record
-            $delivery = new Delivery([
-                'transaction_id' => $order->transaction->id,
-                'delivery_status' => 'PENDING',
-                'estimated_delivery_time' => now()->addHours(1)
-            ]);
-            $delivery->save();
-
-            // Create delivery items
-            foreach ($order->orderItems as $item) {
-                DeliveryItem::create([
-                    'delivery_id' => $delivery->id,
-                    'order_item_id' => $item->id,
-                    'pickup_status' => 'PENDING'
-                ]);
-            }
 
             // Notify couriers with payment method info
             $firebaseService = new FirebaseService();
@@ -135,12 +129,13 @@ class OrderStatusController extends Controller
             if (!empty($courierTokens)) {
                 $merchant = $order->orderItems->first()->product->merchant;
                 $isCOD = $order->transaction->payment_method === 'MANUAL';
-                
-                $firebaseService->sendToUser(
+
+                $this->firebaseService->sendToUser(
                     $courierTokens,
                     [
-                        'action' => 'order_ready_pickup',
+                        'type' => 'order_ready_pickup',
                         'order_id' => $order->id,
+                        'transaction_id' => $order->transaction->id,
                         'is_cod' => $isCOD,
                         'total_amount' => $isCOD ? $order->transaction->total_price : 0,
                         'merchant' => [
@@ -149,36 +144,43 @@ class OrderStatusController extends Controller
                             'address' => $merchant->address
                         ]
                     ],
-                    'New Order Ready for Pickup',
-                    $isCOD 
-                        ? "COD Order #{$order->id} ready for pickup at {$merchant->name}. Amount to collect: {$order->transaction->total_price}"
-                        : "Order #{$order->id} ready for pickup at {$merchant->name}"
+                    'Pesanan Siap Diambil',
+                    $isCOD
+                        ? "Pesanan COD #{$order->id} siap diambil di {$merchant->name}. Jumlah yang harus ditagih: Rp {$order->transaction->total_price}"
+                        : "Pesanan #{$order->id} siap diambil di {$merchant->name}"
                 );
             }
 
             // Notify customer
-            $customerTokens = $order->user->fcmTokens->pluck('token')->toArray();
-            if (!empty($customerTokens)) {
-                $firebaseService->sendToUser(
-                    $customerTokens,
-                    [
-                        'action' => 'order_ready_pickup',
-                        'order_id' => $order->id
-                    ],
-                    'Order Ready for Pickup',
-                    'Your order is ready for pickup by courier'
-                );
+            if ($order->transaction && $order->transaction->user) {
+                $customerTokens = $order->transaction->user->fcmTokens()
+                    ->where('is_active', true)
+                    ->pluck('token')
+                    ->toArray();
+
+                if (!empty($customerTokens)) {
+                    $this->firebaseService->sendToUser(
+                        $customerTokens,
+                        [
+                            'type' => 'order_ready_pickup',
+                            'order_id' => $order->id,
+                            'transaction_id' => $order->transaction->id
+                        ],
+                        'Pesanan Siap',
+                        'Pesanan Anda sudah siap dan akan segera diambil oleh kurir'
+                    );
+                }
             }
 
             DB::commit();
 
             return ResponseFormatter::success(
-                $order->load(['transaction', 'orderItems.product.merchant', 'delivery']),
-                'Order is ready for pickup'
+                $order->load(['transaction', 'orderItems.product.merchant']),
+                'Pesanan siap untuk diambil'
             );
         } catch (\Exception $e) {
             DB::rollBack();
-            return ResponseFormatter::error(null, 'Failed to mark order as ready: ' . $e->getMessage(), 500);
+            return ResponseFormatter::error(null, 'Gagal menandai pesanan siap: ' . $e->getMessage(), 500);
         }
     }
 
@@ -189,55 +191,49 @@ class OrderStatusController extends Controller
     {
         DB::beginTransaction();
         try {
-            $order = Order::with(['transaction', 'delivery'])->findOrFail($id);
-            
+            $order = Order::with(['transaction'])->findOrFail($id);
+
             // Validate current status
-            if ($order->order_status !== 'READY_FOR_PICKUP') {
+            if ($order->order_status !== Order::STATUS_PICKED_UP) {
                 return ResponseFormatter::error(
                     null,
-                    'Only orders in ready for pickup status can be completed',
+                    'Only orders in picked up status can be completed',
                     422
                 );
             }
 
             // Update order status
-            $order->order_status = 'COMPLETED';
+            $order->order_status = Order::STATUS_COMPLETED;
             $order->save();
 
             // Update transaction status
             $order->transaction->status = 'COMPLETED';
-            
+
             // For COD orders, mark payment as completed upon delivery
             if ($order->transaction->payment_method === 'MANUAL') {
                 $order->transaction->payment_status = 'COMPLETED';
                 $order->transaction->payment_date = now();
             }
-            
-            $order->transaction->save();
 
-            // Update delivery status
-            if ($order->delivery) {
-                $order->delivery->delivery_status = 'DELIVERED';
-                $order->delivery->actual_delivery_time = now();
-                $order->delivery->save();
-            }
+            $order->transaction->save();
 
             // Notify customer
             $firebaseService = new FirebaseService();
             $customerTokens = $order->user->fcmTokens->pluck('token')->toArray();
             if (!empty($customerTokens)) {
                 $message = $order->transaction->payment_method === 'MANUAL'
-                    ? 'Your COD order has been delivered and payment received'
-                    : 'Your order has been delivered';
+                    ? 'Pesanan COD Anda telah diantar dan pembayaran diterima'
+                    : 'Pesanan Anda telah diantar';
 
-                $firebaseService->sendToUser(
+                $this->firebaseService->sendToUser(
                     $customerTokens,
                     [
-                        'action' => 'order_completed',
+                        'type' => 'order_completed',
                         'order_id' => $order->id,
+                        'transaction_id' => $order->transaction->id,
                         'payment_method' => $order->transaction->payment_method
                     ],
-                    'Order Completed',
+                    'Pesanan Selesai',
                     $message
                 );
             }
@@ -245,12 +241,12 @@ class OrderStatusController extends Controller
             DB::commit();
 
             return ResponseFormatter::success(
-                $order->load(['transaction', 'delivery']),
-                'Order completed successfully'
+                $order->load(['transaction']),
+                'Pesanan selesai'
             );
         } catch (\Exception $e) {
             DB::rollBack();
-            return ResponseFormatter::error(null, 'Failed to complete order: ' . $e->getMessage(), 500);
+            return ResponseFormatter::error(null, 'Gagal menyelesaikan pesanan: ' . $e->getMessage(), 500);
         }
     }
 
@@ -261,56 +257,51 @@ class OrderStatusController extends Controller
     {
         DB::beginTransaction();
         try {
-            $order = Order::with(['transaction', 'delivery'])->findOrFail($id);
-            
+            $order = Order::with(['transaction'])->findOrFail($id);
+
             // Validate if order can be cancelled
-            if (!in_array($order->order_status, ['PENDING', 'PROCESSING'])) {
+            if (!in_array($order->order_status, [Order::STATUS_PENDING, Order::STATUS_PROCESSING])) {
                 return ResponseFormatter::error(
                     null,
-                    'Only pending or processing orders can be cancelled',
+                    'Hanya pesanan dengan status pending atau processing yang dapat dibatalkan',
                     422
                 );
             }
 
             // Update order status
-            $order->order_status = 'CANCELED';
+            $order->order_status = Order::STATUS_CANCELED;
             $order->save();
 
             // Update transaction status
             $order->transaction->status = 'CANCELED';
-            
+
             // For online payment, handle refund if payment was completed
-            if ($order->transaction->payment_method === 'ONLINE' && 
+            if ($order->transaction->payment_method === 'ONLINE' &&
                 $order->transaction->payment_status === 'COMPLETED') {
                 // Handle refund logic here if needed
             }
-            
-            $order->transaction->save();
 
-            // Update delivery status if exists
-            if ($order->delivery) {
-                $order->delivery->delivery_status = 'CANCELED';
-                $order->delivery->save();
-            }
+            $order->transaction->save();
 
             // Notify customer
             $firebaseService = new FirebaseService();
             $customerTokens = $order->user->fcmTokens->pluck('token')->toArray();
             if (!empty($customerTokens)) {
-                $message = $order->transaction->payment_method === 'ONLINE' && 
+                $message = $order->transaction->payment_method === 'ONLINE' &&
                           $order->transaction->payment_status === 'COMPLETED'
-                    ? 'Your order has been canceled. Refund will be processed.'
-                    : 'Your order has been canceled';
+                    ? 'Pesanan Anda telah dibatalkan. Refund akan diproses.'
+                    : 'Pesanan Anda telah dibatalkan';
 
-                $firebaseService->sendToUser(
+                $this->firebaseService->sendToUser(
                     $customerTokens,
                     [
-                        'action' => 'order_canceled',
+                        'type' => 'order_canceled',
                         'order_id' => $order->id,
-                        'refund_needed' => $order->transaction->payment_method === 'ONLINE' && 
+                        'transaction_id' => $order->transaction->id,
+                        'refund_needed' => $order->transaction->payment_method === 'ONLINE' &&
                                          $order->transaction->payment_status === 'COMPLETED'
                     ],
-                    'Order Canceled',
+                    'Pesanan Dibatalkan',
                     $message
                 );
             }
@@ -318,12 +309,12 @@ class OrderStatusController extends Controller
             DB::commit();
 
             return ResponseFormatter::success(
-                $order->load(['transaction', 'delivery']),
-                'Order canceled successfully'
+                $order->load(['transaction']),
+                'Pesanan berhasil dibatalkan'
             );
         } catch (\Exception $e) {
             DB::rollBack();
-            return ResponseFormatter::error(null, 'Failed to cancel order: ' . $e->getMessage(), 500);
+            return ResponseFormatter::error(null, 'Gagal membatalkan pesanan: ' . $e->getMessage(), 500);
         }
     }
 }

@@ -22,12 +22,12 @@ module.exports = {
                 'spin-slow': 'spin 8s linear infinite',
                 'blob': 'blob 7s infinite',
                 'scroll-indicator': 'scrollIndicator 2s ease-in-out infinite',
-                'auto-scroll': 'autoScroll 20s linear infinite',
+                'auto-scroll': 'autoScroll 30s linear infinite',
             },
             keyframes: {
                 autoScroll: {
                     '0%': { transform: 'translateX(0)' },
-                    '100%': { transform: 'translateX(-100%)' },
+                    '100%': { transform: 'translateX(-50%)' },
                 },
                 scrollIndicator: {
                     '0%': { transform: 'translateX(-100%)' },
@@ -80,5 +80,28 @@ module.exports = {
         },
     },
 
-    plugins: [require('@tailwindcss/forms'), require('@tailwindcss/typography')],
+    plugins: [
+        require('@tailwindcss/forms'),
+        require('@tailwindcss/typography'),
+        function({ addUtilities }) {
+            addUtilities({
+                '.scrollbar-hide': {
+                    '-ms-overflow-style': 'none',
+                    'scrollbar-width': 'none',
+                    '&::-webkit-scrollbar': {
+                        display: 'none'
+                    }
+                },
+                '.pause-animation': {
+                    'animation-play-state': 'paused'
+                },
+                '.preserve-3d': {
+                    'transform-style': 'preserve-3d'
+                },
+                '.perspective': {
+                    'perspective': '1000px'
+                }
+            })
+        }
+    ],
 };

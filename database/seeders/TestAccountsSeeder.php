@@ -83,12 +83,12 @@ class TestAccountsSeeder extends Seeder
         'Puas dengan pelayanannya'
     ];
 
-    private function uploadFileToS3($localPath, $s3Path) 
+    private function uploadFileToS3($localPath, $s3Path)
     {
         try {
             // Use absolute path for local files
             $absolutePath = storage_path('app/public/' . $localPath);
-            
+
             if (!file_exists($absolutePath)) {
                 $this->command->error("Local file not found: {$absolutePath}");
                 return false;
@@ -99,7 +99,7 @@ class TestAccountsSeeder extends Seeder
                 $this->command->error("Failed to read file: {$absolutePath}");
                 return false;
             }
-            
+
             // Determine content type based on file extension
             $extension = strtolower(pathinfo($localPath, PATHINFO_EXTENSION));
             $contentType = match($extension) {
@@ -109,18 +109,18 @@ class TestAccountsSeeder extends Seeder
                 'webp' => 'image/webp',
                 default => 'application/octet-stream',
             };
-            
+
             // Ensure the directory exists in S3
             $directory = dirname($s3Path);
             if (!Storage::disk('s3')->exists($directory)) {
                 Storage::disk('s3')->makeDirectory($directory);
             }
-            
+
             // Upload to S3 with public visibility
             try {
                 $s3Client = Storage::disk('s3')->getClient();
                 $bucket = config('filesystems.disks.s3.bucket');
-                
+
                 $s3Client->putObject([
                     'Bucket' => $bucket,
                     'Key' => $s3Path,
@@ -132,7 +132,7 @@ class TestAccountsSeeder extends Seeder
 
                 // Store just the path without bucket name
                 $this->command->info("Path to store in database: {$s3Path}");
-                
+
                 $uploaded = true;
             } catch (\Exception $e) {
                 $this->command->error("S3 upload error: " . $e->getMessage());
@@ -148,9 +148,9 @@ class TestAccountsSeeder extends Seeder
             $url = Storage::disk('s3')->url($s3Path);
             $this->command->info("Successfully uploaded {$localPath} to S3");
             $this->command->info("File accessible at: {$url}");
-            
+
             // Return the path without bucket name for database storage
-            
+
             return true;
         } catch (\Exception $e) {
             Log::error("Failed to upload file to S3", [
@@ -166,7 +166,7 @@ class TestAccountsSeeder extends Seeder
     public function run()
     {
         DB::beginTransaction();
-        
+
         try {
             // Test S3 connection
             try {
@@ -183,7 +183,7 @@ class TestAccountsSeeder extends Seeder
             // Create Merchant Account with profile photo
             $merchantUser = User::create([
                 'name' => 'Test Merchant',
-                'email' => 'merchant@test.com', 
+                'email' => 'merchant@test.com',
                 'password' => Hash::make('aswar123'),
                 'phone_number' => '081234567891',
                 'roles' => 'MERCHANT',
@@ -194,7 +194,7 @@ class TestAccountsSeeder extends Seeder
             // Upload merchant profile photo if exists
             $profilePhotoPath = 'profile-photos/01JBE54Q492SD1AC9SA6NNWF6D.jpg';
             $s3ProfilePhotoPath = 'profile-photos/merchant-' . $merchantUser->id . '.jpg';
-            
+
             if ($this->uploadFileToS3($profilePhotoPath, $s3ProfilePhotoPath)) {
                 $merchantUser->forceFill([
                     'profile_photo_path' => $s3ProfilePhotoPath
@@ -297,7 +297,7 @@ class TestAccountsSeeder extends Seeder
                     foreach ($productData['images'] as $index => $image) {
                         $localImagePath = $image;
                         $s3ImagePath = 'products/images/' . $product->id . '-' . $index . '-' . basename($image);
-                        
+
                         if ($this->uploadFileToS3($localImagePath, $s3ImagePath)) {
                             ProductGallery::create([
                                 'product_id' => $product->id,
@@ -320,7 +320,7 @@ class TestAccountsSeeder extends Seeder
 
             DB::commit();
             $this->command->info('All seeding completed successfully');
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("Seeding failed", ['error' => $e->getMessage()]);

@@ -29,7 +29,7 @@ return [
     */
     'temporary_file_upload' => [
         'disk' => 's3',
-        'rules' => ['required', 'image', 'max:1024'],
+        'rules' => ['required', 'image', 'max:5120'], // Increased to 5MB
         'directory' => 'livewire-tmp',
         'middleware' => null,
         'preview_mimes' => [
