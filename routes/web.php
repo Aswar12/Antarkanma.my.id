@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\TeamController;
+use App\Http\Controllers\DownloadAppController;
 
 Route::get('/statistics', [StatisticsController::class, 'getHomeStatistics']);
 
@@ -22,3 +23,11 @@ Route::get('/login', function () {
 Route::get('/register', function () {
     return view('auth.register');
 })->middleware('guest')->name('register');
+
+Route::get('/download-app', [DownloadAppController::class, 'show'])
+    ->middleware(['auth'])
+    ->name('download-app');
+
+Route::get('/dashboard', function () {
+    return view('dashboard');
+})->middleware(['auth'])->name('dashboard');

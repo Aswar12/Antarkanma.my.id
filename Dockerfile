@@ -12,7 +12,10 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     libicu-dev \
     nodejs \
-    npm
+    npm \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libwebp-dev
 
 # Install Node.js and npm
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
@@ -21,8 +24,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip intl
+# Install PHP extensions with proper GD configuration
+RUN docker-php-ext-configure gd --with-jpeg --with-freetype --with-webp && \
+    docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip intl
 
 # Set PHP timezone and upload limits
 RUN echo "date.timezone=Asia/Makassar" > /usr/local/etc/php/conf.d/timezone.ini && \

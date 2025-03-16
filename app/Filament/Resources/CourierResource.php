@@ -5,12 +5,14 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CourierResource\Pages;
 use App\Filament\Resources\CourierResource\RelationManagers;
 use App\Models\Courier;
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class CourierResource extends Resource
@@ -24,10 +26,16 @@ class CourierResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('user_id')
-                    ->relationship('user', 'name')
+                    ->relationship(
+                        'user',
+                        'name',
+                        fn (Builder $query) => $query->whereNot('roles', 'COURIER')
+                    )
                     ->searchable()
                     ->preload()
-                    ->required(),
+                    ->required()
+                    ->unique('couriers', 'user_id')
+                    ->label('Select User'),
                 Forms\Components\TextInput::make('vehicle_type')
                     ->required()
                     ->maxLength(255),
@@ -133,6 +141,21 @@ class CourierResource extends Resource
         return [
             //
         ];
+    }
+
+    protected static function beforeCreate(array $data): void
+    {
+        $user = User::find($data['user_id']);
+        if ($user) {
+            $user->update(['roles' => 'COURIER']);
+        }
+    }
+
+    protected static function afterDelete(Model $record): void
+    {
+        if ($record->user) {
+            $record->user->update(['roles' => 'USER']);
+        }
     }
 
     public static function getPages(): array

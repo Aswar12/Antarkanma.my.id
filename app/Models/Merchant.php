@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
 
 class Merchant extends Model
 {
@@ -52,32 +54,73 @@ class Merchant extends Model
         }
 
         // Generate S3 URL for the logo
-        return Storage::disk('s3')->url($this->logo);
+        try {
+            return Storage::disk('s3')->url($this->logo);
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
-     * Store the logo file
+     * Store the logo file in S3 storage
+     *
+     * @param \Illuminate\Http\UploadedFile $file
+     * @return string|null The URL of the stored logo, or null if storage failed
+     * @throws \Exception if file is invalid or storage fails
      */
     public function storeLogo($file)
     {
-        if ($this->logo) {
-            // Delete old logo if exists
-            Storage::disk('s3')->delete($this->logo);
+        if (!$file->isValid()) {
+            throw new \Exception('Invalid file upload');
         }
 
-        // Generate filename with merchant ID
-        $filename = 'merchant-' . $this->id . '.' . $file->getClientOriginalExtension();
+        try {
+            // Delete old logo if exists
+            if ($this->logo) {
+                try {
+                    Storage::disk('s3')->delete($this->logo);
+                } catch (\Exception $e) {
+                    // Log error but continue with new upload
+                    \Log::warning('Failed to delete old logo: ' . $e->getMessage());
+                }
+            }
 
-        // Store new logo with specific filename
-        $path = $file->storeAs('merchants/logos', $filename, [
-            'disk' => 's3',
-            'visibility' => 'public'
-        ]);
+            // Generate unique filename with merchant ID and timestamp
+            $extension = $file->getClientOriginalExtension();
+            $filename = 'merchant-' . $this->id . '-' . time() . '.' . $extension;
+            $path = 'merchants/logos/' . $filename;
 
-        $this->logo = $path;
-        $this->save();
+            // Store file directly to S3
+            $uploaded = Storage::disk('s3')->putFileAs(
+                'merchants/logos',
+                $file,
+                $filename,
+                ['visibility' => 'public']
+            );
 
-        return Storage::disk('s3')->url($path);
+            if (!$uploaded) {
+                throw new \Exception('Failed to upload file to S3');
+            }
+
+            // Update merchant with new logo path
+            $this->logo = $path;
+            $this->save();
+
+            // Verify URL is accessible
+            $url = Storage::disk('s3')->url($path);
+            if (!$url) {
+                throw new \Exception('Failed to generate URL for uploaded file');
+            }
+
+            return $url;
+
+        } catch (\Exception $e) {
+            // Clean up failed upload if needed
+            if (isset($path) && Storage::disk('s3')->exists($path)) {
+                Storage::disk('s3')->delete($path);
+            }
+            throw $e;
+        }
     }
 
     /**

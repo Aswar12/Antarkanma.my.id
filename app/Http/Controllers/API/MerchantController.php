@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
 use App\Services\OsrmService;
-use App\Services\ImageService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -21,12 +20,10 @@ use Illuminate\Validation\Rules\Password;
 class MerchantController extends Controller
 {
     protected $osrmService;
-    protected $imageService;
 
-    public function __construct(OsrmService $osrmService, ImageService $imageService)
+    public function __construct(OsrmService $osrmService)
     {
         $this->osrmService = $osrmService;
-        $this->imageService = $imageService;
     }
 
     public function register(Request $request)
@@ -83,14 +80,11 @@ class MerchantController extends Controller
 
             // Handle logo upload if present
             if ($request->hasFile('logo')) {
-                $path = $this->imageService->compressAndStore(
-                    $request->file('logo'),
-                    'merchants/logos',
-                    'merchant-' . $merchant->id
-                );
-
-                if ($path) {
-                    $merchant->update(['logo' => $path]);
+                try {
+                    $merchant->storeLogo($request->file('logo'));
+                } catch (\Exception $e) {
+                    // Log error but continue with registration
+                    Log::error('Failed to upload merchant logo: ' . $e->getMessage());
                 }
             }
 
@@ -271,7 +265,7 @@ class MerchantController extends Controller
                 'phone_number' => 'required|string|max:15',
                 'status' => 'required|string',
                 'description' => 'nullable|string',
-                'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,heic|max:20480', // Increased max size to 20MB since we'll compress
+                'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,heic|max:20480',
                 'opening_time' => 'nullable|date_format:H:i',
                 'closing_time' => 'nullable|date_format:H:i',
                 'operating_days' => 'nullable|string|array',
@@ -288,14 +282,11 @@ class MerchantController extends Controller
 
             // Handle logo upload if present
             if ($request->hasFile('logo')) {
-                $path = $this->imageService->compressAndStore(
-                    $request->file('logo'),
-                    'merchants/logos',
-                    'merchant-' . $merchant->id
-                );
-
-                if ($path) {
-                    $merchant->update(['logo' => $path]);
+                try {
+                    $merchant->storeLogo($request->file('logo'));
+                } catch (\Exception $e) {
+                    // Log error but continue with merchant creation
+                    Log::error('Failed to upload merchant logo: ' . $e->getMessage());
                 }
             }
 
@@ -326,11 +317,13 @@ class MerchantController extends Controller
                 'phone_number' => 'sometimes|string|max:15',
                 'status' => 'sometimes|string',
                 'description' => 'sometimes|string',
-                'logo' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp,heic|max:20480', // Increased max size to 20MB since we'll compress
+                'logo' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp,heic|max:20480',
                 'opening_time' => 'nullable|date_format:H:i',
                 'closing_time' => 'nullable|date_format:H:i',
                 'operating_days' => 'nullable|array',
                 'operating_days.*' => 'string',
+                'latitude' => 'required_with:address|numeric',
+                'longitude' => 'required_with:address|numeric',
             ]);
 
             $data = $request->except('logo');
@@ -341,19 +334,14 @@ class MerchantController extends Controller
 
             // Handle logo update if present
             if ($request->hasFile('logo')) {
-                // Delete old logo if exists
-                if ($merchant->logo) {
-                    Storage::disk('s3')->delete($merchant->logo);
-                }
-
-                $path = $this->imageService->compressAndStore(
-                    $request->file('logo'),
-                    'merchants/logos',
-                    'merchant-' . $merchant->id
-                );
-
-                if ($path) {
-                    $data['logo'] = $path;
+                try {
+                    $url = $merchant->storeLogo($request->file('logo'));
+                    if ($url) {
+                        $data['logo'] = $merchant->logo;
+                    }
+                } catch (\Exception $e) {
+                    // Log error but continue with update
+                    Log::error('Failed to upload merchant logo: ' . $e->getMessage());
                 }
             }
 
@@ -406,31 +394,106 @@ class MerchantController extends Controller
             $merchant = Merchant::findOrFail($id);
 
             $request->validate([
-                'logo' => 'required|image|mimes:jpeg,png,jpg,gif,webp,heic|max:20480', // Increased max size to 20MB since we'll compress
+                'logo' => 'required|file|image|mimes:jpeg,png,jpg,gif|max:2048'
             ]);
 
-            // Delete old logo if exists
-            if ($merchant->logo) {
-                Storage::disk('s3')->delete($merchant->logo);
+            $file = $request->file('logo');
+            if (!$file->isValid()) {
+                return ResponseFormatter::error(
+                    null,
+                    'Invalid file upload',
+                    422
+                );
             }
 
-            $path = $this->imageService->compressAndStore(
-                $request->file('logo'),
-                'merchants/logos',
-                'merchant-' . $merchant->id
-            );
-
-            if ($path) {
-                $merchant->update(['logo' => $path]);
+            // Get image info
+            $image = getimagesize($file->getPathname());
+            if ($image === false) {
+                return ResponseFormatter::error(
+                    null,
+                    'Invalid image file',
+                    422
+                );
             }
 
-            // Reload merchant to get fresh data with logo URL
-            $merchant = Merchant::find($merchant->id);
+            // Check if image needs resizing
+            list($width, $height) = $image;
+            $maxDimension = 800;
+
+            if ($width > $maxDimension || $height > $maxDimension) {
+                // Calculate new dimensions
+                $ratio = $width / $height;
+                if ($ratio > 1) {
+                    $newWidth = $maxDimension;
+                    $newHeight = $maxDimension / $ratio;
+                } else {
+                    $newHeight = $maxDimension;
+                    $newWidth = $maxDimension * $ratio;
+                }
+
+                // Create new image
+                $srcImage = imagecreatefromstring(file_get_contents($file->getPathname()));
+                $dstImage = imagecreatetruecolor($newWidth, $newHeight);
+
+                // Preserve transparency for PNG
+                if ($file->getClientMimeType() === 'image/png') {
+                    imagealphablending($dstImage, false);
+                    imagesavealpha($dstImage, true);
+                }
+
+                // Resize
+                imagecopyresampled(
+                    $dstImage, $srcImage,
+                    0, 0, 0, 0,
+                    $newWidth, $newHeight,
+                    $width, $height
+                );
+
+                // Create temporary file
+                $tempPath = tempnam(sys_get_temp_dir(), 'resized_');
+
+                // Save with compression
+                if ($file->getClientMimeType() === 'image/png') {
+                    imagepng($dstImage, $tempPath, 7); // PNG compression level 7
+                } else {
+                    imagejpeg($dstImage, $tempPath, 80); // JPEG quality 80
+                }
+
+                // Clean up
+                imagedestroy($srcImage);
+                imagedestroy($dstImage);
+
+                // Create new UploadedFile instance
+                $file = new \Illuminate\Http\UploadedFile(
+                    $tempPath,
+                    $file->getClientOriginalName(),
+                    $file->getClientMimeType(),
+                    null,
+                    true
+                );
+            }
+
+            // Use the merchant model's storeLogo method
+            $url = $merchant->storeLogo($file);
+
+            // Clean up temp file if it exists
+            if (isset($tempPath) && file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+
+            if (!$url) {
+                return ResponseFormatter::error(
+                    null,
+                    'Failed to upload logo file',
+                    500
+                );
+            }
 
             return ResponseFormatter::success(
                 $merchant,
                 'Merchant logo updated successfully'
             );
+
         } catch (\Exception $e) {
             return ResponseFormatter::error(
                 null,

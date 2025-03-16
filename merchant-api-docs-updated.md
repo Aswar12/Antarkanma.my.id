@@ -1,231 +1,115 @@
 # Merchant API Documentation
 
 ## Authentication
-
 All API requests require authentication using a Bearer token in the Authorization header:
-
 ```
 Authorization: Bearer <your_token>
 ```
 
-## Products
+## Merchant Logo Upload
 
-### Update Product
+### Update Merchant Logo
 ```http
-PUT /api/products/{id}
+POST /api/merchant/{id}/logo
 ```
 
-Request Body:
+#### Request
+- Method: `POST`
+- Endpoint: `/api/merchant/{id}/logo`
+- Content-Type: `multipart/form-data`
+- Authentication: Required
+
+#### Parameters
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| logo | File | Yes | Image file (jpeg, png, jpg, gif, webp, heic). Max size: 20MB |
+
+#### Example Request using cURL
+```bash
+curl -X POST \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "logo=@/path/to/logo.png" \
+  https://dev.antarkanmaa.my.id/api/merchant/{merchant_id}/logo
+```
+
+
+
+
+#### Example Request using Axios
+```javascript
+const formData = new FormData();
+formData.append('logo', logoFile);
+
+const response = await axios.post(`/api/merchant/${merchantId}/logo`, formData, {
+  headers: {
+    'Content-Type': 'multipart/form-data',
+    'Authorization': `Bearer ${token}`
+  }
+});
+```
+
+#### Successful Response
 ```json
 {
-    "name": "string",
-    "description": "string",
-    "price": "numeric",
-    "category_id": "numeric",
-    "status": "ACTIVE|INACTIVE|OUT_OF_STOCK",
-    "variants": [
-        {
-            "name": "string",
-            "price": "numeric",
-            "stock": "numeric"
-        }
-    ]
+  "meta": {
+    "code": 200,
+    "status": "success",
+    "message": "Merchant logo updated successfully"
+  },
+  "data": {
+    "id": 1,
+    "name": "Merchant Name",
+    "logo": "merchants/logos/merchant-1-12345.jpg",
+    "logo_url": "https://is3.cloudhost.id/antarkanma/merchants/logos/merchant-1-12345.jpg",
+    ...
+  }
 }
 ```
 
-Notes:
-- All fields are optional - only include fields you want to update
-- `variants` array is optional. If provided, all existing variants will be replaced with the new ones
-- When updating variants, you must provide all variants as the existing ones will be deleted
+#### Error Responses
 
-Response (200 - Success):
+Invalid File Type
 ```json
 {
-    "meta": {
-        "code": 200,
-        "status": "success",
-        "message": "Product updated successfully"
-    },
-    "data": {
-        "id": 1,
-        "name": "Updated Product Name",
-        "description": "Updated product description",
-        "price": 150000,
-        "category_id": 1,
-        "merchant_id": 1,
-        "status": "ACTIVE",
-        "variants": [
-            {
-                "id": 1,
-                "name": "Variant 1",
-                "price": 160000,
-                "stock": 10
-            }
-        ],
-        "created_at": "2024-02-15T12:00:00.000000Z",
-        "updated_at": "2024-02-15T13:00:00.000000Z"
-    }
+  "meta": {
+    "code": 422,
+    "status": "error",
+    "message": "The logo must be an image."
+  },
+  "data": null
 }
 ```
 
-## Product Galleries
-
-### Add Gallery Images
-```http
-POST /api/products/{id}/gallery
-```
-
-Request Body (multipart/form-data):
-```
-gallery[]: file (image)
-gallery[]: file (image)
-...
-```
-
-Response (200 - Success):
+File Too Large
 ```json
 {
-    "meta": {
-        "code": 200,
-        "status": "success",
-        "message": "Gallery images uploaded successfully"
-    },
-    "data": [
-        {
-            "id": 1,
-            "url": "http://your-domain.com/storage/product_galleries/image1.jpg",
-            "product_id": 1
-        },
-        {
-            "id": 2,
-            "url": "http://your-domain.com/storage/product_galleries/image2.jpg",
-            "product_id": 1
-        }
-    ]
+  "meta": {
+    "code": 422,
+    "status": "error",
+    "message": "The logo must not be greater than 20480 kilobytes."
+  },
+  "data": null
 }
 ```
 
-### Update Gallery Image
-```http
-PUT /api/products/{productId}/gallery/{galleryId}
-```
-
-Request Body (multipart/form-data):
-```
-gallery: file (image)
-```
-
-Response (200 - Success):
+Authentication Error
 ```json
 {
-    "meta": {
-        "code": 200,
-        "status": "success",
-        "message": "Gallery image updated successfully"
-    },
-    "data": {
-        "id": 1,
-        "url": "storage/product_galleries/updated-image.jpg",
-        "product_id": 1,
-        "created_at": "2024-02-15T12:00:00.000000Z",
-        "updated_at": "2024-02-15T13:00:00.000000Z"
-    }
+  "meta": {
+    "code": 401,
+    "status": "error",
+    "message": "Unauthenticated."
+  },
+  "data": null
 }
 ```
 
-### Delete Gallery Image
-```http
-DELETE /api/products/{productId}/gallery/{galleryId}
-```
-
-Response (200 - Success):
-```json
-{
-    "meta": {
-        "code": 200,
-        "status": "success",
-        "message": "Gallery image deleted successfully"
-    }
-}
-```
-
-Error Responses:
-
-404 - Not Found:
-```json
-{
-    "meta": {
-        "code": 404,
-        "status": "error",
-        "message": "Product or gallery not found"
-    },
-    "data": null
-}
-```
-
-422 - Validation Error:
-```json
-{
-    "meta": {
-        "code": 422,
-        "status": "error",
-        "message": "Validation Error"
-    },
-    "data": {
-        "gallery": [
-            "Please select an image file",
-            "Image must be jpeg, png, jpg, or gif",
-            "Image size must not exceed 2MB"
-        ]
-    }
-}
-```
-
-403 - Unauthorized:
-```json
-{
-    "meta": {
-        "code": 403,
-        "status": "error",
-        "message": "Unauthorized to perform this action"
-    },
-    "data": null
-}
-```
-
-500 - Server Error:
-```json
-{
-    "meta": {
-        "code": 500,
-        "status": "error",
-        "message": "Failed to process request"
-    },
-    "data": null
-}
-```
-
-## Important Notes
-
-1. Image Upload Requirements:
-   - Supported formats: JPEG, PNG, JPG, GIF
-   - Maximum file size: 2MB per image
-   - Multiple images can be uploaded at once using the gallery[] parameter
-
-2. Performance Considerations:
-   - Using get_all=true will return ALL products at once, which might be slow for large datasets
-   - For better performance with large datasets:
-     * Use pagination (default behavior) instead of get_all
-     * Use appropriate limit values (default: 10)
-     * Consider implementing frontend caching
-   - Products are always ordered by created_at in descending order (newest first)
-
-3. Authentication:
-   - All endpoints require a valid Bearer token
-   - Product updates and gallery operations require merchant ownership
-   - Unauthorized attempts will return a 403 error
-
-4. Product Variants:
-   - When updating a product with variants, all existing variants will be replaced
-   - The operation is wrapped in a transaction - if any part fails, all changes are rolled back
-   - Variants are optional - if not provided, existing variants will remain unchanged
+### Important Notes
+1. The image will be automatically:
+   - Compressed to optimize file size
+   - Resized if dimensions exceed 1920x1080
+   - Converted to appropriate format if needed
+2. Old logo will be automatically deleted when updating
+3. The returned URL is a public S3 URL that can be used directly
+4. Supported image formats: JPEG, PNG, JPG, GIF, WEBP, HEIC
+5. Maximum file size: 20MB (will be compressed)

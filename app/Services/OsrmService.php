@@ -9,7 +9,7 @@ class OsrmService
 {
     protected $baseUrl = 'http://router.project-osrm.org';
 
-    const PROXIMITY_THRESHOLD = 1000; // 1 kilometer
+    const PROXIMITY_THRESHOLD = 2000; // 2 kilometers for less dense areas
     const DIRECTION_THRESHOLD = 90; // 90 derajat
 
     /**
@@ -134,7 +134,7 @@ class OsrmService
             ) / 1000;
 
             // If within radius or same direction, just charge pickup fee
-            if ($distanceFromBase <= 1 || $angle < self::DIRECTION_THRESHOLD) {
+            if ($distanceFromBase <= 2 || $angle < self::DIRECTION_THRESHOLD) {
                 return [
                     'distance' => $distanceFromBase,
                     'type' => 'on_the_way',
@@ -168,22 +168,29 @@ class OsrmService
             switch ($type) {
                 case 'on_the_way':
                     return [
-                        'delivery_cost' => 3500,
+                        'delivery_cost' => 2000,
                         'breakdown' => [
                             'fee_order' => 2000,
-                            'pickup_fee' => 1500
+                            'pickup_fee' => 1000
                         ]
                     ];
 
                 case 'base_merchant':
                 case 'different_direction':
                 default:
+                    // Adjusted for less dense areas:
+                    // - Lower base price
+                    // - Larger distance ranges
+                    // - Smaller increments per km
+                    // - Lower maximum fee
                     $baseCost = match(true) {
-                        $distance <= 3 => 7000,
-                        $distance <= 6 => 10000,
-                        $distance <= 9 => 15000,
-                        $distance <= 12 => 20000,
-                        default => 25000
+                        $distance <= 3 => 5000,
+                        $distance <= 4 => 6000,   // Minimum fee for up to 3km
+                        $distance <= 6 => 7000,    // +1500 for 3-6km
+                        $distance <= 9 => 10000,    // +1500 for 6-9km
+                        $distance <= 12 => 1500,   // +1500 for 9-12km
+                        $distance <= 15 => 18000,  // +1500 for 12-15km
+                        default => 24000          // Maximum fee for >15km
                     };
                     return [
                         'delivery_cost' => $baseCost,

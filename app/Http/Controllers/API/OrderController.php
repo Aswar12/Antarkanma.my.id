@@ -137,7 +137,8 @@ class OrderController extends Controller
                 $orderArray['transaction'] = [
                     'status' => $order->transaction->status,
                     'payment_method' => $order->transaction->payment_method,
-                    'payment_status' => $order->transaction->payment_status
+                    'payment_status' => $order->transaction->payment_status,
+                    'shipping_price' => $order->transaction->shipping_price
                 ];
 
                 // Add customer info with photo
@@ -318,7 +319,8 @@ class OrderController extends Controller
                 $orderArray['transaction'] = [
                     'status' => $order->transaction->status,
                     'payment_method' => $order->transaction->payment_method,
-                    'payment_status' => $order->transaction->payment_status
+                    'payment_status' => $order->transaction->payment_status,
+                    'shipping_price' => $order->transaction->shipping_price
                 ];
 
                 // Add customer info with photo
@@ -478,10 +480,12 @@ class OrderController extends Controller
             // Base query with optimized eager loading
             $query = Order::select('id', 'transaction_id', 'total_amount', 'order_status', 'merchant_approval', 'rejection_reason', 'created_at')
             ->with([
-                'orderItems:id,order_id,product_id,quantity,price,customer_note',
+                'orderItems:id,order_id,product_id,product_variant_id,quantity,price,customer_note',
                 'orderItems.product:id,name,price,status',
                 'orderItems.product.galleries:id,product_id,url',
-                'transaction:id,user_id,courier_id,status,payment_method,payment_status',
+                'orderItems.variant:id,name,price',
+                'transaction:id,user_id,courier_id,user_location_id,status,payment_method,payment_status,shipping_price',
+                'transaction.userLocation:id,customer_name,address,city,district,postal_code,latitude,longitude,phone_number,notes',
                 'transaction.user:id,name,phone_number,profile_photo_path',
                 'transaction.courier:id,user_id,vehicle_type,license_plate',
                 'transaction.courier.user:id,name,phone_number,profile_photo_path'
@@ -541,7 +545,12 @@ class OrderController extends Controller
                             'name' => $item->product->name,
                             'price' => $item->product->price,
                             'image' => $item->product->galleries[0]->url ?? null
-                        ]
+                        ],
+                        'variant' => $item->variant ? [
+                            'id' => $item->variant->id,
+                            'name' => $item->variant->name,
+                            'price' => $item->variant->price
+                        ] : null
                     ];
                 });
 
@@ -549,14 +558,26 @@ class OrderController extends Controller
                 $orderArray['transaction'] = [
                     'status' => $order->transaction->status,
                     'payment_method' => $order->transaction->payment_method,
-                    'payment_status' => $order->transaction->payment_status
+                    'payment_status' => $order->transaction->payment_status,
+                    'shipping_price' => $order->transaction->shipping_price
                 ];
 
-                // Add customer info with photo
+                // Add customer info with photo and delivery address
                 $orderArray['customer'] = [
                     'name' => $order->transaction->user->name,
                     'phone' => $order->transaction->user->phone_number,
-                    'photo' => $order->transaction->user->profile_photo_url
+                    'photo' => $order->transaction->user->profile_photo_url,
+                    'delivery_address' => $order->transaction->userLocation ? [
+                        'customer_name' => $order->transaction->userLocation->customer_name,
+                        'address' => $order->transaction->userLocation->address,
+                        'city' => $order->transaction->userLocation->city,
+                        'district' => $order->transaction->userLocation->district,
+                        'postal_code' => $order->transaction->userLocation->postal_code,
+                        'latitude' => $order->transaction->userLocation->latitude,
+                        'longitude' => $order->transaction->userLocation->longitude,
+                        'phone_number' => $order->transaction->userLocation->phone_number,
+                        'notes' => $order->transaction->userLocation->notes
+                    ] : null
                 ];
 
                 // Add rejection reason and customer note if exists
