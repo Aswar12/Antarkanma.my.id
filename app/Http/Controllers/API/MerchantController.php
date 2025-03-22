@@ -12,6 +12,7 @@ use App\Services\OsrmService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
@@ -19,12 +20,6 @@ use Illuminate\Validation\Rules\Password;
 
 class MerchantController extends Controller
 {
-    protected $osrmService;
-
-    public function __construct(OsrmService $osrmService)
-    {
-        $this->osrmService = $osrmService;
-    }
 
     public function register(Request $request)
     {
@@ -113,7 +108,12 @@ class MerchantController extends Controller
     public function index(Request $request)
     {
         try {
-            $merchants = Merchant::query()
+            // Generate cache key based on request parameters
+            $cacheKey = 'merchants:' . md5(json_encode($request->all()));
+
+            // Get data from cache or store for 5 minutes
+            return Cache::tags(['merchants'])->remember($cacheKey, 300, function () use ($request) {
+                $merchants = Merchant::query()
                 ->where('status', 'active')
                 ->select([
                     'id',
@@ -156,33 +156,17 @@ class MerchantController extends Controller
                 );
             }
 
-            // Calculate distances if coordinates provided
-            if ($request->has(['latitude', 'longitude'])) {
-                // Get distances from OSRM for all merchants
-                $distances = $this->osrmService->getDistancesToMerchants(
-                    $request->latitude,
-                    $request->longitude,
-                    $result->getCollection()
+            // Transform collection to include total_products
+            $result->getCollection()->transform(function ($merchant) {
+                $merchant->total_products = (int) $merchant->total_products;
+                return $merchant;
+            });
+
+                return ResponseFormatter::success(
+                    $result,
+                    'Merchants retrieved successfully'
                 );
-
-                // Add distances to merchants
-                $result->getCollection()->transform(function ($merchant) use ($distances) {
-                    if (isset($distances[$merchant->id])) {
-                        $merchant->distance = $distances[$merchant->id]['distance'];
-                        $merchant->duration = $distances[$merchant->id]['duration'];
-                    }
-
-                    // Ensure total_products is included
-                    $merchant->total_products = (int) $merchant->total_products;
-
-                    return $merchant;
-                });
-            }
-
-            return ResponseFormatter::success(
-                $result,
-                'Merchants retrieved successfully'
-            );
+            });
         } catch (\Exception $e) {
             Log::error('Error getting merchants: ' . $e->getMessage(), [
                 'request' => $request->all(),

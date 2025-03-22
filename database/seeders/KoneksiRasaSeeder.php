@@ -91,11 +91,22 @@ class KoneksiRasaSeeder extends Seeder
                 'operating_days' => ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'],
             ]);
 
-            // Copy merchant logo
-            $localLogoPath = 'images/Logo Koneksi Rasa.png';
-            $destinationLogoPath = 'merchants/logos/merchant-' . $merchant->id . '.png';
-            if ($this->copyFile($localLogoPath, $destinationLogoPath)) {
-                $merchant->update(['logo' => $destinationLogoPath]);
+            // Store merchant logo in S3
+            $localLogoPath = public_path('images/Logo Koneksi Rasa.png');
+            $s3Path = 'merchants/logos/merchant-' . $merchant->id . '.png';
+
+            if (file_exists($localLogoPath)) {
+                try {
+                    $fileContents = file_get_contents($localLogoPath);
+                    Storage::disk('s3')->put($s3Path, $fileContents, 'public');
+                    $merchant->update(['logo' => $s3Path]);
+                    $this->command->info("Successfully uploaded logo to S3");
+                } catch (\Exception $e) {
+                    Log::error("Failed to upload logo to S3", ['error' => $e->getMessage()]);
+                    $this->command->error("Failed to upload logo to S3: " . $e->getMessage());
+                }
+            } else {
+                $this->command->error("Logo file not found at: " . $localLogoPath);
             }
 
             // Create merchant location

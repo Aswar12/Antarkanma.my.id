@@ -5,10 +5,33 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="description"
-        content="Antarkanma - Platform pengiriman terpercaya yang menghubungkan pelanggan dengan merchant lokal terbaik di Segeri, Ma'rang, dan Mandalle">
-    <meta name="keywords" content="antarkanma, delivery service, pengiriman, merchant lokal, segeri, ma'rang, mandalle">
-    <title>{{ config('app.name', 'Antarkanma') }} - Platform Pengiriman Terpercaya</title>
+    <!-- Primary Meta Tags -->
+    <title>Antarkanma - Platform Pengiriman Terpercaya di Segeri, Ma'rang, dan Mandalle</title>
+    <meta name="title" content="Antarkanma - Platform Pengiriman Terpercaya di Segeri, Ma'rang, dan Mandalle">
+    <meta name="description" content="Antarkanma adalah platform pengiriman terpercaya yang dikembangkan oleh Aswar Sumarlin, menghubungkan pelanggan dengan merchant lokal terbaik di Segeri, Ma'rang, dan Mandalle. Pesan makanan, minuman, dan kebutuhan sehari-hari dari merchant favorit Anda.">
+    <meta name="keywords" content="antarkanma, aswar sumarlin, delivery service, pengiriman makanan, merchant lokal, segeri, ma'rang, mandalle, sulawesi selatan, food delivery, pesan antar">
+    <meta name="author" content="Antarkanma">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="Indonesia">
+    <meta name="revisit-after" content="7 days">
+    <meta name="generator" content="Laravel">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url('/') }}">
+    <meta property="og:title" content="Antarkanma - Platform Pengiriman Terpercaya di Segeri, Ma'rang, dan Mandalle">
+    <meta property="og:description" content="Antarkanma adalah platform pengiriman terpercaya yang menghubungkan pelanggan dengan merchant lokal terbaik di Segeri, Ma'rang, dan Mandalle. Pesan makanan, minuman, dan kebutuhan sehari-hari dari merchant favorit Anda.">
+    <meta property="og:image" content="{{ asset('images/Logo Koneksi Rasa.png') }}">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="{{ url('/') }}">
+    <meta property="twitter:title" content="Antarkanma - Platform Pengiriman Terpercaya di Segeri, Ma'rang, dan Mandalle">
+    <meta property="twitter:description" content="Antarkanma adalah platform pengiriman terpercaya yang menghubungkan pelanggan dengan merchant lokal terbaik di Segeri, Ma'rang, dan Mandalle. Pesan makanan, minuman, dan kebutuhan sehari-hari dari merchant favorit Anda.">
+    <meta property="twitter:image" content="{{ asset('images/Logo Koneksi Rasa.png') }}">
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="{{ url('/') }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -89,7 +112,7 @@
               window.pageYOffset < 2500 ? 'delivery' : 'team';
       ">
 
-    <!-- Navigation --> 
+    <!-- Navigation -->
     @include('sections.navigation')
 
     <main class="overflow-hidden">
@@ -103,7 +126,7 @@
         @include('sections.story')
 
         <!-- Merchant Section -->
-        @include('sections.merchant')
+        @include('sections.merchant', ['merchants' => $merchants])
 
         <!-- Delivery Section -->
         @include('sections.delivery')
@@ -128,12 +151,60 @@
 
     <!-- Preload Images -->
     <div class="hidden">
-        <img src="{{ asset('images/Logo_NoFont.png') }}" alt="Preload Logo">
-        <img src="{{ asset('images/husain.jpeg') }}" alt="Preload Team">
-        <img src="{{ asset('images/akbar.jpeg') }}" alt="Preload Team">
-        <img src="{{ asset('images/ichal.jpeg') }}" alt="Preload Team">
-        <img src="{{ asset('images/firman.jpeg') }}" alt="Preload Team">
+        <img src="{{ asset('images/Logo_NoFont.png') }}" alt="Logo Antarkanma">
+        <img src="{{ asset('images/husain.jpeg') }}" alt="Husain - Tim Antarkanma">
+        <img src="{{ asset('images/akbar.jpeg') }}" alt="Akbar - Tim Antarkanma">
+        <img src="{{ asset('images/ichal.jpeg') }}" alt="Ichal - Tim Antarkanma">
+        <img src="{{ asset('images/firman.jpeg') }}" alt="Firman - Tim Antarkanma">
     </div>
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Antarkanma",
+        "description": "Platform pengiriman terpercaya yang dikembangkan oleh Aswar Sumarlin, menghubungkan pelanggan dengan merchant lokal terbaik di Segeri, Ma'rang, dan Mandalle",
+        "founder": {
+            "@type": "Person",
+            "name": "Aswar Sumarlin",
+            "jobTitle": "Founder & Developer",
+            "url": "{{ url('/') }}"
+        },
+        "url": "{{ url('/') }}",
+        "logo": "{{ asset('images/Logo Koneksi Rasa.png') }}",
+        "image": "{{ asset('images/Logo Koneksi Rasa.png') }}",
+        "address": {
+            "@type": "PostalAddress",
+            "addressRegion": "Sulawesi Selatan",
+            "addressCountry": "ID"
+        },
+        "sameAs": [
+            "https://facebook.com/antarkanma",
+            "https://instagram.com/antarkanma"
+        ],
+        "areaServed": ["Segeri", "Ma'rang", "Mandalle"],
+        "potentialAction": {
+            "@type": "OrderAction",
+            "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "{{ url('/merchant') }}",
+                "inLanguage": "id-ID",
+                "actionPlatform": [
+                    "http://schema.org/DesktopWebPlatform",
+                    "http://schema.org/MobileWebPlatform"
+                ]
+            },
+            "result": {
+                "@type": "Order",
+                "provider": {
+                    "@type": "LocalBusiness",
+                    "name": "Antarkanma"
+                }
+            }
+        }
+    }
+    </script>
 </body>
 
 </html>

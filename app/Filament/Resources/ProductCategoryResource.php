@@ -18,11 +18,11 @@ class ProductCategoryResource extends Resource
     protected static ?string $model = ProductCategory::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-tag';
-    
+
     protected static ?string $navigationGroup = 'Shop Management';
-    
+
     protected static ?string $navigationLabel = 'Categories';
-    
+
     protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
@@ -35,9 +35,6 @@ class ProductCategoryResource extends Resource
                             ->required()
                             ->maxLength(255)
                             ->label('Category Name'),
-                        Forms\Components\Textarea::make('description')
-                            ->maxLength(65535)
-                            ->columnSpanFull(),
                     ])
             ]);
     }
@@ -50,9 +47,6 @@ class ProductCategoryResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->label('Category Name'),
-                Tables\Columns\TextColumn::make('description')
-                    ->limit(50)
-                    ->searchable(),
                 Tables\Columns\TextColumn::make('products_count')
                     ->counts('products')
                     ->label('Products'),

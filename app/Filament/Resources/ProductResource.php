@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
 class ProductResource extends Resource
 {
@@ -73,23 +74,24 @@ class ProductResource extends Resource
                                 Forms\Components\FileUpload::make('galleries')
                                     ->multiple()
                                     ->image()
-                                    ->disk('s3')
-                                    ->directory('products/images')
+                                    ->disk('public')
+                                    ->directory('products')
                                     ->visibility('public')
                                     ->maxSize(5120)
                                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif'])
                                     ->getUploadedFileNameForStorageUsing(
-                                        fn ($file): string => 
-                                            $this->getRecord()->id . '-' . Str::random(8) . '.' . $file->getClientOriginalExtension()
+                                        fn ($file): string =>
+                                            'products/' . $this->getRecord()->id . '-' . Str::random(8) . '.' . $file->getClientOriginalExtension()
                                     )
                                     ->afterStateUpdated(function ($state, $set, $get, $record) {
                                         if (!$state || !$record) return;
-                                        
+
                                         $files = is_array($state) ? $state : [$state];
-                                        
+
                                         foreach ($files as $file) {
+                                            // Create gallery with local storage URL first
                                             $record->galleries()->create([
-                                                'url' => $file
+                                                'url' => Storage::disk('public')->url($file)
                                             ]);
                                         }
                                     }),
@@ -147,7 +149,10 @@ class ProductResource extends Resource
                     ->circular()
                     ->stacked()
                     ->limit(3)
-                    ->disk('s3'),
+                    ->disk(function ($record) {
+                        // Check if URL is from S3 or local storage
+                        return str_contains($record?->galleries?->first()?->url ?? '', 's3.amazonaws.com') ? 's3' : 'public';
+                    }),
                 Tables\Columns\TextColumn::make('merchant.name')
                     ->sortable()
                     ->searchable(),

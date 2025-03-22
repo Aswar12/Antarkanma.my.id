@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 class MerchantLocationsMap extends Widget
 {
     protected static string $view = 'filament.widgets.merchant-locations-map';
-    
+
     protected static bool $isLazy = false;
 
     protected int | string | array $columnSpan = 'full';

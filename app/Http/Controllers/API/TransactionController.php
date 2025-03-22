@@ -456,6 +456,7 @@ class TransactionController extends Controller
             $transactions = Transaction::with([
                 'user',
                 'userLocation',
+                'courier.user', // Include courier and their user info
                 'orders' => function ($query) {
                     $query->with([
                         'orderItems' => function ($q) {

@@ -19,7 +19,12 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         try {
-            $products = Product::with(['merchant', 'category', 'galleries', 'variants'])
+            // Generate cache key based on request parameters
+            $cacheKey = 'products:list:' . md5(json_encode($request->all()));
+
+            // Get data from cache or store for 5 minutes
+            return Cache::tags(['products'])->remember($cacheKey, 300, function () use ($request) {
+                $products = Product::with(['merchant', 'category', 'galleries', 'variants'])
                 ->withAvg('reviews', 'rating')
                 ->withCount('reviews')
                 ->when($request->has('merchant_id'), fn($q) => $q->where('merchant_id', $request->merchant_id))
@@ -30,10 +35,11 @@ class ProductController extends Controller
                 ->when($request->has('status'), fn($q) => $q->where('status', $request->status))
                 ->paginate(10);
 
-            return ResponseFormatter::success(
-                $products,
-                'Data produk berhasil diambil'
-            );
+                return ResponseFormatter::success(
+                    $products,
+                    'Data produk berhasil diambil'
+                );
+            });
         } catch (\Exception $e) {
             Log::error('Error fetching products: ' . $e->getMessage(), [
                 'request' => $request->all(),

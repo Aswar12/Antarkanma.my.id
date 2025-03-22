@@ -46,7 +46,7 @@ class TeamController extends Controller
         ],[
             'name' => 'Mas Fajri',
             'role' => 'Courier & Operations',
-            'image' => 'team/fajri.jpeg',
+            'image' => 'team/fajri.png',
             'description' => 'Bertanggung jawab dalam pengantaran pesanan dengan cepat dan memastikan kepuasan pelanggan.'
         ]
 
@@ -55,18 +55,23 @@ class TeamController extends Controller
     public function uploadTeamPhotos()
     {
         foreach ($this->teamMembers as $member) {
-            $localPath = public_path('images/' . basename($member['image']));
+            $localPath = public_path('images/' . $member['image']);
             if (file_exists($localPath)) {
+                $s3Path = $member['image'];
                 Storage::disk('s3')->putFileAs(
-                    'team',
+                    dirname($s3Path),
                     $localPath,
-                    basename($member['image']),
-                    'public'
+                    basename($s3Path),
+                    ['visibility' => 'public']
                 );
             }
         }
 
-        return response()->json(['message' => 'Team photos uploaded successfully']);
+        return response()->json([
+            'message' => 'Team photos uploaded successfully to S3',
+            'bucket' => config('filesystems.disks.s3.bucket'),
+            'url' => config('filesystems.disks.s3.url')
+        ]);
     }
 
     public function getTeamMembers()

@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use App\Models\Product;
+use App\Models\Merchant;
 use App\Observers\ProductObserver;
+use App\Observers\MerchantObserver;
 use App\Services\FirebaseService;
 use App\Services\OsrmService;
 use App\Http\Controllers\API\ShippingController;
@@ -53,5 +55,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Product::observe(ProductObserver::class);
+        Merchant::observe(MerchantObserver::class);
     }
 }

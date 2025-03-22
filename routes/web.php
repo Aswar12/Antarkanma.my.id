@@ -1,9 +1,12 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\MerchantSectionController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\DownloadAppController;
+use App\Http\Controllers\WelcomeController;
+
 
 Route::get('/statistics', [StatisticsController::class, 'getHomeStatistics']);
 
@@ -11,10 +14,12 @@ Route::get('/statistics', [StatisticsController::class, 'getHomeStatistics']);
 Route::get('/team', [TeamController::class, 'getTeamMembers']);
 Route::post('/team/upload-photos', [TeamController::class, 'uploadTeamPhotos']);
 
-Route::get('/', function () {
-    $statistics = app(StatisticsController::class)->getHomeStatistics();
-    return view('welcome', compact('statistics'));
-});
+Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
+
+// Merchant Section Routes
+Route::get('/merchants', [MerchantSectionController::class, 'index'])->name('merchants.index');
+Route::get('/merchants/{merchant}', [MerchantSectionController::class, 'show'])->name('merchants.show');
+
 
 Route::get('/login', function () {
     return view('auth.login');

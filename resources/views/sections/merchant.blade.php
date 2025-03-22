@@ -8,7 +8,9 @@
         <!-- Animated Pattern -->
         <div class="absolute inset-0">
             <div class="absolute inset-0 opacity-30">
-                <div class="h-full w-full bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiNGRjY2MDAiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9zdmc+')] bg-repeat"></div>
+                <div
+                    class="h-full w-full bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiNGRjY2MDAiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9zdmc+')] bg-repeat">
+                </div>
             </div>
         </div>
     </div>
@@ -25,9 +27,19 @@
             </p>
         </div>
 
+        <!-- Merchant Cards -->
+        @if(isset($merchants) && $merchants->isNotEmpty())
+            @include('sections.merchant-social-card', ['merchants' => $merchants])
+        @else
+            <div class="text-center text-white p-8">
+                <p>No active merchants found.</p>
+            </div>
+        @endif
+
         <!-- Merchant Benefits -->
-        <div class="grid md:grid-cols-3 gap-8 mb-16">
-            <template x-for="(benefit, index) in [
+        <div class="grid md:grid-cols-3 gap-8 mb-16 mt-20">
+            <template
+                x-for="(benefit, index) in [
                 {
                     icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
                     title: 'Tingkatkan Omset',
@@ -44,11 +56,14 @@
                     description: 'Terima pembayaran dengan berbagai metode yang aman dan terpercaya'
                 }
             ]">
-                <div class="group relative bg-white/10 backdrop-blur-md p-8 rounded-2xl transition-all duration-300 hover:bg-white/20">
+                <div
+                    class="group relative bg-white/10 backdrop-blur-md p-8 rounded-2xl transition-all duration-300 hover:bg-white/20">
                     <!-- Icon -->
-                    <div class="w-14 h-14 bg-[#FF6600] rounded-xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform duration-300">
+                    <div
+                        class="w-14 h-14 bg-[#FF6600] rounded-xl flex items-center justify-center mb-6 transform group-hover:scale-110 transition-transform duration-300">
                         <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path :d="benefit.icon" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                            <path :d="benefit.icon" stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2" />
                         </svg>
                     </div>
 
@@ -57,7 +72,9 @@
                     <p class="text-gray-300" x-text="benefit.description"></p>
 
                     <!-- Decorative Elements -->
-                    <div class="absolute inset-0 rounded-2xl border border-white/20 transition-all duration-300 group-hover:border-[#FF6600]/50"></div>
+                    <div
+                        class="absolute inset-0 rounded-2xl border border-white/20 transition-all duration-300 group-hover:border-[#FF6600]/50">
+                    </div>
                 </div>
             </template>
         </div>
@@ -69,7 +86,8 @@
             </h3>
 
             <div class="grid md:grid-cols-4 gap-8">
-                <template x-for="(step, index) in [
+                <template
+                    x-for="(step, index) in [
                     {
                         number: '01',
                         title: 'Daftar',
@@ -93,7 +111,8 @@
                 ]">
                     <div class="relative group">
                         <!-- Step Number -->
-                        <div class="absolute -top-6 -left-6 w-12 h-12 bg-[#FF6600] rounded-full flex items-center justify-center text-white font-bold text-xl transform -rotate-12 group-hover:rotate-0 transition-transform duration-300">
+                        <div
+                            class="absolute -top-6 -left-6 w-12 h-12 bg-[#FF6600] rounded-full flex items-center justify-center text-white font-bold text-xl transform -rotate-12 group-hover:rotate-0 transition-transform duration-300">
                             <span x-text="step.number"></span>
                         </div>
 
@@ -105,7 +124,9 @@
 
                         <!-- Connector Line (except for last item) -->
                         <template x-if="index < 3">
-                            <div class="hidden md:block absolute top-1/2 -right-4 w-8 border-t-2 border-dashed border-[#FF6600]/30"></div>
+                            <div
+                                class="hidden md:block absolute top-1/2 -right-4 w-8 border-t-2 border-dashed border-[#FF6600]/30">
+                            </div>
                         </template>
                     </div>
                 </template>
@@ -127,13 +148,17 @@
                         Siap Bergabung Dengan Kami?
                     </h3>
                     <p class="text-white/80 max-w-xl">
-                        Daftarkan bisnis Anda sekarang dan nikmati berbagai keuntungan menarik sebagai merchant Antarkanma
+                        Daftarkan bisnis Anda sekarang dan nikmati berbagai keuntungan menarik sebagai merchant
+                        Antarkanma
                     </p>
                 </div>
-                <a href="/merchant/register" class="inline-flex items-center justify-center bg-white text-[#020238] px-8 py-4 rounded-full font-semibold hover:bg-[#FF6600] hover:text-white transition-all duration-300 transform hover:scale-105 group">
+                <a href="/merchant/register"
+                    class="inline-flex items-center justify-center bg-white text-[#020238] px-8 py-4 rounded-full font-semibold hover:bg-[#FF6600] hover:text-white transition-all duration-300 transform hover:scale-105 group">
                     <span>Daftar Sebagai Merchant</span>
-                    <svg class="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                    <svg class="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
                 </a>
             </div>

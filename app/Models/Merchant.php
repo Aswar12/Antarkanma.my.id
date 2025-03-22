@@ -45,7 +45,7 @@ class Merchant extends Model
     public function getLogoUrlAttribute()
     {
         if (!$this->logo) {
-            return null;
+            return "https://dev.antarkanmaa.my.id/images/default-merchant.png";
         }
 
         // Check if the logo is a full URL
@@ -53,12 +53,8 @@ class Merchant extends Model
             return $this->logo;
         }
 
-        // Generate S3 URL for the logo
-        try {
-            return Storage::disk('s3')->url($this->logo);
-        } catch (\Exception $e) {
-            return null;
-        }
+        // Return the full S3 URL
+        return "https://is3.cloudhost.id/antarkanma/" . $this->logo;
     }
 
     /**
@@ -147,6 +143,16 @@ class Merchant extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class, 'merchant_id');
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(ProductReview::class, 'merchant_id');
     }
 
     public function products()

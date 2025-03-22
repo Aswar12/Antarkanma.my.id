@@ -10,16 +10,20 @@
                 background: transparent;
                 border: none;
             }
+
             .custom-marker div {
                 transition: transform 0.2s;
             }
+
             .custom-marker div:hover {
                 transform: scale(1.1);
             }
+
             .leaflet-popup-content {
                 margin: 13px;
                 text-align: center;
             }
+
             .leaflet-popup-content img {
                 display: block;
                 margin: 0 auto 8px;
