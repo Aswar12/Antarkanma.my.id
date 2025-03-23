@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: antarkanma-app-vps
+        restart: unless-stopped
+        environment:
+            - APP_NAME=${APP_NAME}
+            - APP_ENV=${APP_ENV}
+            - APP_KEY=${APP_KEY}
+            - APP_DEBUG=${APP_DEBUG}
+            - APP_URL=${APP_URL}
+            - DB_CONNECTION=mysql
+            - DB_HOST=db
+            - DB_PORT=3306
+            - DB_DATABASE=${DB_DATABASE}
+            - DB_USERNAME=${DB_USERNAME}
+            - DB_PASSWORD=${DB_PASSWORD}
+            - REDIS_HOST=redis
+            - REDIS_PORT=6379
+            - REDIS_PASSWORD=${REDIS_PASSWORD}
+            - FIREBASE_PROJECT=app
+            - FIREBASE_PROJECT_ID=antarkanma-98fde
+            - FIREBASE_CREDENTIALS=/app/storage/app/firebase/firebase-credentials.json
+        volumes:
+            - .:/app:delegated
+            - ./node_modules:/app/node_modules
+            - /app/vendor
+            - ./.env:/app/.env:ro
+            - ./storage/app/firebase:/app/storage/app/firebase:ro
+            - /etc/timezone:/etc/timezone:ro
+            - /etc/localtime:/etc/localtime:ro
+        ports:
+            - "8000:8000"
+        depends_on:
+            - db
+            - redis
+        networks:
+            - antarkanma
+
+    db:
+        image: mysql:8.0
+        container_name: antarkanma-db-vps
+        restart: unless-stopped
+        command: --default-time-zone='Asia/Makassar'
+        environment:
+            MYSQL_DATABASE: ${DB_DATABASE}
+            MYSQL_USER: ${DB_USERNAME}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+            MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+            MYSQL_REPLICATION_USER: ${MYSQL_REPLICATION_USER}
+            MYSQL_REPLICATION_PASSWORD: ${MYSQL_REPLICATION_PASSWORD}
+        ports:
+            - "3306:3306"
+        volumes:
+            - dbdata:/var/lib/mysql
+            - ./mysql-master.cnf:/etc/mysql/my.cnf
+            - /etc/timezone:/etc/timezone:ro
+            - /etc/localtime:/etc/localtime:ro
+        networks:
+            - antarkanma
+
+    redis:
+        image: redis:alpine
+        container_name: antarkanma-redis-vps
+        restart: unless-stopped
+        command: redis-server /usr/local/etc/redis/redis.conf
+        ports:
+            - "6379:6379"
+        volumes:
+            - redisdata:/data
+            - ./redis-master.conf:/usr/local/etc/redis/redis.conf
+        networks:
+            - antarkanma
+
+networks:
+    antarkanma:
+        driver: bridge
+
+volumes:
+    dbdata:
+    redisdata:

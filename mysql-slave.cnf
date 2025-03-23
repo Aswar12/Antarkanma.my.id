@@ -1,0 +1,13 @@
+[mysqld]
+server-id = 2
+relay-log = mysql-relay-bin
+log_bin = mysql-bin
+binlog_do_db = antarkanma
+bind-address = 0.0.0.0
+default-time-zone = '+08:00'
+
+# Replication
+gtid_mode = ON
+enforce_gtid_consistency = ON
+log_slave_updates = ON
+read_only = ON
