@@ -5,7 +5,7 @@ services:
         build:
             context: .
             dockerfile: Dockerfile
-        container_name: antarkanma-app-slave
+        container_name: antarkanma-app
         restart: unless-stopped
         environment:
             - APP_NAME=${APP_NAME}
@@ -22,8 +22,6 @@ services:
             - REDIS_HOST=redis
             - REDIS_PORT=6379
             - REDIS_PASSWORD=${REDIS_PASSWORD}
-            - VPS_DB_HOST=${VPS_DB_HOST}
-            - VPS_REDIS_HOST=${VPS_REDIS_HOST}
             - FIREBASE_PROJECT=app
             - FIREBASE_PROJECT_ID=antarkanma-98fde
             - FIREBASE_CREDENTIALS=/app/storage/app/firebase/firebase-credentials.json
@@ -45,7 +43,7 @@ services:
 
     db:
         image: mysql:8.0
-        container_name: antarkanma-db-slave
+        container_name: antarkanma-db
         restart: unless-stopped
         command: --default-time-zone='Asia/Makassar'
         environment:
@@ -53,6 +51,8 @@ services:
             MYSQL_USER: ${DB_USERNAME}
             MYSQL_PASSWORD: ${DB_PASSWORD}
             MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+            MYSQL_REPLICATION_USER: ${MYSQL_REPLICATION_USER}
+            MYSQL_REPLICATION_PASSWORD: ${MYSQL_REPLICATION_PASSWORD}
         ports:
             - "3306:3306"
         volumes:
@@ -65,7 +65,7 @@ services:
 
     redis:
         image: redis:alpine
-        container_name: antarkanma-redis-slave
+        container_name: antarkanma-redis
         restart: unless-stopped
         command: redis-server /usr/local/etc/redis/redis.conf
         ports:
@@ -78,7 +78,7 @@ services:
 
     cloudflared:
         image: cloudflare/cloudflared:latest
-        container_name: antarkanma-cloudflared-slave
+        container_name: antarkanma-cloudflared
         restart: unless-stopped
         command: tunnel --no-autoupdate run --token eyJhIjoiNjE1NzhkZDhiMzMxNzYyMzNlNGM3ZjI5MDYwMmJmMzUiLCJ0IjoiZmM3ZjU1ZjUtY2MwMi00Y2JhLTk5MTQtZmJmNmY2ZDI2ZjhkIiwicyI6Ik9UTTNNV1k0T0RRdE1XWTRNeTAwTkRFMkxXSmhaalV0TkRKbE9EZzVaVEExWlRFMiJ9
         networks:
