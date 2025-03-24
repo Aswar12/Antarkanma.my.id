@@ -24,6 +24,14 @@ echo -e "\n=== Load Balancer Config ==="
 echo "Testing nginx config..."
 docker exec antarkanma-nginx-lb nginx -t 2>/dev/null || echo "Nginx config test failed"
 
+echo -e "\n=== Database Status ==="
+echo "MySQL Master status:"
+docker exec antarkanma-db-vps mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" -e "SHOW MASTER STATUS\G"
+
+echo -e "\n=== Redis Status ==="
+echo "Redis Master info:"
+docker exec antarkanma-redis-vps redis-cli -a "${REDIS_PASSWORD}" info replication
+
 echo -e "\n=== Recent Logs ==="
 echo "Main app logs (last 5 lines):"
 docker logs --tail 5 antarkanma-app-vps 2>&1

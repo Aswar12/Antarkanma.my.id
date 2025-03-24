@@ -11,17 +11,17 @@ echo "Creating required directories..."
 mkdir -p storage/app/firebase
 mkdir -p storage/certs
 mkdir -p backups
-mkdir -p loadbalancer
 
 # 3. Check required files
 echo "Checking required files..."
 REQUIRED_FILES=(
     ".env.vps"
     "docker-compose.vps.yml"
-    "docker-compose.lb.yml"
     "nginx-lb.conf"
     "mysql-master.cnf"
+    "mysql-slave.cnf"
     "redis-master.conf"
+    "redis-slave.conf"
     "storage/app/firebase/firebase-credentials.json"
 )
 
@@ -69,8 +69,9 @@ echo "Initialization complete!"
 echo ""
 echo "Next steps:"
 echo "1. Review and update .env.vps with your settings"
-echo "2. Run ./setup-vps.sh to start all services"
+echo "2. Run ./setup-vps.sh to start all services (app, db, redis, nginx load balancer)"
 echo "3. Run ./status-vps.sh to verify everything is running"
+echo "4. Check load balancer at http://dev.antarkanmaa.my.id"
 echo ""
 echo "Available commands:"
 echo "- ./setup-vps.sh: Start all services"

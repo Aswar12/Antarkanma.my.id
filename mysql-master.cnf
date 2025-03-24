@@ -1,12 +1,29 @@
 [mysqld]
+# Server identification and networking
 server-id = 1
-log_bin = mysql-bin
-binlog_format = ROW
-binlog_do_db = antarkanma
 bind-address = 0.0.0.0
 default-time-zone = '+08:00'
 
-# Replication
+# Binary logging for replication
+log_bin = mysql-bin
+binlog_format = ROW
+binlog_do_db = antarkanma
+sync_binlog = 1
+
+# GTID Replication
 gtid_mode = ON
 enforce_gtid_consistency = ON
 log_slave_updates = ON
+
+# Performance and reliability
+innodb_buffer_pool_size = 1G
+innodb_flush_log_at_trx_commit = 1
+max_connections = 1000
+
+# Connection timeout
+wait_timeout = 28800
+interactive_timeout = 28800
+
+# Character set
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci

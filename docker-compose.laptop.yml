@@ -34,7 +34,7 @@ services:
             - /etc/timezone:/etc/timezone:ro
             - /etc/localtime:/etc/localtime:ro
         ports:
-            - "8000:8000"
+            - "8001:8000"
         depends_on:
             - db
             - redis

@@ -24,6 +24,7 @@ Route::get('/health', function () {
             'error' => $e->getMessage()
         ], 503);
     }
+});
 // Grup rute untuk pengguna dengan middleware auth:sanctum
 Route::middleware('auth:sanctum')->group(function () {
     // FCM Routes
