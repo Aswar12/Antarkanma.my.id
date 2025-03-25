@@ -25,6 +25,9 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 # Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath zip intl
 
+# Install Redis extension
+RUN pecl install redis && docker-php-ext-enable redis
+
 # Set PHP timezone and upload limits
 RUN echo "date.timezone=Asia/Makassar" > /usr/local/etc/php/conf.d/timezone.ini && \
     echo "upload_max_filesize=10M" >> /usr/local/etc/php/conf.d/uploads.ini && \

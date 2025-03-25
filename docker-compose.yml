@@ -5,7 +5,7 @@ services:
         build:
             context: .
             dockerfile: Dockerfile
-        container_name: antarkanma-app
+        container_name: antarkanma-app-vps
         restart: unless-stopped
         environment:
             - APP_NAME=${APP_NAME}
@@ -21,14 +21,10 @@ services:
             - DB_PASSWORD=${DB_PASSWORD}
             - REDIS_HOST=redis
             - REDIS_PORT=6379
+            - REDIS_PASSWORD=${REDIS_PASSWORD}
             - FIREBASE_PROJECT=app
             - FIREBASE_PROJECT_ID=antarkanma-98fde
             - FIREBASE_CREDENTIALS=/app/storage/app/firebase/firebase-credentials.json
-            - FIREBASE_DATABASE_URL=${FIREBASE_DATABASE_URL}
-            - FIREBASE_STORAGE_DEFAULT_BUCKET=${FIREBASE_STORAGE_DEFAULT_BUCKET}
-            - FIREBASE_SERVER_KEY=${FIREBASE_SERVER_KEY}
-            - FIREBASE_MESSAGING_SENDER_ID=${FIREBASE_MESSAGING_SENDER_ID}
-            - FIREBASE_API_KEY=${FIREBASE_API_KEY}
         volumes:
             - .:/app:delegated
             - ./node_modules:/app/node_modules
@@ -38,7 +34,7 @@ services:
             - /etc/timezone:/etc/timezone:ro
             - /etc/localtime:/etc/localtime:ro
         ports:
-            - "8000:8000"
+            - "8000:8000"  # Changed to match nginx-lb.conf configuration
         depends_on:
             - db
             - redis
@@ -47,7 +43,7 @@ services:
 
     db:
         image: mysql:8.0
-        container_name: antarkanma-db
+        container_name: antarkanma-db-vps
         restart: unless-stopped
         command: --default-time-zone='Asia/Makassar'
         environment:
@@ -55,10 +51,13 @@ services:
             MYSQL_USER: ${DB_USERNAME}
             MYSQL_PASSWORD: ${DB_PASSWORD}
             MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+            MYSQL_REPLICATION_USER: ${MYSQL_REPLICATION_USER}
+            MYSQL_REPLICATION_PASSWORD: ${MYSQL_REPLICATION_PASSWORD}
         ports:
             - "3306:3306"
         volumes:
             - dbdata:/var/lib/mysql
+            - ./mysql-master.cnf:/etc/mysql/my.cnf
             - /etc/timezone:/etc/timezone:ro
             - /etc/localtime:/etc/localtime:ro
         networks:
@@ -66,20 +65,37 @@ services:
 
     redis:
         image: redis:alpine
-        container_name: antarkanma-redis
+        container_name: antarkanma-redis-vps
         restart: unless-stopped
+        command: redis-server /usr/local/etc/redis/redis.conf
         ports:
             - "6379:6379"
         volumes:
             - redisdata:/data
+            - ./redis-master.conf:/usr/local/etc/redis/redis.conf
+        networks:
+            - antarkanma
+
+    nginx-lb:
+        image: nginx:alpine
+        container_name: antarkanma-nginx-lb
+        volumes:
+            - ./nginx-lb.conf:/etc/nginx/conf.d/default.conf:ro
+        ports:
+            - "80:80"
+        restart: unless-stopped
+        depends_on:
+            - app
         networks:
             - antarkanma
 
     cloudflared:
         image: cloudflare/cloudflared:latest
-        container_name: antarkanma-cloudflared
+        container_name: antarkanma-cloudflared-vps
         restart: unless-stopped
-        command: tunnel --no-autoupdate run --token eyJhIjoiNjE1NzhkZDhiMzMxNzYyMzNlNGM3ZjI5MDYwMmJmMzUiLCJ0IjoiZmM3ZjU1ZjUtY2MwMi00Y2JhLTk5MTQtZmJmNmY2ZDI2ZjhkIiwicyI6Ik9UTTNNV1k0T0RRdE1XWTRNeTAwTkRFMkxXSmhaalV0TkRKbE9EZzVaVEExWlRFMiJ9
+        command: tunnel --no-autoupdate run --token eyJhIjoiNjE1NzhkZDhiMzMxNzYyMzNlNGM3ZjI5MDYwMmJmMzUiLCJ0IjoiMWFhZDIyYzMtNGY4Yy00MTRmLTgyODYtM2VhOTI4Y2ZkZmI0IiwicyI6IllUUXpNbVE1WkdVdE9UVXlaUzAwTWpobUxUaGtNVEl0TjJJNE1qVTBaV1k0WkRZdyJ9
+        depends_on:
+            - nginx-lb
         networks:
             - antarkanma
 
