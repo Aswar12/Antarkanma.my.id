@@ -3,6 +3,24 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\API\ProductController;
+use App\Http\Controllers\API\UserController;
+use App\Http\Controllers\API\MerchantController;
+use App\Http\Controllers\API\ProductCategoryController;
+use App\Http\Controllers\API\ProductGalleryController;
+use App\Http\Controllers\API\OrderController;
+use App\Http\Controllers\API\OrderStatusController;
+use App\Http\Controllers\API\CourierController;
+use App\Http\Controllers\API\TransactionController;
+use App\Http\Controllers\API\UserLocationController;
+use App\Http\Controllers\API\DeliveryController;
+use App\Http\Controllers\API\ShippingController;
+use App\Http\Controllers\API\FcmController;
+use App\Http\Controllers\API\NotificationController;
+use App\Http\Controllers\API\S3TestController;
+use App\Http\Controllers\API\NotificationTestController;
+use App\Http\Controllers\API\ProductReviewController;
 
 Route::get('/health', function () {
     try {
