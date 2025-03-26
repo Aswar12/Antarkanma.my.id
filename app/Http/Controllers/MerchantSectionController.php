@@ -18,7 +18,7 @@ class MerchantSectionController extends Controller
             ->map(function ($merchant) {
                 $merchant->logo_url = $merchant->logo_path
                     ? Storage::disk('s3')->url($merchant->logo_path)
-                    : asset('images/default-merchant.png');
+                    : 'https://is3.cloudhost.id/antarkanma/merchants/logos/default-merchant.png';
                 return $merchant;
             });
 
@@ -33,7 +33,7 @@ class MerchantSectionController extends Controller
 
         $merchant->logo_url = $merchant->logo_path
             ? Storage::disk('s3')->url($merchant->logo_path)
-            : asset('images/default-merchant.png');
+            : 'https://is3.cloudhost.id/antarkanma/merchants/logos/default-merchant.png';
 
         return view('sections.merchant-social-card', [
             'merchants' => collect([$merchant])
