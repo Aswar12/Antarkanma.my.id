@@ -42,16 +42,19 @@ ENV COMPOSER_ALLOW_SUPERUSER=1
 # Set working directory
 WORKDIR /app
 
-# Copy the entire application first
+# Copy composer files first for better caching
+COPY composer.json composer.lock ./
+
+# Install composer dependencies
+RUN composer install --no-scripts --no-autoloader --ignore-platform-reqs
+
+# Copy the rest of the application
 COPY . .
 
 # Set Firebase env variables for build
 ENV GOOGLE_CLOUD_PROJECT=antarkanma-98fde
 ENV FIREBASE_PROJECT_ID=antarkanma-98fde
 ENV FIREBASE_CREDENTIALS=/app/storage/app/firebase/firebase-credentials.json
-
-# Install composer dependencies
-RUN composer install --no-scripts --no-autoloader --ignore-platform-reqs
 
 # Generate optimized autoload files
 RUN composer dump-autoload --optimize --ignore-platform-reqs
@@ -61,10 +64,15 @@ RUN npm install && npm run build
 
 # Set permissions
 RUN chown -R www-data:www-data /app \
-    && chmod -R 775 /app/storage /app/bootstrap/cache /app/public/build
+    && chmod -R 775 /app/storage /app/bootstrap/cache /app/public \
+    && chmod -R 775 /app/storage/logs /app/storage/framework
+
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/api/health || exit 1
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8001
 
 # Start PHP-FPM and Laravel Queue Worker
-CMD php artisan octane:frankenphp --workers --host=0.0.0.0 --port=8000 --admin-port=2019
+CMD php artisan octane:frankenphp --workers --host=0.0.0.0 --port=8001 --admin-port=2019
