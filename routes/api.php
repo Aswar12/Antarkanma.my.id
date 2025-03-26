@@ -34,7 +34,9 @@ Route::get('/health', function () {
             'status' => 'healthy',
             'database' => 'connected',
             'redis' => 'connected',
-            'server' => gethostname()
+            'server' => gethostname(),
+            'is_replica' => env('IS_REPLICA', false),
+            'replica_weight' => env('REPLICA_WEIGHT', 0)
         ]);
     } catch (\Exception $e) {
         return response()->json([
