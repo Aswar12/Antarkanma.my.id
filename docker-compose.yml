@@ -76,29 +76,6 @@ services:
         networks:
             - antarkanma
 
-    nginx-lb:
-        image: nginx:alpine
-        container_name: antarkanma-nginx-lb
-        volumes:
-            - ./nginx-lb.conf:/etc/nginx/conf.d/default.conf:ro
-        ports:
-            - "80:80"
-        restart: unless-stopped
-        depends_on:
-            - app
-        networks:
-            - antarkanma
-
-    cloudflared:
-        image: cloudflare/cloudflared:latest
-        container_name: antarkanma-cloudflared-vps
-        restart: unless-stopped
-        command: tunnel --no-autoupdate run --token eyJhIjoiNjE1NzhkZDhiMzMxNzYyMzNlNGM3ZjI5MDYwMmJmMzUiLCJ0IjoiMWFhZDIyYzMtNGY4Yy00MTRmLTgyODYtM2VhOTI4Y2ZkZmI0IiwicyI6IllUUXpNbVE1WkdVdE9UVXlaUzAwTWpobUxUaGtNVEl0TjJJNE1qVTBaV1k0WkRZdyJ9
-        depends_on:
-            - nginx-lb
-        networks:
-            - antarkanma
-
 networks:
     antarkanma:
         driver: bridge

@@ -72,7 +72,7 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
 # Expose port
-EXPOSE 8001
+EXPOSE 8000
 
 # Start PHP-FPM and Laravel Queue Worker
-CMD php artisan octane:frankenphp --workers --host=0.0.0.0 --port=8001 --admin-port=2019
+CMD php artisan octane:frankenphp --workers --host=0.0.0.0 --port=8000 --admin-port=2019
