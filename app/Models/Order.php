@@ -17,13 +17,17 @@ class Order extends Model
         'order_status',
         'merchant_approval',
         'rejection_reason',
-        'customer_note'
+        'customer_note',
+        'order_type',
+        'meta_data',
+        'delivery_address'
     ];
 
     protected $casts = [
         'order_status' => 'string',
         'merchant_approval' => 'string',
         'total_amount' => 'decimal:2',
+        'meta_data' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime'
     ];
@@ -74,7 +78,7 @@ class Order extends Model
     {
         static::creating(function ($order) {
             if (!$order->order_status) {
-                $order->order_status = self::STATUS_PENDING;
+                $order->order_status = self::STATUS_WAITING_APPROVAL; // Auto-set to WAITING_APPROVAL
             }
             if (!$order->merchant_approval) {
                 $order->merchant_approval = self::MERCHANT_PENDING;

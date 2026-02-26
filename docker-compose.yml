@@ -57,7 +57,7 @@ services:
             - "3306:3306"
         volumes:
             - dbdata:/var/lib/mysql
-            - ./mysql-master.cnf:/etc/mysql/my.cnf
+            - ./config/docker/mysql-master.cnf:/etc/mysql/my.cnf
             - /etc/timezone:/etc/timezone:ro
             - /etc/localtime:/etc/localtime:ro
         networks:
@@ -72,7 +72,7 @@ services:
             - "6379:6379"
         volumes:
             - redisdata:/data
-            - ./redis-master.conf:/usr/local/etc/redis/redis.conf
+            - ./config/docker/redis-master.conf:/usr/local/etc/redis/redis.conf
         networks:
             - antarkanma
 

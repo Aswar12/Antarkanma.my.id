@@ -118,13 +118,13 @@ class OrderStatusController extends Controller
 
             // Notify couriers with payment method info
             $firebaseService = new FirebaseService();
-            $courierTokens = User::where('roles', 'COURIER')
-                ->with('fcmTokens')
-                ->get()
-                ->pluck('fcmTokens')
-                ->flatten()
-                ->pluck('token')
-                ->toArray();
+            $courierTokens = [];
+            if ($order->transaction && $order->transaction->courier && $order->transaction->courier->user) {
+                $courierTokens = $order->transaction->courier->user->fcmTokens()
+                    ->where('is_active', true)
+                    ->pluck('token')
+                    ->toArray();
+            }
 
             if (!empty($courierTokens)) {
                 $merchant = $order->orderItems->first()->product->merchant;

@@ -63,6 +63,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [UserController::class, 'logout']);
     Route::post('/refresh', [UserController::class, 'refresh']);
 
+    // Mobile App Compatibility Aliases (Frontend uses /auth/* prefix)
+    Route::post('/auth/logout', [UserController::class, 'logout']);
+    Route::post('/auth/refresh', [UserController::class, 'refresh']);
+    Route::get('/auth/user', [UserController::class, 'fetch']);
+    Route::put('/auth/change-password', [UserController::class, 'changePassword']);
+    Route::delete('/auth/delete-account', [UserController::class, 'deleteAccount']);
+
     // Rute untuk memperbarui profil pengguna
     Route::put('/user/profile', [UserController::class, 'profileUpdate']);
 
@@ -78,6 +85,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/merchant', [MerchantController::class, 'store']);
 
     Route::put('/merchant/{id}', [MerchantController::class, 'update']);
+    Route::put('/merchant/{id}/status', [MerchantController::class, 'updateStatus']);
+    Route::put('/merchant/{id}/extend', [MerchantController::class, 'extendOperatingHours']);
+    Route::put('/merchant/{id}/products/availability', [MerchantController::class, 'updateProductAvailability']);
     Route::post('/merchant/{id}/logo', [MerchantController::class, 'updateLogo']);
     Route::delete('/merchant/{id}', [MerchantController::class, 'delete']);
     Route::get('/merchant/list', [MerchantController::class, 'list']);
@@ -139,11 +149,18 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Courier Transaction Routes
     Route::prefix('courier')->group(function () {
-        Route::get('new-transactions', [CourierController::class, 'getnewTransactions']);
+        Route::get('new-transactions', [CourierController::class, 'getNewTransactions']);
         Route::get('my-transactions', [CourierController::class, 'getCourierTransactions']);
-        Route::post('transactions/{id}/status', [CourierController::class, 'updateTransactionStatus']);
         Route::post('transactions/{id}/approve', [CourierController::class, 'approveTransaction']);
         Route::post('transactions/{id}/reject', [CourierController::class, 'rejectTransaction']);
+
+        // Kurir Tracking Routes (posisi real-time)
+        Route::post('transactions/{id}/arrive-merchant', [CourierController::class, 'arriveAtMerchant']);
+        Route::post('transactions/{id}/arrive-customer', [CourierController::class, 'arriveAtCustomer']);
+
+        // Per-Order Actions
+        Route::post('orders/{id}/pickup', [CourierController::class, 'pickupOrder']);
+        Route::post('orders/{id}/complete', [CourierController::class, 'completeOrder']);
 
         // Wallet Routes
         Route::post('wallet/topup', [CourierController::class, 'topUpWallet']);
@@ -152,9 +169,6 @@ Route::middleware('auth:sanctum')->group(function () {
         // Statistics Routes
         Route::get('statistics/daily', [CourierController::class, 'getDailyStatistics']);
         Route::get('transactions/status-counts', [CourierController::class, 'getStatusCounts']);
-
-        // Order Status Routes
-        Route::post('transactions/{id}/pickup', [CourierController::class, 'updateOrderStatus']);
     });
 
     Route::post('/couriers', [CourierController::class, 'store']);
@@ -176,6 +190,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/user-locations/{id}', [UserLocationController::class, 'update']);
     Route::delete('/user-locations/{id}', [UserLocationController::class, 'destroy']);
     Route::post('/user-locations/{id}/set-default', [UserLocationController::class, 'setDefault']);
+
+    // Manual Order (Jastip)
+    Route::post('/manual-order', [App\Http\Controllers\API\ManualOrderController::class, 'store']);
+
+    // Jastip Chat Routes
+    Route::post('/chat/initiate', [App\Http\Controllers\API\ChatController::class, 'initiate']);
+    Route::get('/chat/{chatId}/messages', [App\Http\Controllers\API\ChatController::class, 'getMessages']);
+    Route::post('/chat/{chatId}/send', [App\Http\Controllers\API\ChatController::class, 'sendMessage']);
 });
 
 // Public routes
@@ -201,5 +223,5 @@ Route::get('products/{id}/with-reviews', [ProductController::class, 'getProductW
 Route::get('merchants/{merchantId}/products', [ProductController::class, 'getProductByMerchant']);
 
 // S3 Storage Test Route
-Route::post('/test/upload-image', [S3TestController::class, 'uploadImage']);
-Route::post('/notifications/test', [NotificationTestController::class, 'sendTestNotification']);
+// Route::post('/test/upload-image', [S3TestController::class, 'uploadImage']);
+// Route::post('/notifications/test', [NotificationTestController::class, 'sendTestNotification']);

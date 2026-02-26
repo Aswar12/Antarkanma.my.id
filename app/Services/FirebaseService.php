@@ -142,9 +142,45 @@ class FirebaseService
                 'tokens' => $tokens
             ]);
 
-            // Log any invalid tokens
-            foreach ($response->invalidTokens() as $invalidToken) {
-                Log::warning('Invalid FCM token:', ['token' => $invalidToken]);
+            // Handle invalid tokens - delete them from database
+            $invalidTokens = $response->invalidTokens();
+            if (!empty($invalidTokens)) {
+                Log::warning('Found invalid FCM tokens, deleting from database:', ['invalid_tokens' => $invalidTokens]);
+
+                foreach ($invalidTokens as $invalidToken) {
+                    try {
+                        $tokenStr = method_exists($invalidToken, 'value') ? $invalidToken->value() : (string)$invalidToken;
+                        \App\Models\FcmToken::where('token', $tokenStr)->delete();
+                        Log::info('Deleted invalid FCM token:', ['token' => substr((string)$tokenStr, 0, 50) . '...']);
+                    } catch (\Exception $e) {
+                        Log::error('Error deleting invalid FCM token:', ['error' => $e->getMessage()]);
+                    }
+                }
+            }
+
+            // Also check failures and delete those tokens too
+            foreach ($response->failures()->getItems() as $failure) {
+                $messageTarget = $failure->target();
+                $token = method_exists($messageTarget, 'value') ? $messageTarget->value() : (string)$messageTarget;
+                $errorMessage = $failure->error()->getMessage();
+
+                Log::warning('FCM send failure:', [
+                    'token' => substr((string)$token, 0, 50) . '...',
+                    'error' => $errorMessage
+                ]);
+
+                // Delete tokens that are invalid or unregistered
+                if (
+                    strpos($errorMessage, 'Requested entity was not found') !== false ||
+                    strpos($errorMessage, 'UNREGISTERED') !== false
+                ) {
+                    try {
+                        \App\Models\FcmToken::where('token', $token)->delete();
+                        Log::info('Deleted invalid FCM token due to failure:', ['token' => substr((string)$token, 0, 50) . '...']);
+                    } catch (\Exception $e) {
+                        Log::error('Error deleting invalid FCM token:', ['error' => $e->getMessage()]);
+                    }
+                }
             }
 
             return $successCount > 0;

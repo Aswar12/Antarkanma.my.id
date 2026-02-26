@@ -81,3 +81,6 @@ auth.json
 **/caddy
 frankenphp
 frankenphp-worker.php
+
+# Mobile apps (separate git repos)
+/mobile/

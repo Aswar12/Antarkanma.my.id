@@ -226,6 +226,31 @@ class MerchantController extends Controller
                 return $product;
             });
 
+            // Auto-close logic if past closing time
+            if ($merchant->closing_time && $merchant->status === 'OPEN') {
+                $closingTime = \Carbon\Carbon::parse($merchant->closing_time);
+                $now = \Carbon\Carbon::now();
+                
+                // Check if closing time is passed
+                if ($now->format('H:i') > $closingTime->format('H:i')) {
+                    // Check if extended
+                    $isExtended = false;
+                    if ($merchant->extended_until) {
+                        $extendedUntil = \Carbon\Carbon::parse($merchant->extended_until);
+                        if ($now->lt($extendedUntil)) {
+                            $isExtended = true;
+                        }
+                    }
+
+                    // If not extended, close the shop
+                    if (!$isExtended) {
+                        $merchant->status = 'CLOSED';
+                        $merchant->save();
+                    }
+                }
+            }
+
+            // Return with fresh data
             return ResponseFormatter::success(
                 $merchant,
                 'Merchant details retrieved successfully'
@@ -235,6 +260,95 @@ class MerchantController extends Controller
                 null,
                 'Merchant not found',
                 404
+            );
+        }
+    }
+
+    public function extendOperatingHours(Request $request, $id)
+    {
+        try {
+            $merchant = Merchant::findOrFail($id);
+            
+            // Set extended_until to 1 hour from now
+            $merchant->extended_until = \Carbon\Carbon::now()->addHour();
+            $merchant->status = 'OPEN'; // Re-open if closed
+            $merchant->save();
+
+            return ResponseFormatter::success(
+                $merchant,
+                'Merchant operating hours extended for 1 hour'
+            );
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Failed to extend operating hours',
+                500
+            );
+        }
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        try {
+            $merchant = Merchant::findOrFail($id);
+            
+            $request->validate([
+                'status' => 'required|in:OPEN,CLOSED'
+            ]);
+
+            $merchant->status = $request->status;
+            $merchant->save();
+
+            return ResponseFormatter::success(
+                $merchant,
+                'Merchant status updated successfully'
+            );
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Failed to update merchant status',
+                500
+            );
+        }
+    }
+
+    public function updateProductAvailability(Request $request, $id)
+    {
+        try {
+            $merchant = Merchant::findOrFail($id);
+            
+            $request->validate([
+                'products' => 'required|array',
+                'products.*.id' => 'required|exists:products,id',
+                'products.*.status' => 'required|in:ACTIVE,INACTIVE,UNAVAILABLE'
+            ]);
+
+            DB::beginTransaction();
+
+            foreach ($request->products as $productData) {
+                // Ensure product belongs to merchant
+                $product = \App\Models\Product::where('merchant_id', $merchant->id)
+                    ->where('id', $productData['id'])
+                    ->first();
+
+                if ($product) {
+                    $product->status = $productData['status'];
+                    $product->save();
+                }
+            }
+
+            DB::commit();
+
+            return ResponseFormatter::success(
+                null,
+                'Product availability updated successfully'
+            );
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseFormatter::error(
+                null,
+                'Failed to update product availability: ' . $e->getMessage(),
+                500
             );
         }
     }

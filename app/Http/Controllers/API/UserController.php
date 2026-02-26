@@ -57,8 +57,8 @@ class UserController extends Controller
                 'email' => $request->email,
                 'phone_number' => $request->phone_number,
                 'password' => Hash::make($request->password),
+                'roles' => 'USER',
             ]);
-            $user::where('email', $request->email)->first();
             $token = $user->createToken('authToken')->plainTextToken;
 
             // Load relationships based on user role
@@ -168,11 +168,13 @@ class UserController extends Controller
                 return ResponseFormatter::error($validator->errors(), 'Validation Error', 422);
             }
 
-            User::where('id', $user->id)->update([
+            $data = array_filter([
                 'name' => $request->name,
                 'email' => $request->email,
                 'phone_number' => $request->phone_number
-            ]);
+            ], fn($value) => !is_null($value));
+
+            User::where('id', $user->id)->update($data);
 
             $user = User::find($user->id);
 
@@ -252,6 +254,81 @@ class UserController extends Controller
             return ResponseFormatter::error('No photo uploaded', 'Gagal mengupload foto', 400);
         } catch (Exception $e) {
             return ResponseFormatter::error($e->getMessage(), 'Gagal mengupload foto', 500);
+        }
+    }
+
+    /**
+     * Update user password
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function changePassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'current_password' => 'required',
+            'new_password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return ResponseFormatter::error(
+                ['error' => $validator->errors()],
+                'Validation Error',
+                422
+            );
+        }
+
+        $user = Auth::user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return ResponseFormatter::error(
+                ['error' => 'Current password does not match'],
+                'Authentication Failed',
+                401
+            );
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($request->new_password),
+        ])->save();
+
+        return ResponseFormatter::success(
+            $user,
+            'Password updated successfully'
+        );
+    }
+
+    /**
+     * Delete user account
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteAccount(Request $request)
+    {
+        try {
+            /** @var \App\Models\User $user */
+            $user = Auth::user();
+            
+            // Revoke all tokens
+            $user->tokens()->delete();
+
+            // Delete user
+            $user->delete();
+
+            return ResponseFormatter::success(
+                null,
+                'Account deleted successfully'
+            );
+        } catch (Exception $error) {
+            return ResponseFormatter::error(
+                [
+                    'message' => 'Something went wrong',
+                    'error' => $error,
+                ],
+                'Delete Failed',
+                500
+            );
         }
     }
 }

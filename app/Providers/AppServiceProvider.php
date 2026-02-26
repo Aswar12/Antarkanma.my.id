@@ -33,16 +33,33 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(FirebaseService::class, function ($app) {
             $messaging = null;
 
-            // Only create Messaging instance if Firebase is configured
-            if (config('firebase.projects.app.credentials') &&
-                file_exists(config('firebase.projects.app.credentials'))) {
+            // Get credentials path from config
+            $credentialsPath = config('firebase.projects.app.credentials');
+
+            // Fix for local development: ensure we use absolute path
+            if ($credentialsPath && !file_exists($credentialsPath)) {
+                // Try to resolve relative path from base_path
+                $credentialsPath = base_path('storage/app/firebase/firebase-credentials.json');
+            }
+
+            // Override GOOGLE_APPLICATION_CREDENTIALS for local development
+            // This prevents kreait from looking at Docker paths (/app/...)
+            if ($credentialsPath && file_exists($credentialsPath)) {
+                putenv('GOOGLE_APPLICATION_CREDENTIALS=' . $credentialsPath);
+                $_ENV['GOOGLE_APPLICATION_CREDENTIALS'] = $credentialsPath;
+                $_SERVER['GOOGLE_APPLICATION_CREDENTIALS'] = $credentialsPath;
+
                 try {
                     $messaging = (new \Kreait\Firebase\Factory)
-                        ->withServiceAccount(config('firebase.projects.app.credentials'))
+                        ->withServiceAccount($credentialsPath)
                         ->createMessaging();
+
+                    \Log::info('Firebase Messaging initialized successfully with credentials: ' . $credentialsPath);
                 } catch (\Exception $e) {
-                    \Log::warning('Failed to initialize Firebase Messaging: ' . $e->getMessage());
+                    // \Log::warning('Failed to initialize Firebase Messaging: ' . $e->getMessage());
                 }
+            } else {
+                \Log::warning('Firebase credentials file not found at: ' . $credentialsPath);
             }
 
             return new FirebaseService($messaging);

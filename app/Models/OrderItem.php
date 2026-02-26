@@ -16,7 +16,9 @@ class OrderItem extends Model
         'merchant_id',
         'quantity',
         'price',
-        'customer_note'
+        'customer_note',
+        'item_name',
+        'image_path'
     ];
 
     protected $casts = [

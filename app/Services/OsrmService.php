@@ -167,35 +167,42 @@ class OsrmService
 
             switch ($type) {
                 case 'on_the_way':
+                    // Pickup fee for merchants along the same route
+                    $pickupFee = 3500;
+                    $platformFee = round($pickupFee * 0.10);
+                    $courierEarning = $pickupFee - $platformFee;
                     return [
-                        'delivery_cost' => 2000,
+                        'delivery_cost' => $pickupFee,
                         'breakdown' => [
-                            'fee_order' => 2000,
-                            'pickup_fee' => 1000
+                            'total_fee' => $pickupFee,
+                            'courier_earning' => $courierEarning,
+                            'platform_fee' => $platformFee,
                         ]
                     ];
 
                 case 'base_merchant':
                 case 'different_direction':
                 default:
-                    // Adjusted for less dense areas:
-                    // - Lower base price
-                    // - Larger distance ranges
-                    // - Smaller increments per km
-                    // - Lower maximum fee
-                    $baseCost = match(true) {
-                        $distance <= 3 => 5000,
-                        $distance <= 4 => 6000,   // Minimum fee for up to 3km
-                        $distance <= 6 => 7000,    // +1500 for 3-6km
-                        $distance <= 9 => 10000,    // +1500 for 6-9km
-                        $distance <= 12 => 1500,   // +1500 for 9-12km
-                        $distance <= 15 => 18000,  // +1500 for 12-15km
-                        default => 24000          // Maximum fee for >15km
-                    };
+                    // Formula: base Rp 5.000 for ≤3km, then +Rp 2.500 per km after 3km
+                    $baseCost = 5000; // Base rate for first 3km
+                    if ($distance > 3) {
+                        $extraKm = ceil($distance - 3); // Round up extra km
+                        $baseCost += $extraKm * 2500;
+                    }
+
+                    // 10% of shipping fee goes to Antarkanma as platform revenue
+                    $platformFee = round($baseCost * 0.10);
+                    $courierEarning = $baseCost - $platformFee;
+
                     return [
                         'delivery_cost' => $baseCost,
                         'breakdown' => [
-                            'base_cost' => $baseCost
+                            'base_rate' => 5000,
+                            'extra_km' => $distance > 3 ? ceil($distance - 3) : 0,
+                            'extra_cost' => $distance > 3 ? ceil($distance - 3) * 2500 : 0,
+                            'total_fee' => $baseCost,
+                            'courier_earning' => $courierEarning,
+                            'platform_fee' => $platformFee,
                         ]
                     ];
             }
@@ -247,5 +254,225 @@ class OsrmService
         $c = 2 * atan2(sqrt($a), sqrt(1-$a));
 
         return $earthRadius * $c;
+    }
+
+    /**
+     * Calculate Complete Shipping from Items Configuration
+     */
+    public function calculateCompleteShipping(\App\Models\UserLocation $userLocation, array $items)
+    {
+        // Get unique merchants with their distances and angles
+        $merchantsWithDistance = collect($items)
+            ->map(function ($item) {
+                $product = \App\Models\Product::with('merchant')->findOrFail($item['product_id']);
+                return [
+                    'merchant_id' => $product->merchant->id,
+                    'merchant' => $product->merchant
+                ];
+            })
+            ->unique('merchant_id')
+            ->map(function ($item) use ($userLocation) {
+                $route = $this->getRouteDistance(
+                    $userLocation->latitude,
+                    $userLocation->longitude,
+                    $item['merchant']->latitude,
+                    $item['merchant']->longitude
+                );
+                return array_merge($item, [
+                    'distance' => $route['distance'],
+                    'duration' => $route['duration'],
+                    'angle' => $route['angle']
+                ]);
+            })
+            ->values();
+
+        // Group merchants by angle
+        $angleGroups = [];
+        foreach ($merchantsWithDistance as $merchantData) {
+            $grouped = false;
+            foreach ($angleGroups as &$group) {
+                if ($this->areAnglesInSameGroup($merchantData['angle'], $group[0]['angle'])) {
+                    $group[] = $merchantData;
+                    $grouped = true;
+                    break;
+                }
+            }
+            if (!$grouped) {
+                $angleGroups[] = [$merchantData];
+            }
+        }
+
+        $total_shipping_price = 0;
+        $shippingDetails = [];
+        $groupSummaries = [];
+
+        // Process each angle group
+        foreach ($angleGroups as $groupIndex => $group) {
+            // Sort by distance (furthest first)
+            usort($group, function($a, $b) {
+                return $b['distance'] <=> $a['distance'];
+            });
+
+            $groupTotal = 0;
+            $baseMerchant = $group[0]; // Furthest merchant in group
+            $otherMerchants = array_slice($group, 1);
+
+            // Base merchant gets full cost
+            $baseCost = $this->calculateDeliveryCost(
+                $baseMerchant['distance'],
+                'base_merchant'
+            );
+            $groupTotal += $baseCost['delivery_cost'];
+
+            // Add base merchant to shipping details
+            $shippingDetails[] = [
+                'merchant_id' => $baseMerchant['merchant']->id,
+                'merchant_name' => $baseMerchant['merchant']->name,
+                'distance' => $baseMerchant['distance'],
+                'duration' => $baseMerchant['duration'],
+                'cost' => $baseCost['delivery_cost'],
+                'route_type' => 'base_merchant',
+                'route_info' => [
+                    'angle' => $baseMerchant['angle'],
+                    'group_id' => "group_{$groupIndex}",
+                    'is_base' => true
+                ],
+                'cost_breakdown' => $baseCost['breakdown']
+            ];
+
+            // Process other merchants in group (they only pay pickup fee)
+            foreach ($otherMerchants as $merchant) {
+                $pickupCost = $this->calculateDeliveryCost(
+                    $merchant['distance'],
+                    'on_the_way'
+                );
+                $groupTotal += $pickupCost['delivery_cost'];
+
+                $shippingDetails[] = [
+                    'merchant_id' => $merchant['merchant']->id,
+                    'merchant_name' => $merchant['merchant']->name,
+                    'distance' => $merchant['distance'],
+                    'duration' => $merchant['duration'],
+                    'cost' => $pickupCost['delivery_cost'],
+                    'route_type' => 'on_the_way',
+                    'route_info' => [
+                        'angle' => $merchant['angle'],
+                        'group_id' => "group_{$groupIndex}",
+                        'angle_difference' => abs($merchant['angle'] - $baseMerchant['angle'])
+                    ],
+                    'cost_breakdown' => $pickupCost['breakdown']
+                ];
+            }
+
+            // Store group summary
+            $groupSummaries[] = [
+                'group_id' => "group_{$groupIndex}",
+                'base_angle' => $baseMerchant['angle'],
+                'merchants' => collect($group)->pluck('merchant.name'),
+                'total_cost' => $groupTotal,
+                'cost_breakdown' => [
+                    'base_merchant' => [
+                        'name' => $baseMerchant['merchant']->name,
+                        'distance' => $baseMerchant['distance'],
+                        'cost' => $baseCost['delivery_cost']
+                    ],
+                    'on_the_way' => collect($otherMerchants)->map(function($merchant) use ($shippingDetails) {
+                        $detail = collect($shippingDetails)->firstWhere('merchant_id', $merchant['merchant']->id);
+                        return [
+                            'name' => $merchant['merchant']->name,
+                            'distance' => $merchant['distance'],
+                            'cost' => $detail['cost'] ?? 3500,
+                            'breakdown' => $detail['cost_breakdown'] ?? []
+                        ];
+                    })
+                ]
+            ];
+
+            $total_shipping_price += $groupTotal;
+        }
+
+        // Multi-merchant surcharge
+        $totalMerchants = count($merchantsWithDistance);
+        $multiMerchantSurcharge = 0;
+        if ($totalMerchants >= 2) {
+            $multiMerchantSurcharge += 2000;
+        }
+        if ($totalMerchants >= 3) {
+            $multiMerchantSurcharge += ($totalMerchants - 2) * 1000;
+        }
+        $total_shipping_price += $multiMerchantSurcharge;
+
+        $separateOrderTotal = $merchantsWithDistance->sum(function($merchant) {
+            return $this->getBaseCostForDistance($merchant['distance']);
+        });
+
+        $potentialSavings = $separateOrderTotal - $total_shipping_price;
+        $platformFee = round($total_shipping_price * 0.10);
+        $courierEarning = $total_shipping_price - $platformFee;
+
+        return [
+            'total_shipping_price' => $total_shipping_price,
+            'platform_fee' => $platformFee,
+            'courier_earning' => $courierEarning,
+            'multi_merchant_surcharge' => $multiMerchantSurcharge,
+            'merchant_deliveries' => $shippingDetails,
+            'route_summary' => [
+                'total_merchants' => count($merchantsWithDistance),
+                'direction_groups' => $groupSummaries
+            ],
+            'cost_comparison' => [
+                'if_single_order' => [
+                    'total' => $total_shipping_price,
+                    'breakdown' => collect($shippingDetails)->map(function($detail) {
+                        return "{$detail['merchant_name']} ({$detail['cost']})";
+                    })->join(' + ')
+                ],
+                'if_separate_orders' => [
+                    'total' => $separateOrderTotal,
+                    'breakdown' => $merchantsWithDistance->map(function($merchant) {
+                        $cost = $this->getBaseCostForDistance($merchant['distance']);
+                        return "{$merchant['merchant']->name} ({$cost})";
+                    })->join(' + ')
+                ],
+                'savings' => [
+                    'amount' => $potentialSavings,
+                    'explanation' => $potentialSavings > 0
+                        ? "Hemat Rp " . number_format($potentialSavings) . " dengan optimasi rute"
+                        : "Sudah optimal"
+                ]
+            ],
+            'recommendations' => count($angleGroups) > 1 ? [
+                'should_split' => true,
+                'reason' => 'Beberapa merchant berada di arah yang berbeda',
+                'suggested_splits' => collect($groupSummaries)->map(function($group, $index) {
+                    return [
+                        'merchants' => $group['merchants'],
+                        'total' => $group['total_cost'],
+                        'breakdown' => $group['cost_breakdown'],
+                        'create_new_order' => $index > 0
+                    ];
+                }),
+                'benefits' => [
+                    'cost' => "Hemat Rp " . number_format($potentialSavings),
+                    'time' => 'Pesanan sampai lebih cepat',
+                    'quality' => 'Makanan tetap hangat'
+                ]
+            ] : null
+        ];
+    }
+
+    private function getBaseCostForDistance($distance)
+    {
+        $cost = $this->calculateDeliveryCost($distance, 'base_merchant');
+        return $cost ? $cost['delivery_cost'] : 0;
+    }
+
+    private function areAnglesInSameGroup($angle1, $angle2)
+    {
+        $diff = abs($angle1 - $angle2);
+        if ($diff > 180) {
+            $diff = 360 - $diff;
+        }
+        return $diff <= self::DIRECTION_THRESHOLD;
     }
 }

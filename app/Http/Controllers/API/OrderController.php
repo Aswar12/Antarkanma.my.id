@@ -2,19 +2,20 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
-use App\Models\User;
 use App\Models\Transaction;
+use App\Models\User;
 use App\Models\UserLocation;
 use App\Services\FirebaseService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use App\Helpers\ResponseFormatter;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
@@ -23,6 +24,123 @@ class OrderController extends Controller
     public function __construct(FirebaseService $firebaseService)
     {
         $this->firebaseService = $firebaseService;
+    }
+
+    /**
+     * Get single order by ID - optimized for notification handling
+     * Used by mobile app to fetch only the new order when notification arrives
+     */
+    public function get($id)
+    {
+        try {
+            $order = Order::with([
+                'orderItems:id,order_id,product_id,product_variant_id,quantity,price,customer_note',
+                'orderItems.product:id,name,price,status',
+                'orderItems.product.galleries:id,product_id,url',
+                'orderItems.variant:id,name,price',
+                'transaction:id,user_id,courier_id,user_location_id,status,payment_method,payment_status,shipping_price,courier_approval',
+                'transaction.userLocation:id,customer_name,address,city,district,postal_code,latitude,longitude,phone_number,notes',
+                'transaction.user:id,name,phone_number,profile_photo_path',
+                'transaction.courier:id,user_id,vehicle_type,license_plate',
+                'transaction.courier.user:id,name,phone_number,profile_photo_path',
+                'merchant:id,name,address'
+            ])->findOrFail($id);
+
+            // Transform response
+            $orderArray = $order->toArray();
+
+            // Simplify order items
+            $orderArray['items'] = collect($order->orderItems)->map(function ($item) {
+                return [
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'customer_note' => $item->customer_note,
+                    'product' => [
+                        'name' => $item->product->name,
+                        'price' => $item->product->price,
+                        'image' => $item->product->galleries[0]->url ?? null
+                    ],
+                    'variant' => $item->variant ? [
+                        'id' => $item->variant->id,
+                        'name' => $item->variant->name,
+                        'price' => $item->variant->price
+                    ] : null
+                ];
+            });
+
+            // Simplify transaction info
+            $orderArray['transaction'] = [
+                'status' => $order->transaction->status,
+                'payment_method' => $order->transaction->payment_method,
+                'payment_status' => $order->transaction->payment_status,
+                'shipping_price' => $order->transaction->shipping_price
+            ];
+
+            // Add customer info with photo and delivery address
+            $orderArray['customer'] = [
+                'name' => $order->transaction->user->name,
+                'phone' => $order->transaction->user->phone_number,
+                'photo' => $order->transaction->user->profile_photo_url,
+                'delivery_address' => $order->transaction->userLocation ? [
+                    'customer_name' => $order->transaction->userLocation->customer_name,
+                    'address' => $order->transaction->userLocation->address,
+                    'city' => $order->transaction->userLocation->city,
+                    'district' => $order->transaction->userLocation->district,
+                    'postal_code' => $order->transaction->userLocation->postal_code,
+                    'latitude' => $order->transaction->userLocation->latitude,
+                    'longitude' => $order->transaction->userLocation->longitude,
+                    'phone_number' => $order->transaction->userLocation->phone_number,
+                    'notes' => $order->transaction->userLocation->notes
+                ] : null
+            ];
+
+            // Add rejection reason and customer note if exists
+            if ($order->rejection_reason) {
+                $orderArray['rejection_reason'] = $order->rejection_reason;
+            }
+            if ($order->customer_note) {
+                $orderArray['customer_note'] = $order->customer_note;
+            }
+
+            // Add courier info with photo if exists
+            if ($order->transaction->courier) {
+                $orderArray['courier'] = [
+                    'name' => $order->transaction->courier->user->name,
+                    'phone' => $order->transaction->courier->user->phone_number,
+                    'vehicle' => $order->transaction->courier->vehicle_type,
+                    'plate' => $order->transaction->courier->license_plate,
+                    'photo' => $order->transaction->courier->user->profile_photo_url
+                ];
+            }
+
+            // Add merchant info
+            $orderArray['merchant_info'] = [
+                'name' => $order->merchant->name,
+                'address' => $order->merchant->address
+            ];
+
+            // Calculate total
+            $orderArray['total'] = $order->orderItems->sum(function ($item) {
+                return $item->quantity * $item->price;
+            });
+
+            // Remove redundant data
+            unset($orderArray['orderItems']);
+            unset($orderArray['user_id']);
+            unset($orderArray['merchant_id']);
+            unset($orderArray['merchant']);
+
+            return ResponseFormatter::success(
+                $orderArray,
+                'Order retrieved successfully'
+            );
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Failed to retrieve order: ' . $e->getMessage(),
+                500
+            );
+        }
     }
 
     public function markOrderAsReady(Request $request, $orderId)
@@ -50,8 +168,8 @@ class OrderController extends Controller
                 );
             }
 
-            // Verify order can be marked as ready
-            if ($order->order_status !== Order::STATUS_PROCESSING) {
+            // HYBRID SYSTEM: Allow both PENDING and PROCESSING to be marked as READY
+            if (!in_array($order->order_status, [Order::STATUS_PENDING, Order::STATUS_PROCESSING])) {
                 return ResponseFormatter::error(
                     null,
                     'Order cannot be marked as ready: Invalid status',
@@ -63,6 +181,9 @@ class OrderController extends Controller
             try {
                 // Update order status
                 $order->order_status = Order::STATUS_READY;
+                if ($order->merchant_approval === Order::MERCHANT_PENDING) {
+                    $order->merchant_approval = Order::MERCHANT_APPROVED;
+                }
                 $order->save();
 
                 // Send notifications
@@ -385,6 +506,62 @@ class OrderController extends Controller
         return $this->updateMerchantApproval($request, $orderId);
     }
 
+    public function markAsReady(Request $request, $orderId)
+    {
+        try {
+            $request->validate([
+                'merchant_id' => 'required|exists:merchants,id'
+            ]);
+
+            $order = Order::findOrFail($orderId);
+
+            // Verify merchant ownership
+            if ($order->merchant_id !== $request->merchant_id) {
+                return ResponseFormatter::error(
+                    null,
+                    'Unauthorized: Order does not belong to this merchant',
+                    403
+                );
+            }
+
+            // Verify order can be marked ready
+            if ($order->order_status !== Order::STATUS_PROCESSING) {
+                return ResponseFormatter::error(
+                    null,
+                    'Order cannot be marked ready: Invalid status',
+                    400
+                );
+            }
+
+            DB::beginTransaction();
+            try {
+                // Update order status
+                $order->order_status = Order::STATUS_READY;
+                $order->save();
+
+                DB::commit();
+
+                return ResponseFormatter::success(
+                    $order,
+                    'Order marked as ready for pickup'
+                );
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return ResponseFormatter::error(
+                    null,
+                    'Failed to mark order ready: ' . $e->getMessage(),
+                    500
+                );
+            }
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Failed to mark order ready: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
     public function getMerchantOrdersSummary(Request $request, $merchantId)
     {
         try {
@@ -478,26 +655,23 @@ class OrderController extends Controller
             $sortOrder = $request->input('sort_order', 'desc');
 
             // Base query with optimized eager loading
+            // Show ALL orders for this merchant, including those without courier assigned
             $query = Order::select('id', 'transaction_id', 'total_amount', 'order_status', 'merchant_approval', 'rejection_reason', 'created_at')
             ->with([
                 'orderItems:id,order_id,product_id,product_variant_id,quantity,price,customer_note',
                 'orderItems.product:id,name,price,status',
                 'orderItems.product.galleries:id,product_id,url',
                 'orderItems.variant:id,name,price',
-                'transaction:id,user_id,courier_id,user_location_id,status,payment_method,payment_status,shipping_price',
+                'transaction:id,user_id,courier_id,user_location_id,status,payment_method,payment_status,shipping_price,courier_approval',
                 'transaction.userLocation:id,customer_name,address,city,district,postal_code,latitude,longitude,phone_number,notes',
                 'transaction.user:id,name,phone_number,profile_photo_path',
                 'transaction.courier:id,user_id,vehicle_type,license_plate',
                 'transaction.courier.user:id,name,phone_number,profile_photo_path'
             ])
             ->where('merchant_id', $merchantId)
-            ->where(function($q) {
-                $q->where('order_status', Order::STATUS_WAITING_APPROVAL)
-                  ->orWhere('order_status', '!=', Order::STATUS_PENDING);
-            })
-            ->whereHas('transaction', function($q) {
-                $q->where('courier_approval', Transaction::COURIER_APPROVED);
-            });
+                // Remove the filter that requires courier_approval - merchant should see ALL orders
+                // Include orders with any status except fully completed/canceled for the list
+                ->whereNotIn('order_status', [Order::STATUS_COMPLETED, Order::STATUS_CANCELED]);
 
             // Apply filters
             if ($status) {
@@ -613,14 +787,9 @@ class OrderController extends Controller
             });
 
             // Get status counts with date and search filters
+            // Show ALL orders for this merchant - remove courier_approval filter
             $statusCountsQuery = Order::where('merchant_id', $merchantId)
-                ->where(function($q) {
-                    $q->where('order_status', Order::STATUS_WAITING_APPROVAL)
-                      ->orWhere('order_status', '!=', Order::STATUS_PENDING);
-                })
-                ->whereHas('transaction', function($q) {
-                    $q->where('courier_approval', Transaction::COURIER_APPROVED);
-                });
+                ->whereNotIn('order_status', [Order::STATUS_COMPLETED, Order::STATUS_CANCELED]);
 
             if ($startDate) {
                 $statusCountsQuery->whereDate('created_at', '>=', Carbon::parse($startDate));

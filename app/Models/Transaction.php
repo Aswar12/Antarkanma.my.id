@@ -23,6 +23,7 @@ class Transaction extends Model
         'payment_method',
         'payment_status',
         'courier_approval',
+        'courier_status',
         'timeout_at',
         'rating',
         'note'
@@ -132,6 +133,14 @@ class Transaction extends Model
     const COURIER_APPROVED = 'APPROVED';
     const COURIER_REJECTED = 'REJECTED';
 
+    // Courier Status Constants (tracking posisi kurir)
+    const COURIER_STATUS_IDLE = 'IDLE';
+    const COURIER_STATUS_HEADING_TO_MERCHANT = 'HEADING_TO_MERCHANT';
+    const COURIER_STATUS_AT_MERCHANT = 'AT_MERCHANT';
+    const COURIER_STATUS_HEADING_TO_CUSTOMER = 'HEADING_TO_CUSTOMER';
+    const COURIER_STATUS_AT_CUSTOMER = 'AT_CUSTOMER';
+    const COURIER_STATUS_DELIVERED = 'DELIVERED';
+
     // Helper methods for status checks
     public function isPending()
     {
@@ -204,19 +213,12 @@ class Transaction extends Model
 
     public function allOrdersCompleted()
     {
-        $allCompleted = !$this->orders()
+        return !$this->orders()
             ->whereNotIn('order_status', [
                 Order::STATUS_COMPLETED,
                 Order::STATUS_CANCELED
             ])
             ->exists();
-
-        // If all orders are completed, deduct fee from courier's wallet
-        if ($allCompleted && $this->courier) {
-            $this->courier->deductFee();
-        }
-
-        return $allCompleted;
     }
 
     /**

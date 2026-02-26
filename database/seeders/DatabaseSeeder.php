@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             LoyaltyPointSeeder::class,
             TestMerchantSeeder::class,
             KoneksiRasaSeeder::class,
+            KoneksiRasaProductSeeder::class, // Products for Koneksi Rasa merchant
             AntarKanMaCourierSeeder::class,
         ]);
     }

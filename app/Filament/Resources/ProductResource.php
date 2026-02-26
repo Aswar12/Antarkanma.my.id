@@ -80,8 +80,7 @@ class ProductResource extends Resource
                                     ->maxSize(5120)
                                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif'])
                                     ->getUploadedFileNameForStorageUsing(
-                                        fn ($file): string =>
-                                            'products/' . $this->getRecord()->id . '-' . Str::random(8) . '.' . $file->getClientOriginalExtension()
+                        fn($file) => 'products/' . Str::random(8) . '.' . $file->getClientOriginalExtension()
                                     )
                                     ->afterStateUpdated(function ($state, $set, $get, $record) {
                                         if (!$state || !$record) return;
@@ -91,7 +90,7 @@ class ProductResource extends Resource
                                         foreach ($files as $file) {
                                             // Create gallery with local storage URL first
                                             $record->galleries()->create([
-                                                'url' => Storage::disk('public')->url($file)
+                                                'url' => asset('storage/' . ltrim((string) $file, '/'))
                                             ]);
                                         }
                                     }),

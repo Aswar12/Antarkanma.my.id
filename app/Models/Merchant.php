@@ -26,12 +26,14 @@ class Merchant extends Model
         'logo',
         'opening_time',
         'closing_time',
-        'operating_days'
+        'operating_days',
+        'extended_until'
     ];
 
     protected $casts = [
         'opening_time' => 'datetime:H:i',
         'closing_time' => 'datetime:H:i',
+        'extended_until' => 'datetime',
         'operating_days' => 'array',
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8'

@@ -28,7 +28,7 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->profile()
-            ->brandName('Admin Panel')
+            ->brandName('AntarkanMa Admin')
             ->colors([
                 'primary' => Color::Amber,
             ])

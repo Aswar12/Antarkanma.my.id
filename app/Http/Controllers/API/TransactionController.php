@@ -24,13 +24,16 @@ class TransactionController extends Controller
 {
     protected $notificationController;
     protected $firebaseService;
+    protected $osrmService;
 
     public function __construct(
         NotificationController $notificationController,
-        FirebaseService $firebaseService
+        FirebaseService $firebaseService,
+        OsrmService $osrmService
     ) {
         $this->notificationController = $notificationController;
         $this->firebaseService = $firebaseService;
+        $this->osrmService = $osrmService;
     }
 
     private function itemsMatchShippingCalculation($requestItems, $shippingItems)
@@ -46,9 +49,18 @@ class TransactionController extends Controller
         foreach ($sortedRequestItems as $index => $requestItem) {
             $shippingItem = $sortedShippingItems[$index];
 
-            // Check if product_id and quantity match, ignore merchant_id
+            // Check if product_id, variant_id, and quantity match, ignore merchant_id
+            $variantMatch = true;
+            if (isset($requestItem['variant_id']) || isset($shippingItem['variant_id'])) {
+                $reqVariant = $requestItem['variant_id'] ?? null;
+                $shipVariant = $shippingItem['variant_id'] ?? null;
+                $variantMatch = ($reqVariant == $shipVariant);
+            }
+
             if ($requestItem['product_id'] != $shippingItem['product_id'] ||
-                $requestItem['quantity'] != $shippingItem['quantity']) {
+                $requestItem['quantity'] != $shippingItem['quantity'] ||
+                !$variantMatch
+            ) {
                 Log::info('Items mismatch:', [
                     'request_item' => $requestItem,
                     'shipping_item' => $shippingItem
@@ -90,96 +102,20 @@ class TransactionController extends Controller
 
             DB::beginTransaction();
 
-            // Get shipping calculation from database cache
-            $cacheKey = 'shipping_calculation_' . Auth::id();
-            $cacheData = DB::table('cache')
-                ->where('key', $cacheKey)
-                ->where('expiration', '>', now()->timestamp)
-                ->first();
-
-            if (!$cacheData) {
-                Log::error('No shipping calculation found in cache:', [
-                    'key' => $cacheKey,
-                    'user_id' => Auth::id()
-                ]);
-                return ResponseFormatter::error(
-                    null,
-                    'Please calculate shipping first by calling /shipping/preview endpoint',
-                    422
-                );
+            // Fetch user location
+            $userLocation = UserLocation::find($request->user_location_id);
+            if (!$userLocation) {
+                return ResponseFormatter::error(null, 'User location not found', 404);
             }
 
-            $shippingCalculation = unserialize($cacheData->value);
-
-            Log::info('Retrieved shipping calculation from cache:', [
-                'key' => $cacheKey,
+            // Real-time dynamic shipping calculation based on actual request items
+            // This prevents cache manipulation or timeout issues during checkout
+            Log::info('Calculating shipping costs on-the-fly for checkout:', [
                 'user_id' => Auth::id(),
-                'request_items' => $request->items,
-                'shipping_items' => $shippingCalculation['items'],
-                'calculation_exists' => true,
-                'expires_at' => date('Y-m-d H:i:s', $cacheData->expiration),
-                'shipping_data' => $shippingCalculation,
-                'cache_value' => $cacheData->value,
-                'cache_expiration' => $cacheData->expiration,
-                'current_timestamp' => now()->timestamp,
-                'cache_key_used' => $cacheKey,
-                'auth_id' => Auth::id()
+                'items_count' => count($request->items)
             ]);
+            $shippingCalculation = ['data' => $this->osrmService->calculateCompleteShipping($userLocation, $request->items)];
 
-            Log::info('Comparing items:', [
-                'request_items_count' => count($request->items),
-                'shipping_items_count' => count($shippingCalculation['items']),
-                'request_items' => collect($request->items)->map(function($item) {
-                    return [
-                        'product_id' => $item['product_id'],
-                        'quantity' => $item['quantity']
-                    ];
-                })->toArray(),
-                'shipping_items' => collect($shippingCalculation['items'])->map(function($item) {
-                    return [
-                        'product_id' => $item['product_id'],
-                        'quantity' => $item['quantity']
-                    ];
-                })->toArray(),
-                'shipping_calculation_structure' => array_keys($shippingCalculation),
-                'shipping_data_structure' => array_keys($shippingCalculation['data'] ?? [])
-            ]);
-
-            // Check if shipping preview has been calculated
-            if (!$shippingCalculation) {
-                Log::error('No shipping calculation found:', [
-                    'user_id' => Auth::id(),
-                    'request_items' => $request->items
-                ]);
-                return ResponseFormatter::error(
-                    null,
-                    'Please calculate shipping first by calling /shipping/preview endpoint',
-                    422
-                );
-            }
-
-
-            // Check if items match
-            if (!isset($shippingCalculation['items'])) {
-                Log::error('Shipping calculation missing items:', [
-                    'user_id' => Auth::id(),
-                    'cache_data' => $shippingCalculation
-                ]);
-                return ResponseFormatter::error(
-                    null,
-                    'Invalid shipping calculation. Please recalculate shipping.',
-                    422
-                );
-            }
-
-            // Verify items match the shipping calculation
-            if (!$this->itemsMatchShippingCalculation($request->items, $shippingCalculation['items'])) {
-                return ResponseFormatter::error(
-                    null,
-                    'Cart items have changed. Please recalculate shipping.',
-                    422
-                );
-            }
 
             // Calculate prices based on products and their variants
             $items = collect($request->items)->map(function ($item) {
@@ -240,38 +176,18 @@ class TransactionController extends Controller
                 'payment_method' => $request->payment_method,
                 'payment_status' => Transaction::PAYMENT_STATUS_PENDING,
                 'courier_approval' => Transaction::COURIER_PENDING,
-                'timeout_at' => now()->addMinutes(10), // Set 10 minutes timeout
+                'timeout_at' => now()->addMinutes(120), // Set 2 hours timeout (Hybrid System)
                 'base_merchant_id' => $baseMerchant['merchant_id']
             ];
 
             Log::info('Creating Transaction:', $transactionData);
             $transaction = Transaction::create($transactionData);
 
-            // Check and cancel any timed out transactions
-            $timedOutTransactions = Transaction::where('status', Transaction::STATUS_PENDING)
-                ->where('courier_approval', Transaction::COURIER_PENDING)
-                ->where('timeout_at', '<', now())
-                ->get();
+            // Auto-cancel timeout DIMATIKAN untuk Hybrid System
+            // Order tidak akan di-cancel meskipun timeout
 
-            foreach ($timedOutTransactions as $timedOutTransaction) {
-                $timedOutTransaction->status = Transaction::STATUS_CANCELED;
-                $timedOutTransaction->save();
-
-                // Cancel all associated orders
-                $timedOutTransaction->orders()->update([
-                    'order_status' => 'CANCELED'
-                ]);
-
-                Log::info("Transaction {$timedOutTransaction->id} automatically canceled due to timeout");
-            }
-
-            // Kirim notifikasi ke semua kurir melalui topic
-            $this->firebaseService->sendNotification(
-                'new_transactions',
-                'Orderan Baru Tersedia!',
-                'Ada orderan baru yang menunggu untuk diambil'
-            );
-
+            // Broadcast ke semua kurir
+            // Kurir akan mendapatkan pesanan melalui mekanisme polling 15-detik.
 
             // 3. Create Order for each merchant
             foreach ($itemsByMerchant as $merchantId => $merchantItems) {
@@ -286,7 +202,7 @@ class TransactionController extends Controller
                     'user_id' => Auth::id(),
                     'merchant_id' => $merchantId,
                     'total_amount' => $merchantSubtotal,
-                    'order_status' => Order::STATUS_PENDING,
+                    'order_status' => Order::STATUS_WAITING_APPROVAL, // Auto-set to WAITING_APPROVAL
                     'merchant_approval' => Order::MERCHANT_PENDING
                 ];
 
@@ -311,6 +227,28 @@ class TransactionController extends Controller
                     OrderItem::create($orderItemData);
                 }
 
+                // Send Firebase Notification to this specific Merchant owner
+                $merchant = Merchant::with('owner.fcmTokens')->find($merchantId);
+                if ($merchant && $merchant->owner) {
+                    $merchantTokens = $merchant->owner->fcmTokens()
+                        ->where('is_active', true)
+                        ->pluck('token')
+                        ->toArray();
+
+                    if (!empty($merchantTokens)) {
+                        $this->firebaseService->sendToUser(
+                            $merchantTokens,
+                            [
+                                'type' => 'new_order',
+                                'transaction_id' => $transaction->id,
+                                'order_id' => $order->id,
+                            ],
+                            'Pesanan Baru Masuk!',
+                            "Ada pesanan baru menanti konfirmasi Anda untuk segera diproses."
+                        );
+                        Log::info("Notification new_order sent to Merchant ID: {$merchantId}");
+                    }
+                }
             }
 
             // Load relationships

@@ -25,8 +25,8 @@ services:
       - FIREBASE_PROJECT=app
       - FIREBASE_PROJECT_ID=antarkanma-98fde
       - FIREBASE_CREDENTIALS=/app/storage/app/firebase/firebase-credentials.json
-      - IS_REPLICA=true
-      - REPLICA_WEIGHT=1
+      - IS_REPLICA=false
+      - REPLICA_WEIGHT=0
     volumes:
       - .:/app:delegated
       - ./node_modules:/app/node_modules
@@ -37,6 +37,8 @@ services:
       - /etc/localtime:/etc/localtime:ro
     ports:
       - "8001:8001"
+      - "80:80"      # HTTP access direct to FrankenPHP
+      - "443:443"    # HTTPS access direct to FrankenPHP
     depends_on:
       - db
       - redis
@@ -59,7 +61,7 @@ services:
       - "3306:3306"
     volumes:
       - dbdata:/var/lib/mysql
-      - ./mysql-slave.cnf:/etc/mysql/my.cnf
+      - ./config/docker/mysql-slave.cnf:/etc/mysql/my.cnf
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     networks:
@@ -74,7 +76,7 @@ services:
       - "6379:6379"
     volumes:
       - redisdata:/data
-      - ./redis-slave.conf:/usr/local/etc/redis/redis.conf
+      - ./config/docker/redis-slave.conf:/usr/local/etc/redis/redis.conf
     networks:
       - antarkanma
 
@@ -82,9 +84,38 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: antarkanma-cloudflared
     restart: unless-stopped
-    command: tunnel --no-autoupdate run --token eyJhIjoiNjE1NzhkZDhiMzMxNzYyMzNlNGM3ZjI5MDYwMmJmMzUiLCJ0IjoiZmM3ZjU1ZjUtY2MwMi00Y2JhLTk5MTQtZmJmNmY2ZDI2ZjhkIiwicyI6Ik9UTTNNV1k0T0RRdE1XWTRNeTAwTkRFMkxXSmhaalV0TkRKbE9EZzVaVEExWlRFMiJ9
+    command: tunnel --no-autoupdate run --token eyJhIjoiNjE1NzhkZDhiMzMxNzYyMzNlNGM3ZjI5MDYwMmJmMzUiLCJ0IjoiYzVhNzU2ODEtMDE2Zi00MDQ3LWEyMGQtZGVhOWNhOWIwMWFhIiwicyI6Ik16YzBNRGxqTVRZdFl6UmtOaTAwWVdNMUxUa3lZMll0WW1WaFlXVTNaakJsTkRBeiJ9
     depends_on:
       - app
+    networks:
+      - antarkanma
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: antarkanma-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_USER: ${DB_USERNAME}
+      PMA_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    networks:
+      - antarkanma
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: antarkanma-redis-commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
     networks:
       - antarkanma
 

@@ -50,7 +50,8 @@ return [
              *
              */
 
-            'credentials' => env('FIREBASE_CREDENTIALS', env('GOOGLE_APPLICATION_CREDENTIALS')),
+            // Use local path for development, fallback to env for production
+            'credentials' => env('FIREBASE_CREDENTIALS', base_path('storage/app/firebase/firebase-credentials.json')),
 
             /*
              * ------------------------------------------------------------------------
