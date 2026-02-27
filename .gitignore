@@ -24,6 +24,17 @@
 
 # MCP Configuration (contains secrets)
 .agent/mcp-servers.json
+mcp-config.json
+
+# JSON configs that may contain secrets
+order.json
+firebase.json
+firestore.indexes.json
+firestore.rules
+
+# Database backups
+*.sql
+database/*.sql
 
 # Logs
 npm-debug.log*
