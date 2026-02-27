@@ -1,0 +1,239 @@
+{
+  "main": {
+    "id": "ba999838d73e154a",
+    "type": "split",
+    "children": [
+      {
+        "id": "af37818250f95423",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0d9822b7c411f3b3",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Welcome.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Welcome"
+            }
+          }
+        ]
+      },
+      {
+        "id": "be0e8d1a2413eeda",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "f56f5a1a7217a32b",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "72cbb62dc1ce0b71",
+    "type": "split",
+    "children": [
+      {
+        "id": "093a11cebd478b9f",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "e81525f4069d6276",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "01d2f5bd6107cedb",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "1511a07deeb2e147",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "da3187594f7b8bad",
+    "type": "split",
+    "children": [
+      {
+        "id": "12c1d4948e4fc429",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "919c74b999631af0",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "4827e70fa19710d1",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "52efc78de83d1612",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "a9b1499c6b15a15c",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "9e5cee0135c43028",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "f56f5a1a7217a32b",
+  "lastOpenFiles": [
+    "Welcome.md",
+    "dfd-audit-report.md",
+    "ai-documentation-guide.md",
+    "work-plan.md",
+    "transaction-order-flow.md",
+    "technical-specifications.md",
+    "project-planning.md",
+    "progress-log-update.md",
+    "progress-log-courier-fix.md",
+    "progress-log.md",
+    "e2e-test-guide.md",
+    "courier-audit-report.md",
+    "ai-memory-context.md",
+    "active-backlog.md",
+    "images/class-diagram.png",
+    "images/activity-diagram.png",
+    "images/sequence-diagram.png",
+    "images",
+    "features/payment-implementation-details.md",
+    "features/payment-workflow-by-role.md",
+    "features/payment-and-fee-management.md",
+    "features/payment-system-options.md",
+    "features/order-verification-system.md",
+    "features/delivery-cost-calculation.md",
+    "features/fcm-api-prompt.md",
+    "features/operational-hours-and-targets.md",
+    "features",
+    "design/flow-optimization.md",
+    "design",
+    "deployment/load-balancer.md",
+    "deployment/deployment-guide.md",
+    "deployment",
+    "company/company-profile.md",
+    "company",
+    "business",
+    "architecture",
+    "api"
+  ]
+}
