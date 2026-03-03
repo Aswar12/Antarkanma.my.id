@@ -249,6 +249,36 @@ class TransactionController extends Controller
                         Log::info("Notification new_order sent to Merchant ID: {$merchantId}");
                     }
                 }
+                
+                // Send notification to ALL active couriers about new order waiting for assignment
+                $courierTokens = User::where('roles', 'COURIER')
+                    ->whereHas('courier', function($q) {
+                        $q->where('is_active', true);
+                    })
+                    ->with('fcmTokens')
+                    ->get()
+                    ->flatMap(function($courier) {
+                        return $courier->fcmTokens()
+                            ->where('is_active', true)
+                            ->pluck('token');
+                    })
+                    ->toArray();
+                
+                if (!empty($courierTokens)) {
+                    $this->firebaseService->sendToUsers(
+                        $courierTokens,
+                        [
+                            'type' => 'new_order_available',
+                            'transaction_id' => $transaction->id,
+                            'order_id' => $order->id,
+                            'merchant_name' => $merchant->name,
+                            'total_amount' => $transaction->total_amount,
+                        ],
+                        'Pesanan Baru Tersedia!',
+                        "Ada pesanan baru dari {$merchant->name} menunggu kurir."
+                    );
+                    Log::info("Notification new_order_available sent to " . count($courierTokens) . " courier devices");
+                }
             }
 
             // Load relationships
@@ -388,6 +418,77 @@ class TransactionController extends Controller
         }
     }
 
+    /**
+     * Get transaction detail by ID
+     */
+    public function get($id)
+    {
+        try {
+            $transaction = Transaction::with([
+                'user',
+                'userLocation',
+                'courier.user',
+                'orders' => function ($query) {
+                    $query->with([
+                        'orderItems' => function ($q) {
+                            $q->with([
+                                'product' => function ($p) {
+                                    $p->with(['galleries', 'category', 'variants']);
+                                },
+                                'merchant'
+                            ]);
+                        }
+                    ]);
+                }
+            ])
+                ->where('user_id', Auth::id())
+                ->findOrFail($id);
+
+            // Transform response
+            $responseData = $transaction->toArray();
+
+            // Add courier details if exists
+            if ($transaction->courier) {
+                $responseData['courier'] = [
+                    'id' => $transaction->courier->id,
+                    'name' => $transaction->courier->user->name,
+                    'phone' => $transaction->courier->user->phone_number,
+                    'vehicle_type' => $transaction->courier->vehicle_type,
+                    'license_plate' => $transaction->courier->license_plate,
+                    'photo' => $transaction->courier->user->profile_photo_url
+                ];
+            }
+
+            // TOMBOL CHAT MUNCUL JIKA: courier_id SUDAH ADA (tidak null)
+            // Ini berarti kurir sudah mengambil order dan siap dihubungi
+            $responseData['can_chat_with_courier'] = !is_null($transaction->courier_id);
+
+            return ResponseFormatter::success(
+                $responseData,
+                'Detail transaksi berhasil diambil'
+            );
+        } catch (Exception $error) {
+            Log::error('Failed to fetch transaction detail:', [
+                'error' => $error->getMessage(),
+                'trace' => $error->getTraceAsString()
+            ]);
+
+            if ($error instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+                return ResponseFormatter::error(
+                    null,
+                    'Transaksi tidak ditemukan',
+                    404
+                );
+            }
+
+            return ResponseFormatter::error(
+                null,
+                'Data transaksi gagal diambil: ' . $error->getMessage(),
+                500
+            );
+        }
+    }
+
     public function list(Request $request)
     {
         try {
@@ -412,8 +513,30 @@ class TransactionController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
 
+            // Transform response: add can_chat_with_courier flag to each transaction
+            $transactionsData = $transactions->map(function ($transaction) {
+                $data = $transaction->toArray();
+                
+                // Add courier details if exists
+                if ($transaction->courier) {
+                    $data['courier'] = [
+                        'id' => $transaction->courier->id,
+                        'name' => $transaction->courier->user->name,
+                        'phone' => $transaction->courier->user->phone_number,
+                        'vehicle_type' => $transaction->courier->vehicle_type,
+                        'license_plate' => $transaction->courier->license_plate,
+                        'photo' => $transaction->courier->user->profile_photo_url
+                    ];
+                }
+
+                // TOMBOL CHAT MUNCUL JIKA: courier_id SUDAH ADA (tidak null)
+                $data['can_chat_with_courier'] = !is_null($transaction->courier_id);
+
+                return $data;
+            });
+
             return ResponseFormatter::success(
-                $transactions,
+                $transactionsData,
                 'Data transaksi berhasil diambil'
             );
         } catch (Exception $error) {

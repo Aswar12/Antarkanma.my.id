@@ -2,31 +2,45 @@
 
 Status: `⬜ Belum` `🔄 Sedang` `✅ Selesai` `⏸️ Ditunda`
 
-_Terakhir diperbarui: 24 Februari 2026, 04:27 WITA_
+_Terakhir diperbarui: 27 Februari 2026, 23:45 WITA_
 
 ---
 
-## 🔴 Sprint Saat Ini: Order Status Flow & Dokumentasi SDLC
+## 🔴 Sprint 12-13: Critical Fixes (27 Feb - 14 Mar 2026)
 
-### Milestone: Order Flow Zero Miss-Communication (Target: Maret 2026)
+### C1: Missing Controllers
 
 | # | Task | Status | Catatan |
 |---|---|---|---|
-| 1 | Fix bug `CourierController@approveTransaction` reset status | ✅ | Bug fix: tidak lagi reset ke PROCESSING (24 Feb) |
-| 2 | Tambah kolom `courier_status` di tabel transactions | ✅ | Migration berhasil (24 Feb) |
-| 3 | Tambah endpoint `arrive-merchant` | ✅ | `POST /courier/transactions/{id}/arrive-merchant` |
-| 4 | Tambah endpoint `arrive-customer` | ✅ | `POST /courier/transactions/{id}/arrive-customer` |
-| 5 | Tambah endpoint `pickup` per-order | ✅ | `POST /courier/orders/{id}/pickup` |
-| 6 | Tambah endpoint `complete` per-order + auto-complete Transaction | ✅ | `POST /courier/orders/{id}/complete` |
-| 7 | Update `courier_provider.dart` (Courier App) | ✅ | 4 method baru |
-| 8 | Update `courier_order_controller.dart` + FCM listener | ✅ | Auto-refresh tanpa pull |
-| 9 | Update `order_page.dart` UI Courier App | ✅ | Tombol aksi kontekstual per courier_status |
-| 10 | Update `merchant_order_controller.dart` FCM handlers | ✅ | 4 handler baru |
-| 11 | Rewrite semua docs SDLC (ERD, DFD, Class, Sequence) | ✅ | Sinkron dengan implementasi aktual |
-| 12 | Customer App: Tracking real-time UI (status timeline) | ⬜ | Stepper berdasarkan courier_status |
-| 13 | Customer App: Auto-refresh via FCM | ⬜ | |
-| 14 | Courier App: Test end-to-end happy path | ⬜ | Lihat panduan di walkthrough.md |
-| 15 | Courier App: Test multi-merchant partial pickup | ⬜ | |
+| C1.1 | Create ManualOrderController | ✅ | Implemented (27 Feb) |
+| C1.2 | Create ChatController | ✅ | Implemented (27 Feb) - 6 jam |
+
+### C3: Error Response Standardization
+
+| # | Task | Status | Catatan |
+|---|---|---|---|
+| C3.1 | Create ApiResponseTrait | ⬜ | 2 jam |
+| C3.2 | Update all controllers | ⬜ | 6 jam |
+
+### C5: Environment Configuration
+
+| # | Task | Status | Catatan |
+|---|---|---|---|
+| C5.1 | Update .env.example | ⬜ | 2 jam |
+
+### D: Documentation
+
+| # | Task | Status | Catatan |
+|---|---|---|---|
+| D1 | Update Sequence Diagram | ⬜ | 2 jam |
+| D2 | Update API Reference | ⬜ | 2 jam |
+| D4 | Create Deployment Checklist | ✅ | Created (27 Feb) |
+| D5 | Create Troubleshooting Guide | ✅ | Created (27 Feb) |
+| D6 | Create API Testing Checklist | ✅ | Created (27 Feb) |
+| D7 | Create Missing Controllers Guide | ✅ | Created (27 Feb) |
+| D8 | Create Comprehensive Plan | ✅ | Created (27 Feb) |
+| D9 | Create Sprint 12-13 Plan | ✅ | Created (27 Feb) |
+| D10 | Update Progress Log (Session 13) | ✅ | Created (27 Feb) |
 
 ---
 

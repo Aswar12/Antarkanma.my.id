@@ -1,0 +1,337 @@
+# 🔍 Audit Mendetail — Antarkanma (Backend + 3 Aplikasi Mobile)
+
+> Tanggal Audit: 2026-03-02 | Cakupan: Laravel Backend, Customer App, Merchant App, Courier App
+
+---
+
+## 📊 Ringkasan Eksekutif
+
+| Aplikasi | Modul Ada | Masalah Kritis | Masalah Tinggi | Masalah Sedang | Fitur Belum Lengkap |
+|---|---|---|---|---|---|
+| **Backend (Laravel)** | 19 Controller, 19 Model | 2 | 4 | 5 | 3 |
+| **Customer App** | 6 Modul, 35 Widget | 3 | 4 | 6 | 4 |
+| **Merchant App** | 5 Modul | 2 | 3 | 4 | 5 |
+| **Courier App** | 4 Modul | 3 | 3 | 3 | 4 |
+
+---
+
+## 🔴 KRITIS — Harus Diperbaiki Segera
+
+### [K-01] Repository Kosong — Customer & Merchant App
+**File:**
+- [customer/lib/app/data/repositories/merchant_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/data/repositories/merchant_repository.dart) → **Hanya 2 baris kosong**
+- [customer/lib/app/data/repositories/courier_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/data/repositories/courier_repository.dart) → **Kosong**
+- [customer/lib/app/data/repositories/order_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/data/repositories/order_repository.dart) → **Kosong**
+- [customer/lib/app/data/repositories/product_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/data/repositories/product_repository.dart) → **Kosong**
+- [customer/lib/app/data/repositories/user_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/data/repositories/user_repository.dart) → **Kosong**
+- [merchant/lib/app/data/repositories/merchant_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/merchant/lib/app/data/repositories/merchant_repository.dart) → **Kosong**
+- [merchant/lib/app/data/repositories/courier_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/merchant/lib/app/data/repositories/courier_repository.dart) → **Kosong**
+- [merchant/lib/app/data/repositories/order_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/merchant/lib/app/data/repositories/order_repository.dart) → **Kosong**
+- [merchant/lib/app/data/repositories/product_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/merchant/lib/app/data/repositories/product_repository.dart) → **Kosong**
+- [merchant/lib/app/data/repositories/user_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/merchant/lib/app/data/repositories/user_repository.dart) → **Kosong**
+
+**Dampak:** Logika data sharing langsung tersebar ke Service/Controller tanpa layer repository. Tidak ada separation of concern, menyulitkan maintenance dan testing.
+
+**Tindakan:** Implementasi penuh tiap repository dengan method CRUD yang sesuai.
+
+---
+
+### [K-02] Gambar Peta Statis Hardcoded — Courier App
+**File:** [courier/lib/app/modules/courier/views/home_page.dart](file:///c:/laragon/www/Antarkanma/mobile/courier/lib/app/modules/courier/views/home_page.dart) baris 515
+
+```dart
+image: CachedNetworkImageProvider(
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuD...')
+```
+
+**Dampak:** Peta tidak menampilkan lokasi nyata pickup/dropoff. Gambar statis external bisa hilang kapan saja.
+
+**Tindakan:** Integrasikan Google Maps / OpenStreetMap untuk menampilkan rute nyata dari titik merchant ke customer.
+
+---
+
+### [K-03] Tombol "Tarik Dana" Tidak Berfungsi — Courier App
+**File:** [courier/lib/app/modules/courier/views/home_page.dart](file:///c:/laragon/www/Antarkanma/mobile/courier/lib/app/modules/courier/views/home_page.dart) baris 267
+
+```dart
+ElevatedButton(
+  onPressed: () {}, // ← KOSONG!
+```
+
+**Dampak:** Kurir tidak bisa menarik dana pendapatan. Fitur wallet tidak dapat digunakan.
+
+**Tindakan:** Implementasi halaman/dialog withdraw dengan input nominal dan konfirmasi.
+
+---
+
+### [K-04] Toggle Online/Offline Non-Fungsional — Courier App
+**File:** [courier/lib/app/modules/courier/views/home_page.dart](file:///c:/laragon/www/Antarkanma/mobile/courier/lib/app/modules/courier/views/home_page.dart) baris 163-193
+
+Toggle status online/offline hanya UI kosong, tidak ada `onTap`/`onChanged`, tidak ada state management. Kurir selalu tampil "ONLINE".
+
+**Dampak:** Sistem tidak tahu apakah kurir aktif/tidak aktif.
+
+**Tindakan:** Sambungkan toggle ke API `PUT /courier/{id}` dengan field `is_active`.
+
+---
+
+### [K-05] Duplikasi Route API — Backend
+**File:** [routes/api.php](file:///c:/laragon/www/Antarkanma/routes/api.php) baris 93, 145
+
+```php
+Route::get('/merchant/list', ...);           // baris 93
+Route::get('merchants/{merchantId}/orders'); // baris 145
+Route::get('merchants/{merchantId}/orders'); // juga di 114 (public) → konflik!
+```
+
+**Dampak:** Route ambiguity dapat menyebabkan request diarahkan ke controller yang salah — terutama route `merchants/{merchantId}/products` yang terdaftar dua kali (baris 114 di dalam auth group, baris 229 di public).
+
+**Tindakan:** Audit dan bersihkan semua duplikasi route.
+
+---
+
+## 🟠 TINGGI — Perlu Diperbaiki dalam Waktu Dekat
+
+### [T-01] Tidak Ada Real-Time Chat (Polling/WebSocket)
+**File:** `customer/chat_repository.dart`, `merchant/chat_repository.dart`, `courier/chat_repository.dart`
+
+Chat menggunakan fetch manual — tidak ada WebSocket atau long-polling. Pengguna harus refresh manual untuk melihat pesan baru.
+
+**Tindakan:** Implementasi polling otomatis setiap 3-5 detik, atau gunakan WebSocket via Laravel Reverb/Pusher.
+
+---
+
+### [T-02] Image Upload di Chat Tidak Diimplementasi
+**File:** `customer/chat_repository.dart` baris 256
+
+```dart
+// For now, only text messages
+if (message != null) { ... }
+// image parameter ada tapi tidak pernah dipakai
+```
+
+**Tindakan:** Implementasi upload gambar di chat menggunakan `multipart/form-data`.
+
+---
+
+### [T-03] Merchant App — Tidak Ada Halaman Manajemen Produk yang Terintegrasi Penuh
+**File:** `merchant/modules/merchant/views/product_management_page.dart`
+
+Repository product kosong, sehingga product management bergantung sepenuhnya pada service langsung — tidak ada caching, error handling terpusat, atau offline support.
+
+---
+
+### [T-04] Customer App — Fitur Review Tidak Terintegrasi di Halaman Order
+**File:** `customer/modules/user/views/order_page.dart`
+
+Setelah pesanan selesai (`COMPLETED`), tidak ada tombol untuk memberi review. [review_page.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/modules/user/views/review_page.dart) ada tetapi tidak dapat diakses dari order page.
+
+**Tindakan:** Tambahkan tombol "Beri Ulasan" pada order dengan status `COMPLETED`.
+
+---
+
+### [T-05] Courier App — Tidak Ada History Pengantaran
+Kurir hanya melihat "Pesanan Masuk" di home. Tidak ada tab atau halaman untuk melihat riwayat pengantaran yang sudah selesai.
+
+**Tindakan:** Buat halaman `order_history_page.dart` dengan filter tanggal.
+
+---
+
+### [T-06] Backend — ProductReview Tidak Terhubung ke Merchant & Courier Review
+**File:** [app/Http/Controllers/API/ProductReviewController.php](file:///c:/laragon/www/Antarkanma/app/Http/Controllers/API/ProductReviewController.php)
+
+Hanya ada review untuk produk. Review untuk merchant dan kurir (yang sudah dibuat di frontend) belum memiliki controller dan model yang terpisah di backend — menggunakan tabel yang sama padahal entitasnya berbeda.
+
+---
+
+### [T-07] Backend — Tidak Ada Rate Limiting di API Chat
+**File:** [routes/api.php](file:///c:/laragon/www/Antarkanma/routes/api.php)
+
+Route chat (send message, initiate) tidak memiliki middleware rate limiting. Rentan terhadap spam.
+
+**Tindakan:** Tambahkan `throttle:60,1` pada chat routes.
+
+---
+
+## 🟡 SEDANG — Perlu Diperbaiki
+
+### [S-01] Customer App — [loading_indicator.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/widgets/loading_indicator.dart) Kosong
+**File:** [customer/lib/app/widgets/loading_indicator.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/widgets/loading_indicator.dart) — ukuran 0 bytes
+
+Widget loading_indicator direferensikan tapi tidak ada isinya.
+
+---
+
+### [S-02] Merchant App — Tidak Ada Modul Notifikasi Khusus
+Merchant tidak memiliki halaman notifikasi. Notifikasi FCM diterima tetapi tidak ada inbox notifikasi di dalam app.
+
+---
+
+### [S-03] Customer App — Chat Hanya untuk Kurir, Bukan Merchant Langsung dari Home
+Dari halaman home, customer tidak bisa memulai chat dengan merchant tanpa masuk ke detail order terlebih dahulu. Hanya ada [initiateDirectMerchantChat](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/data/repositories/chat_repository.dart#151-187) tapi tidak ada UI entry point yang jelas.
+
+---
+
+### [S-04] Courier App — Cart & Checkout Tidak Ada
+Kurir seharusnya tidak memiliki cart, tapi ada dependensi ke cart_item_model. Ini menunjukkan copy-paste yang tidak dibersihkan dari customer app.
+
+---
+
+### [S-05] Backend — File Debug Bertebaran di Root
+**File di root project:**
+- [check_chat7.php](file:///c:/laragon/www/Antarkanma/check_chat7.php), [check_chat_structure.php](file:///c:/laragon/www/Antarkanma/check_chat_structure.php), [check_chats.php](file:///c:/laragon/www/Antarkanma/check_chats.php)
+- [check_courier_fcm.php](file:///c:/laragon/www/Antarkanma/check_courier_fcm.php), [check_customer_fcm.php](file:///c:/laragon/www/Antarkanma/check_customer_fcm.php), [check_db.php](file:///c:/laragon/www/Antarkanma/check_db.php)
+- [check_transaction5.php](file:///c:/laragon/www/Antarkanma/check_transaction5.php), [db-query.php](file:///c:/laragon/www/Antarkanma/db-query.php), [delete_bad_chat.php](file:///c:/laragon/www/Antarkanma/delete_bad_chat.php)
+- [test_chat_api.php](file:///c:/laragon/www/Antarkanma/test_chat_api.php), [test_chat_list.php](file:///c:/laragon/www/Antarkanma/test_chat_list.php), [test_message_order.php](file:///c:/laragon/www/Antarkanma/test_message_order.php)
+
+**Dampak:** File debug bisa diakses secara publik jika tidak dikonfigurasi dengan benar. Membocorkan struktur DB.
+
+**Tindakan:** Hapus semua file debug dari root. Pindahkan ke folder `tests/` atau hapus.
+
+---
+
+### [S-06] Tidak Ada Validasi Gambar di Sisi Frontend
+Customer dan merchant bisa upload gambar tanpa batasan format dan ukuran di sisi frontend. Backend memvalidasi tapi error tidak ditampilkan dengan baik ke pengguna.
+
+---
+
+### [S-07] Backend — `S3TestController` Masih Terdaftar di Imports
+**File:** [routes/api.php](file:///c:/laragon/www/Antarkanma/routes/api.php) baris 21
+
+```php
+use App\Http\Controllers\API\S3TestController; // Route-nya di-comment, tapi use-nya masih ada
+```
+
+---
+
+### [S-08] Courier App — Home Page Menggunakan `\r\n` Line Endings
+File [home_page.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/modules/user/views/home_page.dart) menggunakan Windows CRLF endings sementara file lain menggunakan LF. Ini menyebabkan inkonsistensi di git diff.
+
+---
+
+## 🟢 RENDAH — Nice to Have / Perbaikan Kecil
+
+### [R-01] Customer App — String Hardcoded dalam Bahasa Campur
+Beberapa string masih hardcoded dalam file seperti `'Kurir Ditemukan'`, `'Kurir Mitra'`, tidak menggunakan sistem i18n/l10n.
+
+### [R-02] Merchant App — [feature_plan.md](file:///c:/laragon/www/Antarkanma/mobile/merchant/lib/app/modules/merchant/feature_plan.md) dan [commit_message.txt](file:///c:/laragon/www/Antarkanma/mobile/merchant/lib/app/modules/merchant/commit_message.txt) Ada di dalam Source Code
+**File:** [merchant/lib/app/modules/merchant/feature_plan.md](file:///c:/laragon/www/Antarkanma/mobile/merchant/lib/app/modules/merchant/feature_plan.md), [commit_message.txt](file:///c:/laragon/www/Antarkanma/mobile/merchant/lib/app/modules/merchant/commit_message.txt)
+
+File planning/dev artifact tidak seharusnya ada di dalam folder source Flutter.
+
+### [R-03] Semua App — Tidak Ada Unit Test
+Tidak ditemukan file `*_test.dart` di ketiga aplikasi mobile. Testing hanya manual.
+
+### [R-04] Customer App — Error pada `Image.network` di [order_page.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/modules/user/views/order_page.dart)
+Menggunakan `Image.network` bukan `CachedNetworkImage`, sehingga tidak ada caching dan bisa terjadi reload berulang.
+
+---
+
+## 🚀 FITUR BELUM LENGKAP (Backlog)
+
+| ID | Fitur | Aplikasi | Status |
+|---|---|---|---|
+| F-01 | Push notification untuk chat baru | Semua | Parsial (FCM ada, tapi routing tidak lengkap) |
+| F-02 | Halaman statistik pendapatan kurir | Courier | Parsial (stat card ada tapi data daily saja) |
+| F-03 | Deep link untuk notifikasi (buka chat/order langsung) | Semua | Belum |
+| F-04 | Pagination di chat message list | Semua | Belum |
+| F-05 | Search produk dengan filter kategori & harga | Customer | Parsial |
+| F-06 | Loyalty Points display dan penggunaan | Customer | Model ada, UI tidak ada |
+| F-07 | Export laporan transaksi (PDF/Excel) | Merchant | Belum |
+| F-08 | Manajemen jam operasional merchant via UI yang lebih baik | Merchant | Parsial |
+| F-09 | Verifikasi kendaraan / SIM kurir | Courier | Belum |
+| F-10 | Manual Order (Jastip) dari Customer | Customer | Backend ada, UI tidak ada |
+
+---
+
+## 📋 TASK LIST PRIORITAS — Urutan Pengerjaan
+
+### 🔴 Sprint 1 — Critical Fixes (Estimasi: 3-5 hari)
+
+**Backend:**
+- [ ] **[B-01]** Hapus semua file debug dari root project (12 file)
+- [ ] **[B-02]** Bersihkan duplikasi route di [api.php](file:///c:/laragon/www/Antarkanma/routes/api.php)
+- [ ] **[B-03]** Tambahkan rate limiting (`throttle:60,1`) pada chat routes
+- [ ] **[B-04]** Pisahkan MerchantReview & CourierReview menjadi model & controller terpisah
+
+**Customer App:**
+- [ ] **[C-01]** Implementasi [merchant_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/data/repositories/merchant_repository.dart) — method: `getMerchants()`, `getMerchantById()`, `getProductsByMerchant()`
+- [ ] **[C-02]** Implementasi [order_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/data/repositories/order_repository.dart) — method: `getOrders()`, `getOrderById()`, `cancelOrder()`
+- [ ] **[C-03]** Implementasi [product_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/data/repositories/product_repository.dart) — method: `getProducts()`, `getProductById()`, `searchProducts()`
+- [ ] **[C-04]** Implementasi [user_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/merchant/lib/app/data/repositories/user_repository.dart) — method: `getProfile()`, `updateProfile()`, `changePassword()`
+- [ ] **[C-05]** Implementasi [courier_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/data/repositories/courier_repository.dart) — method: `getCourierById()`
+- [ ] **[C-06]** Isi [loading_indicator.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/widgets/loading_indicator.dart) widget
+
+**Merchant App:**
+- [ ] **[M-01]** Implementasi [merchant_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/data/repositories/merchant_repository.dart) — method: `getMerchantInfo()`, `updateMerchant()`, `updateStatus()`
+- [ ] **[M-02]** Implementasi [order_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/data/repositories/order_repository.dart) — method: `getOrders()`, `approveOrder()`, `rejectOrder()`
+- [ ] **[M-03]** Implementasi [product_repository.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/data/repositories/product_repository.dart) — method: CRUD produk
+- [ ] **[M-04]** Hapus [feature_plan.md](file:///c:/laragon/www/Antarkanma/mobile/merchant/lib/app/modules/merchant/feature_plan.md) dan [commit_message.txt](file:///c:/laragon/www/Antarkanma/mobile/merchant/lib/app/modules/merchant/commit_message.txt) dari folder source
+
+**Courier App:**
+- [ ] **[Ku-01]** Implementasi toggle Online/Offline — sambungkan ke API `PUT /couriers/{id}` dengan field `is_active`
+- [ ] **[Ku-02]** Implementasi tombol "Tarik Dana" — buat bottom sheet dengan form nominal withdrawal
+- [ ] **[Ku-03]** Ganti gambar peta statis dengan Google Maps / flutter_map
+
+---
+
+### 🟠 Sprint 2 — High Priority Features (Estimasi: 5-7 hari)
+
+- [ ] **[C-07]** Tambahkan tombol "Beri Ulasan" di order page untuk pesanan `COMPLETED`
+- [ ] **[C-08]** Tambahkan UI entry point "Chat Merchant Langsung" dari merchant detail page
+- [ ] **[C-09]** Ganti `Image.network` dengan `CachedNetworkImage` di [order_page.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/modules/user/views/order_page.dart)
+- [ ] **[M-05]** Buat halaman inbox Notifikasi di Merchant App
+- [ ] **[M-06]** Perbaiki integrasi product management dengan repository pattern
+- [ ] **[Ku-04]** Buat halaman riwayat pengantaran (`order_history_page.dart`) dengan filter tanggal
+- [ ] **[Ku-05]** Tambahkan fitur chat dengan customer dari halaman pengantaran aktif
+- [ ] **[B-05]** Implementasi image upload di chat (backend: endpoint menerima multipart)
+
+---
+
+### 🟡 Sprint 3 — Medium Priority (Estimasi: 5-7 hari)
+
+- [ ] **[ALL-01]** Implementasi chat polling otomatis setiap 3-5 detik (atau WebSocket)
+- [ ] **[ALL-02]** Implementasi pagination untuk chat messages
+- [ ] **[C-10]** Tampilkan Loyalty Points di profil customer dan halaman checkout
+- [ ] **[C-11]** Implementasi UI untuk Manual Order (Jastip) — backend sudah ada
+- [ ] **[M-07]** Tambahkan fitur export laporan transaksi merchant (PDF)
+- [ ] **[Ku-06]** Tampilkan statistik pendapatan mingguan/bulanan, bukan hanya harian
+- [ ] **[B-06]** Validasi gambar yang lebih ketat di semua endpoint upload
+- [ ] **[ALL-03]** Normalisasi line endings (CRLF → LF) di seluruh project
+
+---
+
+### 🟢 Sprint 4 — Polish & Testing (Estimasi: 5-7 hari)
+
+- [ ] **[ALL-04]** Buat unit test dasar untuk 3 repository utama di tiap app
+- [ ] **[ALL-05]** Implementasi deep linking (notifikasi langsung buka halaman yang benar)
+- [ ] **[ALL-06]** Implementasi sistem i18n untuk string hardcoded
+- [ ] **[C-12]** Implementasi fitur search produk dengan filter category & rentang harga
+- [ ] **[Ku-07]** Buat halaman verifikasi dokumen kendaraan / SIM kurir
+- [ ] **[M-08]** Perbaiki UI manajemen jam operasional merchant
+- [ ] **[B-07]** Hapus `use App\Http\Controllers\API\S3TestController` dari routes/api.php
+
+---
+
+## 📈 Estimasi Total
+
+| Sprint | Durasi | Prioritas |
+|---|---|---|
+| Sprint 1 — Critical Fixes | 3-5 hari | Sangat Tinggi |
+| Sprint 2 — High Priority | 5-7 hari | Tinggi |
+| Sprint 3 — Medium Priority | 5-7 hari | Sedang |
+| Sprint 4 — Polish & Testing | 5-7 hari | Rendah-Sedang |
+| **Total** | **~18-26 hari kerja** | |
+
+---
+
+## 🗂️ File Referensi Penting
+
+| File | Keterangan |
+|---|---|
+| [routes/api.php](file:///c:/laragon/www/Antarkanma/routes/api.php) | Semua API routes backend |
+| [app/Http/Controllers/API/ChatController.php](file:///c:/laragon/www/Antarkanma/app/Http/Controllers/API/ChatController.php) | Controller chat utama |
+| `customer/lib/app/data/repositories/` | 5 dari 7 repository masih kosong |
+| `merchant/lib/app/data/repositories/` | 4 dari 5 repository masih kosong |
+| [courier/lib/app/modules/courier/views/home_page.dart](file:///c:/laragon/www/Antarkanma/mobile/courier/lib/app/modules/courier/views/home_page.dart) | Toggle & wallet tidak berfungsi |
+| [customer/lib/app/modules/user/views/order_page.dart](file:///c:/laragon/www/Antarkanma/mobile/customer/lib/app/modules/user/views/order_page.dart) | Tidak ada tombol review |

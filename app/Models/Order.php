@@ -20,7 +20,11 @@ class Order extends Model
         'customer_note',
         'order_type',
         'meta_data',
-        'delivery_address'
+        'delivery_address',
+        'is_manual_order',
+        'manual_merchant_name',
+        'manual_merchant_address',
+        'manual_merchant_phone'
     ];
 
     protected $casts = [
@@ -72,6 +76,33 @@ class Order extends Model
     public function orderItems()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * Recalculate order total based on order items
+     * 
+     * @return float The new total amount
+     */
+    public function recalculateTotal(): float
+    {
+        $newTotal = $this->orderItems->sum(function ($item) {
+            return $item->quantity * $item->price;
+        });
+        
+        $this->total_amount = $newTotal;
+        $this->save();
+        
+        return $newTotal;
+    }
+
+    /**
+     * Check if order can be modified
+     * 
+     * @return bool
+     */
+    public function canBeModified(): bool
+    {
+        return in_array($this->order_status, ['PENDING', 'WAITING_APPROVAL']);
     }
 
     protected static function booted()

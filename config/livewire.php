@@ -28,7 +28,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'temporary_file_upload' => [
-        'disk' => 's3',
+        'disk' => 'local',  // Use local disk for temp files
         'rules' => ['required', 'image', 'max:5120'], // Increased to 5MB
         'directory' => 'livewire-tmp',
         'middleware' => null,
@@ -39,6 +39,9 @@ return [
         ],
         'max_upload_time' => 5,
         'cleanup' => true,
+        's3_multipart_upload' => [
+            'chunk_size' => 10,
+        ],
     ],
 
     /*

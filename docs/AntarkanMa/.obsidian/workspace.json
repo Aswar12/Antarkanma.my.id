@@ -13,6 +13,20 @@
             "state": {
               "type": "markdown",
               "state": {
+                "file": "comprehensive-plan.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "comprehensive-plan"
+            }
+          },
+          {
+            "id": "f56f5a1a7217a32b",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
                 "file": "Welcome.md",
                 "mode": "source",
                 "source": false
@@ -20,24 +34,21 @@
               "icon": "lucide-file",
               "title": "Welcome"
             }
-          }
-        ]
-      },
-      {
-        "id": "be0e8d1a2413eeda",
-        "type": "tabs",
-        "children": [
+          },
           {
-            "id": "f56f5a1a7217a32b",
+            "id": "8ef01de9d3d0243e",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Graph view"
+              "type": "excalidraw",
+              "state": {
+                "file": "documentation-map.excalidraw"
+              },
+              "icon": "excalidraw-icon",
+              "title": "documentation-map"
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -193,47 +204,50 @@
       "daily-notes:Open today's daily note": false,
       "templates:Insert template": false,
       "command-palette:Open command palette": false,
-      "bases:Create new base": false
+      "bases:Create new base": false,
+      "obsidian-excalidraw-plugin:New drawing": false
     }
   },
-  "active": "f56f5a1a7217a32b",
+  "active": "8ef01de9d3d0243e",
   "lastOpenFiles": [
+    "e2e-test-scenarios.md",
+    "tests/CreatesApplication.php",
+    "tests/Feature/ExampleTest.php",
+    "tests/Feature/CourierFlowTest.php",
+    "tests/Feature/OrderFlowTest.php",
+    "tests/Feature/AuthTest.php",
+    "tests/Feature",
+    "tests/TestCase.php",
+    "tests",
+    "testing-guide.md",
+    "Excalidraw/Drawing 2026-02-27 21.32.48.excalidraw.md",
+    "Excalidraw/AntarkanMa-Full-Structure.excalidraw.md",
     "Welcome.md",
+    "Excalidraw",
+    "documentation-map.md",
+    "DOCUMENTATION-SUMMARY.md",
+    "navigation-quickref.md",
+    "README.md",
+    "comprehensive-plan.md",
+    "context7-quickref.md",
     "dfd-audit-report.md",
-    "ai-documentation-guide.md",
-    "work-plan.md",
-    "transaction-order-flow.md",
-    "technical-specifications.md",
-    "project-planning.md",
-    "progress-log-update.md",
-    "progress-log-courier-fix.md",
-    "progress-log.md",
     "e2e-test-guide.md",
-    "courier-audit-report.md",
-    "ai-memory-context.md",
+    "github-mcp-project-guide.md",
+    "mcp-setup-guide.md",
+    "mysql-quick-reference.md",
+    "mysql-setup-guide.md",
+    "sprint-12-13-plan.md",
+    "technical-specifications.md",
+    "transaction-order-flow.md",
+    "troubleshooting-guide.md",
+    "work-plan.md",
+    "documentation-map.excalidraw",
+    "project-planning.md",
     "active-backlog.md",
+    "missing-controllers-guide.md",
+    "api-testing-checklist.md",
     "images/class-diagram.png",
     "images/activity-diagram.png",
-    "images/sequence-diagram.png",
-    "images",
-    "features/payment-implementation-details.md",
-    "features/payment-workflow-by-role.md",
-    "features/payment-and-fee-management.md",
-    "features/payment-system-options.md",
-    "features/order-verification-system.md",
-    "features/delivery-cost-calculation.md",
-    "features/fcm-api-prompt.md",
-    "features/operational-hours-and-targets.md",
-    "features",
-    "design/flow-optimization.md",
-    "design",
-    "deployment/load-balancer.md",
-    "deployment/deployment-guide.md",
-    "deployment",
-    "company/company-profile.md",
-    "company",
-    "business",
-    "architecture",
-    "api"
+    "images/sequence-diagram.png"
   ]
 }

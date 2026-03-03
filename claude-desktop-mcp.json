@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "laravel-antarkanma": {
+      "command": "php",
+      "args": [
+        "C:\\laragon\\www\\Antarkanma\\mcp-server.php"
+      ],
+      "env": {
+        "APP_ENV": "local"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\laragon\\www\\Antarkanma"
+      ],
+      "env": {
+        "ALLOWED_PATHS": "C:\\laragon\\www\\Antarkanma\\app,C:\\laragon\\www\\Antarkanma\\database,C:\\laragon\\www\\Antarkanma\\routes,C:\\laragon\\www\\Antarkanma\\resources,C:\\laragon\\www\\Antarkanma\\storage,C:\\laragon\\www\\Antarkanma\\config"
+      }
+    }
+  }
+}

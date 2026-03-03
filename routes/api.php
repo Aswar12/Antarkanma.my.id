@@ -18,22 +18,28 @@ use App\Http\Controllers\API\DeliveryController;
 use App\Http\Controllers\API\ShippingController;
 use App\Http\Controllers\API\FcmController;
 use App\Http\Controllers\API\NotificationController;
-use App\Http\Controllers\API\S3TestController;
+// S3TestController removed — test routes commented out
 use App\Http\Controllers\API\NotificationTestController;
 use App\Http\Controllers\API\ProductReviewController;
+use App\Http\Controllers\API\WalletTopupController;
+use App\Http\Controllers\API\QrisController;
+use App\Http\Controllers\API\AnalyticsController;
+use App\Http\Controllers\API\MerchantAnalyticsController;
+use App\Http\Controllers\API\CourierAnalyticsController;
+use App\Http\Controllers\API\ExportController;
 
 Route::get('/health', function () {
     try {
         // Check Database
         DB::connection()->getPdo();
 
-        // Check Redis
-        Redis::ping();
+        // Check Redis (DISABLED - Redis extension not installed)
+        // Redis::ping();
 
         return response()->json([
             'status' => 'healthy',
             'database' => 'connected',
-            'redis' => 'connected',
+            'redis' => 'disabled',
             'server' => gethostname(),
             'is_replica' => env('IS_REPLICA', false),
             'replica_weight' => env('REPLICA_WEIGHT', 0)
@@ -92,7 +98,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/merchant/{id}', [MerchantController::class, 'delete']);
     Route::get('/merchant/list', [MerchantController::class, 'list']);
     Route::get('/merchants/owner/{id}', [MerchantController::class, 'getByOwnerId']);
-    Route::post('/product', [ProductController::class, 'create']);
 
     Route::post('products', [ProductController::class, 'create']);
     Route::put('products/{id}', [ProductController::class, 'update']);
@@ -131,6 +136,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('orders', [OrderController::class, 'list']);
     Route::get('orders/{id}', [OrderController::class, 'get']);
 
+    // OrderItem routes (nested under orders)
+    Route::prefix('orders')->group(function () {
+        Route::get('/{id}/items', [OrderItemController::class, 'list']);
+        Route::post('/{id}/items', [OrderItemController::class, 'create']);
+    });
+    Route::prefix('order-items')->group(function () {
+        Route::get('/{id}', [OrderItemController::class, 'get']);
+        Route::put('/{id}', [OrderItemController::class, 'update']);
+        Route::delete('/{id}', [OrderItemController::class, 'delete']);
+    });
+
     // New route for order summary
     Route::get('merchants/{merchantId}/order-summary', [OrderController::class, 'getMerchantOrdersSummary']);
 
@@ -140,15 +156,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('orders/{id}/complete', [OrderStatusController::class, 'complete']);
     Route::post('orders/{id}/cancel', [OrderStatusController::class, 'cancel']);
     Route::get('merchant/{merchantId}/orders', [OrderController::class, 'getByMerchant'])->name('merchant.orders');
+    Route::get('merchants/{merchantId}/orders', [OrderController::class, 'getByMerchant']); // Alias plural untuk Flutter
     Route::get('merchant/orders/summary', [OrderController::class, 'getMerchantOrdersSummary']);
     Route::get('orders/statistics', [OrderController::class, 'getOrderStatistics']);
-    Route::get('merchants/{merchantId}/orders', [OrderController::class, 'getByMerchant']);
     Route::put('merchants/orders/{orderId}/approve', [OrderController::class, 'approveOrder']);
     Route::put('merchants/orders/{orderId}/reject', [OrderController::class, 'rejectOrder']);
     Route::put('merchants/orders/{orderId}/ready', [OrderController::class, 'markAsReady']);
 
     // Courier Transaction Routes
     Route::prefix('courier')->group(function () {
+        Route::get('profile', [CourierController::class, 'getProfile']);
         Route::get('new-transactions', [CourierController::class, 'getNewTransactions']);
         Route::get('my-transactions', [CourierController::class, 'getCourierTransactions']);
         Route::post('transactions/{id}/approve', [CourierController::class, 'approveTransaction']);
@@ -162,13 +179,30 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('orders/{id}/pickup', [CourierController::class, 'pickupOrder']);
         Route::post('orders/{id}/complete', [CourierController::class, 'completeOrder']);
 
-        // Wallet Routes
-        Route::post('wallet/topup', [CourierController::class, 'topUpWallet']);
-        Route::get('wallet/balance', [CourierController::class, 'getWalletBalance']);
+        // Wallet Routes (New Topup System)
+        Route::prefix('wallet')->group(function () {
+            Route::get('/balance', [CourierController::class, 'getWalletBalance']);
+            Route::post('/withdraw', [CourierController::class, 'withdraw']);
+            
+            // Topup routes
+            Route::post('/topups', [WalletTopupController::class, 'submitTopup']);
+            Route::get('/topups', [WalletTopupController::class, 'getTopupHistory']);
+            Route::get('/topups/{id}', [WalletTopupController::class, 'getTopupDetail']);
+            
+            // QRIS routes (Public - no auth required)
+            Route::get('/qris', [QrisController::class, 'getQrisCode']);
+            Route::get('/qris/download', [QrisController::class, 'downloadQrisCode']);
+        });
 
         // Statistics Routes
         Route::get('statistics/daily', [CourierController::class, 'getDailyStatistics']);
         Route::get('transactions/status-counts', [CourierController::class, 'getStatusCounts']);
+
+        // Courier Analytics Routes
+        Route::prefix('analytics')->group(function () {
+            Route::get('/earnings', [CourierAnalyticsController::class, 'earnings']);
+            Route::get('/performance', [CourierAnalyticsController::class, 'performance']);
+        });
     });
 
     Route::post('/couriers', [CourierController::class, 'store']);
@@ -194,10 +228,47 @@ Route::middleware('auth:sanctum')->group(function () {
     // Manual Order (Jastip)
     Route::post('/manual-order', [App\Http\Controllers\API\ManualOrderController::class, 'store']);
 
-    // Jastip Chat Routes
-    Route::post('/chat/initiate', [App\Http\Controllers\API\ChatController::class, 'initiate']);
-    Route::get('/chat/{chatId}/messages', [App\Http\Controllers\API\ChatController::class, 'getMessages']);
-    Route::post('/chat/{chatId}/send', [App\Http\Controllers\API\ChatController::class, 'sendMessage']);
+    // Chat Routes — rate limited to prevent spam
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::get('/chats', [App\Http\Controllers\API\ChatController::class, 'getChatList']);
+        Route::post('/chat/initiate', [App\Http\Controllers\API\ChatController::class, 'initiate']);
+        Route::get('/chat/{chatId}', [App\Http\Controllers\API\ChatController::class, 'getChatDetail']);
+        Route::get('/chat/{chatId}/messages', [App\Http\Controllers\API\ChatController::class, 'getMessages']);
+        Route::post('/chat/{chatId}/send', [App\Http\Controllers\API\ChatController::class, 'sendMessage']);
+        Route::put('/chat/{chatId}/read', [App\Http\Controllers\API\ChatController::class, 'markAsRead']);
+        Route::post('/chat/{chatId}/close', [App\Http\Controllers\API\ChatController::class, 'closeChat']);
+        Route::delete('/chat/{chatId}', [App\Http\Controllers\API\ChatController::class, 'deleteChat']);
+        Route::delete('/chat/{chatId}/messages/{messageId}', [App\Http\Controllers\API\ChatController::class, 'deleteMessage']);
+    });
+
+    // Admin Analytics Routes
+    Route::prefix('analytics')->group(function () {
+        Route::get('/overview', [AnalyticsController::class, 'overview']);
+        Route::get('/sales', [AnalyticsController::class, 'sales']);
+        Route::get('/top-products', [AnalyticsController::class, 'topProducts']);
+        Route::get('/top-merchants', [AnalyticsController::class, 'topMerchants']);
+        Route::get('/top-couriers', [AnalyticsController::class, 'topCouriers']);
+        Route::get('/peak-hours', [AnalyticsController::class, 'peakHours']);
+        Route::get('/revenue', [AnalyticsController::class, 'revenueBreakdown']);
+        Route::get('/customers', [AnalyticsController::class, 'customerBehavior']);
+    });
+
+    // Export Routes
+    Route::prefix('export')->group(function () {
+        Route::get('/sales/csv', [ExportController::class, 'salesCsv']);
+        Route::get('/sales/pdf', [ExportController::class, 'salesPdf']);
+        Route::get('/products/csv', [ExportController::class, 'productsCsv']);
+        Route::get('/merchants/csv', [ExportController::class, 'merchantsCsv']);
+        Route::get('/couriers/csv', [ExportController::class, 'couriersCsv']);
+    });
+
+    // Merchant Analytics Routes
+    Route::prefix('merchant/analytics')->group(function () {
+        Route::get('/overview', [MerchantAnalyticsController::class, 'overview']);
+        Route::get('/sales', [MerchantAnalyticsController::class, 'sales']);
+        Route::get('/top-products', [MerchantAnalyticsController::class, 'topProducts']);
+        Route::get('/peak-hours', [MerchantAnalyticsController::class, 'peakHours']);
+    });
 });
 
 // Public routes

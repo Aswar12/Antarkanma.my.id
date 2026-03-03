@@ -16,14 +16,16 @@ class Courier extends Model
         'wallet_balance',
         'fee_per_order',
         'is_wallet_active',
-        'minimum_balance'
+        'minimum_balance',
+        'is_active'
     ];
 
     protected $casts = [
         'wallet_balance' => 'decimal:2',
         'fee_per_order' => 'decimal:2',
         'is_wallet_active' => 'boolean',
-        'minimum_balance' => 'decimal:2'
+        'minimum_balance' => 'decimal:2',
+        'is_active' => 'boolean'
     ];
 
     protected $hidden = ['user'];

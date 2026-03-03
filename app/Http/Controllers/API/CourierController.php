@@ -691,4 +691,163 @@ class CourierController extends Controller
             return ResponseFormatter::error(null, 'Failed to retrieve status counts: ' . $e->getMessage(), 500);
         }
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 10. PUT: Update courier status (online/offline)
+    // ──────────────────────────────────────────────────────────────────────────
+    public function update(Request $request, $id)
+    {
+        try {
+            if ($request->user()->roles !== 'COURIER') {
+                return ResponseFormatter::error(null, 'Unauthorized: User is not a courier', 403);
+            }
+
+            $courier = Courier::where('user_id', $request->user()->id)->first();
+
+            if (!$courier || $courier->id != $id) {
+                return ResponseFormatter::error(null, 'Unauthorized: Courier not found', 404);
+            }
+
+            $validated = $request->validate([
+                'is_active' => 'boolean',
+                'vehicle_type' => 'string|max:255',
+                'license_plate' => 'string|max:255',
+                'wallet_balance' => 'numeric|min:0',
+                'is_wallet_active' => 'boolean',
+            ]);
+
+            $courier->update($validated);
+
+            return ResponseFormatter::success($courier, 'Courier updated successfully');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseFormatter::error(null, 'Validation failed: ' . $e->getMessage(), 422);
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(null, 'Failed to update courier: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 11. GET: Get courier profile
+    // ──────────────────────────────────────────────────────────────────────────
+    public function getProfile(Request $request)
+    {
+        try {
+            if ($request->user()->roles !== 'COURIER') {
+                return ResponseFormatter::error(null, 'Unauthorized: User is not a courier', 403);
+            }
+
+            $courier = Courier::where('user_id', $request->user()->id)
+                ->with('user')
+                ->first();
+
+            if (!$courier) {
+                return ResponseFormatter::error(null, 'Courier profile not found', 404);
+            }
+
+            return ResponseFormatter::success($courier, 'Courier profile retrieved successfully');
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(null, 'Failed to retrieve courier profile: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 12. GET: Wallet balance
+    // ──────────────────────────────────────────────────────────────────────────
+    public function getWalletBalance(Request $request)
+    {
+        try {
+            if ($request->user()->roles !== 'COURIER') {
+                return ResponseFormatter::error(null, 'Unauthorized', 403);
+            }
+
+            $courier = Courier::where('user_id', $request->user()->id)->first();
+            if (!$courier) {
+                return ResponseFormatter::error(null, 'Courier profile not found', 404);
+            }
+
+            return ResponseFormatter::success([
+                'balance' => $courier->wallet_balance,
+                'is_wallet_active' => $courier->is_wallet_active,
+                'fee_per_order' => $courier->fee_per_order,
+                'minimum_balance' => $courier->minimum_balance,
+            ], 'Wallet balance retrieved successfully');
+
+        } catch (\Exception $e) {
+            Log::error('Get wallet balance error: ' . $e->getMessage());
+            return ResponseFormatter::error(null, 'Failed to get wallet balance', 500);
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 13. POST: Withdraw courier earnings
+    // ──────────────────────────────────────────────────────────────────────────
+    public function withdraw(Request $request)
+    {
+        try {
+            if ($request->user()->roles !== 'COURIER') {
+                return ResponseFormatter::error(null, 'Unauthorized: User is not a courier', 403);
+            }
+
+            $validated = $request->validate([
+                'amount' => 'required|numeric|min:10000', // Minimum withdrawal Rp 10.000
+            ]);
+
+            $courier = Courier::where('user_id', $request->user()->id)->first();
+
+            if (!$courier) {
+                return ResponseFormatter::error(null, 'Courier profile not found', 404);
+            }
+
+            if (!$courier->is_wallet_active) {
+                return ResponseFormatter::error(null, 'Wallet tidak aktif. Hubungi admin untuk aktivasi.', 422);
+            }
+
+            $amount = $validated['amount'];
+
+            if ($courier->wallet_balance < $amount) {
+                return ResponseFormatter::error(null, 'Saldo tidak mencukupi untuk penarikan ini.', 422);
+            }
+
+            // Check minimum balance requirement
+            $minimumBalance = $courier->minimum_balance ?? 0;
+            if (($courier->wallet_balance - $amount) < $minimumBalance) {
+                return ResponseFormatter::error(
+                    null, 
+                    'Penarikan gagal. Pastikan sisa saldo minimal Rp ' . number_format($minimumBalance, 0, ',', '.'), 
+                    422
+                );
+            }
+
+            DB::beginTransaction();
+
+            // Deduct from wallet balance
+            $courier->wallet_balance -= $amount;
+            $courier->save();
+
+            // Create withdrawal record (you can create a withdrawals table if needed)
+            // For now, we'll just log it
+            \App\Models\Transaction::create([
+                'courier_id' => $courier->id,
+                'status' => 'withdrawal',
+                'total_price' => -$amount, // Negative for withdrawal
+                'payment_method' => 'bank_transfer',
+                'payment_status' => 'pending',
+            ]);
+
+            DB::commit();
+
+            return ResponseFormatter::success([
+                'new_balance' => $courier->wallet_balance,
+                'withdrawal_amount' => $amount,
+            ], 'Penarikan berhasil diproses. Dana akan ditransfer dalam 1-3 hari kerja.');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseFormatter::error(null, 'Validasi gagal: ' . $e->getMessage(), 422);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseFormatter::error(null, 'Gagal memproses penarikan: ' . $e->getMessage(), 500);
+        }
+    }
 }

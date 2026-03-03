@@ -105,6 +105,7 @@ class OrderController extends Controller
             // Add courier info with photo if exists
             if ($order->transaction->courier) {
                 $orderArray['courier'] = [
+                    'id' => $order->transaction->courier->id,
                     'name' => $order->transaction->courier->user->name,
                     'phone' => $order->transaction->courier->user->phone_number,
                     'vehicle' => $order->transaction->courier->vehicle_type,
@@ -112,6 +113,10 @@ class OrderController extends Controller
                     'photo' => $order->transaction->courier->user->profile_photo_url
                 ];
             }
+
+            // TOMBOL CHAT MUNCUL JIKA: courier_id SUDAH ADA (tidak null)
+            // Ini berarti kurir sudah mengambil order dan siap dihubungi
+            $orderArray['can_chat_with_courier'] = !is_null($order->transaction->courier_id);
 
             // Add merchant info
             $orderArray['merchant_info'] = [
@@ -655,7 +660,7 @@ class OrderController extends Controller
             $sortOrder = $request->input('sort_order', 'desc');
 
             // Base query with optimized eager loading
-            // Show ALL orders for this merchant, including those without courier assigned
+            // Show ALL orders for this merchant
             $query = Order::select('id', 'transaction_id', 'total_amount', 'order_status', 'merchant_approval', 'rejection_reason', 'created_at')
             ->with([
                 'orderItems:id,order_id,product_id,product_variant_id,quantity,price,customer_note',
@@ -668,14 +673,18 @@ class OrderController extends Controller
                 'transaction.courier:id,user_id,vehicle_type,license_plate',
                 'transaction.courier.user:id,name,phone_number,profile_photo_path'
             ])
-            ->where('merchant_id', $merchantId)
-                // Remove the filter that requires courier_approval - merchant should see ALL orders
-                // Include orders with any status except fully completed/canceled for the list
-                ->whereNotIn('order_status', [Order::STATUS_COMPLETED, Order::STATUS_CANCELED]);
+            ->where('merchant_id', $merchantId);
 
             // Apply filters
             if ($status) {
-                $query->where('order_status', $status);
+                // Only filter by status if it's a valid status (not 'ALL')
+                if (!in_array($status, ['ALL', 'all', 'All'])) {
+                    $query->where('order_status', $status);
+                }
+                // If status is 'ALL', don't filter - show all orders including COMPLETED/CANCELED
+            } else {
+                // Default: exclude COMPLETED and CANCELED for better UX
+                $query->whereNotIn('order_status', [Order::STATUS_COMPLETED, Order::STATUS_CANCELED]);
             }
 
             if ($startDate) {

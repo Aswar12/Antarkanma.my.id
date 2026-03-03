@@ -68,8 +68,15 @@ class UserController extends Controller
                 $user->load('courier');
             }
 
+            // Prepare user data with courier_id for easy access
+            $userData = $user->toArray();
+            if ($user->roles === 'COURIER' && $user->courier) {
+                $userData['courier_id'] = $user->courier->id;
+                $userData['courier'] = $user->courier;
+            }
+
             return ResponseFormatter::success([
-                'user' => $user, // Include user data
+                'user' => $userData, // Include user data
                 'access_token' => $token,
                 'token_type' => 'Bearer',
             ], 'Regsitrasi Akun Berhasil', 200);
@@ -107,8 +114,15 @@ class UserController extends Controller
                 $user->load('courier');
             }
 
+            // Prepare user data with courier_id for easy access
+            $userData = $user->toArray();
+            if ($user->roles === 'COURIER' && $user->courier) {
+                $userData['courier_id'] = $user->courier->id;
+                $userData['courier'] = $user->courier;
+            }
+
             return ResponseFormatter::success([
-                'user' => $user,
+                'user' => $userData,
                 'access_token' => $token,
                 'token_type' => 'Bearer',
             ], 'Login successful');
@@ -143,10 +157,17 @@ class UserController extends Controller
                 $user->load('courier');
             }
 
+            // Prepare user data with courier_id for easy access
+            $userData = $user->toArray();
+            if ($user->roles === 'COURIER' && $user->courier) {
+                $userData['courier_id'] = $user->courier->id;
+                $userData['courier'] = $user->courier;
+            }
+
             return ResponseFormatter::success([
                 'access_token' => $token,
                 'token_type' => 'Bearer',
-                'user' => $user
+                'user' => $userData
             ], 'Token berhasil diperbarui');
         } catch (Exception $e) {
             return ResponseFormatter::error('Refresh token failed: ' . $e->getMessage(), 500);
@@ -185,7 +206,14 @@ class UserController extends Controller
                 $user->load('courier');
             }
 
-            return ResponseFormatter::success($user, 'Profile berhasil diperbarui');
+            // Prepare user data with courier_id for easy access
+            $userData = $user->toArray();
+            if ($user->roles === 'COURIER' && $user->courier) {
+                $userData['courier_id'] = $user->courier->id;
+                $userData['courier'] = $user->courier;
+            }
+
+            return ResponseFormatter::success($userData, 'Profile berhasil diperbarui');
         } catch (Exception $e) {
             return ResponseFormatter::error($e->getMessage(), 'Gagal memperbarui profile', 500);
         }
@@ -202,8 +230,15 @@ class UserController extends Controller
             $user->load('courier');
         }
 
+        // Prepare user data with courier_id for easy access
+        $userData = $user->toArray();
+        if ($user->roles === 'COURIER' && $user->courier) {
+            $userData['courier_id'] = $user->courier->id;
+            $userData['courier'] = $user->courier;
+        }
+
         return ResponseFormatter::success(
-            $user,
+            $userData,
             'Data Profile User berhasil diambil'
         );
     }

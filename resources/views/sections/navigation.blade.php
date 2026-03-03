@@ -5,9 +5,8 @@
             <!-- Logo -->
             <div class="flex items-center">
                 <a href="/" class="flex items-center space-x-3 group">
-                    <img src="{{ asset('images/Logo_NoFont.png') }}" alt="Antarkanma Logo"
-                        class="h-12 w-auto transform transition-all duration-300 group-hover:scale-110">
-                    <span class="text-2xl font-bold text-white">AntarkanMa</span>
+                    <img src="{{ asset('images/logo-customer.svg') }}" alt="Antarkanma Logo"
+                        class="h-24 w-auto transform transition-all duration-300 group-hover:scale-110">
                 </a>
             </div>
 

@@ -97,6 +97,15 @@ class FirebaseService
     }
 
     /**
+     * Send notification to multiple users (couriers, etc)
+     * Alias for sendToUser with better naming for broadcast scenarios
+     */
+    public function sendToUsers($tokens, $data, $title, $body)
+    {
+        return $this->sendToUser($tokens, $data, $title, $body);
+    }
+
+    /**
      * Send notification to specific user devices
      */
     public function sendToUser($tokens, $data, $title, $body)
