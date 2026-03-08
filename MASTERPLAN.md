@@ -2,8 +2,8 @@
 
 > **⚠️ RULE: Setiap AI agent (Opus, Qwen, Claude, dll) yang mengerjakan kode di project ini WAJIB mengupdate file ini setelah menyelesaikan pekerjaan apapun. Lihat `.agents/workflows/update-masterplan.md` untuk instruksi lengkap.**
 
-**Last Updated:** 7 Maret 2026 - Fix Map Picker Z-Index & Container Bounds
-**Project Status:** 99% MVP (Chat media sharing complete for backend + all mobile apps)
+**Last Updated:** 8 Maret 2026 - Chat Media, Review System, Notifications, POS & Wishlist Complete
+**Project Status:** 99% MVP (All core backend features complete)
 **Target Soft Launch:** Mei 2026
 
 ---
