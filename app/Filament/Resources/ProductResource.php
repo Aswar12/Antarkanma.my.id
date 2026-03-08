@@ -79,20 +79,24 @@ class ProductResource extends Resource
                                     ->visibility('public')
                                     ->maxSize(5120)
                                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif'])
-                                    ->getUploadedFileNameForStorageUsing(
-                        fn($file) => 'products/' . Str::random(8) . '.' . $file->getClientOriginalExtension()
-                                    )
-                                    ->afterStateUpdated(function ($state, $set, $get, $record) {
-                                        if (!$state || !$record) return;
+                                    ->imagePreviewHeight('150')
+                                    ->loadingIndicatorPosition('left')
+                                    ->panelLayout('grid')
+                                    ->removeUploadedFileButtonPosition('right')
+                                    ->uploadButtonPosition('right')
+                                    ->saveUploadedFileUsing(function ($record, $file) {
+                                        // Store file with unique name in products directory
+                                        $filename = uniqid() . '.' . $file->getClientOriginalExtension();
+                                        $path = 'products/' . $filename;
 
-                                        $files = is_array($state) ? $state : [$state];
+                                        $file->storeAs('products', $filename, 'public');
 
-                                        foreach ($files as $file) {
-                                            // Create gallery with local storage URL first
-                                            $record->galleries()->create([
-                                                'url' => asset('storage/' . ltrim((string) $file, '/'))
-                                            ]);
-                                        }
+                                        // Create gallery record
+                                        $record->galleries()->create([
+                                            'url' => $path
+                                        ]);
+
+                                        return $path;
                                     }),
                             ]),
                         Forms\Components\Tabs\Tab::make('Varian Produk')

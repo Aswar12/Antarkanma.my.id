@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\UserLocation;
 use App\Models\Merchant;
+use App\Models\User;
 use App\Services\FirebaseService;
 use App\Services\OsrmService;
 use Illuminate\Http\Request;
@@ -248,36 +249,18 @@ class TransactionController extends Controller
                         );
                         Log::info("Notification new_order sent to Merchant ID: {$merchantId}");
                     }
-                }
-                
-                // Send notification to ALL active couriers about new order waiting for assignment
-                $courierTokens = User::where('roles', 'COURIER')
-                    ->whereHas('courier', function($q) {
-                        $q->where('is_active', true);
-                    })
-                    ->with('fcmTokens')
-                    ->get()
-                    ->flatMap(function($courier) {
-                        return $courier->fcmTokens()
-                            ->where('is_active', true)
-                            ->pluck('token');
-                    })
-                    ->toArray();
-                
-                if (!empty($courierTokens)) {
-                    $this->firebaseService->sendToUsers(
-                        $courierTokens,
+
+                    // Create inbox notification for merchant
+                    NotificationController::createInboxNotification(
+                        $merchant->owner,
+                        'new_order',
+                        '📦 Pesanan Baru!',
+                        "Pesanan baru #" . $order->id . " menunggu konfirmasi Anda.",
                         [
-                            'type' => 'new_order_available',
-                            'transaction_id' => $transaction->id,
                             'order_id' => $order->id,
-                            'merchant_name' => $merchant->name,
-                            'total_amount' => $transaction->total_amount,
-                        ],
-                        'Pesanan Baru Tersedia!',
-                        "Ada pesanan baru dari {$merchant->name} menunggu kurir."
+                            'transaction_id' => $transaction->id,
+                        ]
                     );
-                    Log::info("Notification new_order_available sent to " . count($courierTokens) . " courier devices");
                 }
             }
 

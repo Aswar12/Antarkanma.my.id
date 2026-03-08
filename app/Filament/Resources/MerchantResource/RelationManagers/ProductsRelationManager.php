@@ -7,9 +7,7 @@ use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\FileUpload;
-use Filament\Tables\Columns\ImageColumn;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Section;
 
@@ -57,17 +55,29 @@ class ProductsRelationManager extends RelationManager
 
                 Section::make('Product Images')
                     ->schema([
-                        FileUpload::make('galleries.*.image')
+                        FileUpload::make('galleries')
                             ->label('Gambar Produk')
                             ->image()
                             ->multiple()
-                            ->disk('s3')
-                            ->directory('products/images')
+                            ->disk('public')
+                            ->directory('products')
                             ->visibility('public')
-                            ->imageResizeMode('cover')
-                            ->imageCropAspectRatio('16:9')
-                            ->imageResizeTargetWidth('800')
-                            ->imageResizeTargetHeight('450'),
+                            ->maxSize(5120)
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif'])
+                            ->saveUploadedFileUsing(function ($record, $file) {
+                                // Store file with unique name in products directory
+                                $filename = uniqid() . '.' . $file->getClientOriginalExtension();
+                                $path = 'products/' . $filename;
+                                
+                                $file->storeAs('products', $filename, 'public');
+                                
+                                // Create gallery record
+                                $record->galleries()->create([
+                                    'url' => $path
+                                ]);
+                                
+                                return $path;
+                            }),
                     ]),
             ]);
     }
@@ -76,9 +86,11 @@ class ProductsRelationManager extends RelationManager
     {
         return $table
             ->columns([
-                ImageColumn::make('galleries.0.image')
+                Tables\Columns\ImageColumn::make('galleries.0.url')
                     ->label('Image')
-                    ->circular(),
+                    ->circular()
+                    ->size(50)
+                    ->defaultImageUrl(url('/images/default-product.png')),
 
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nama Produk')

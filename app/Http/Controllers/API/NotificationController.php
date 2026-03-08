@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\User;
+use App\Models\Notification;
 use App\Services\FirebaseService;
 use App\Helpers\ResponseFormatter;
 use Illuminate\Support\Facades\Log;
@@ -317,6 +318,203 @@ class NotificationController extends Controller
                 'Gagal mengirim notifikasi test: ' . $e->getMessage(),
                 500
             );
+        }
+    }
+
+    /**
+     * Get all notifications for authenticated user
+     */
+    public function getInbox(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $unreadOnly = $request->query('unread') === '1';
+
+            $query = Notification::forUser($user->id)
+                ->orderBy('created_at', 'desc');
+
+            if ($unreadOnly) {
+                $query->where('is_read', false);
+            }
+
+            $notifications = $query->limit(50)->get();
+
+            return ResponseFormatter::success(
+                $notifications,
+                'Notifications retrieved successfully'
+            );
+
+        } catch (Exception $e) {
+            Log::error('Error getting inbox:', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return ResponseFormatter::error(
+                null,
+                'Gagal mengambil notifikasi: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+    /**
+     * Mark a notification as read
+     */
+    public function markAsRead(Request $request, int $notificationId)
+    {
+        try {
+            $user = $request->user();
+
+            $notification = Notification::forUser($user->id)->find($notificationId);
+
+            if (!$notification) {
+                return ResponseFormatter::error(
+                    null,
+                    'Notifikasi tidak ditemukan',
+                    404
+                );
+            }
+
+            $notification->markAsRead();
+
+            return ResponseFormatter::success(
+                $notification,
+                'Notifikasi berhasil ditandai sebagai dibaca'
+            );
+
+        } catch (Exception $e) {
+            Log::error('Error marking notification as read:', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return ResponseFormatter::error(
+                null,
+                'Gagal menandai notifikasi: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+    /**
+     * Mark all notifications as read
+     */
+    public function markAllAsRead(Request $request)
+    {
+        try {
+            $user = $request->user();
+
+            Notification::forUser($user->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+
+            return ResponseFormatter::success(
+                null,
+                'Semua notifikasi berhasil ditandai sebagai dibaca'
+            );
+
+        } catch (Exception $e) {
+            Log::error('Error marking all notifications as read:', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return ResponseFormatter::error(
+                null,
+                'Gagal menandai semua notifikasi: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+    /**
+     * Get unread notification count
+     */
+    public function getUnreadCount(Request $request)
+    {
+        try {
+            $user = $request->user();
+
+            $count = Notification::forUser($user->id)
+                ->where('is_read', false)
+                ->count();
+
+            return ResponseFormatter::success(
+                ['count' => $count],
+                'Unread count retrieved successfully'
+            );
+
+        } catch (Exception $e) {
+            Log::error('Error getting unread count:', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return ResponseFormatter::error(
+                null,
+                'Gagal mengambil jumlah notifikasi: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+    /**
+     * Delete a notification
+     */
+    public function deleteNotification(Request $request, int $notificationId)
+    {
+        try {
+            $user = $request->user();
+
+            $notification = Notification::forUser($user->id)->find($notificationId);
+
+            if (!$notification) {
+                return ResponseFormatter::error(
+                    null,
+                    'Notifikasi tidak ditemukan',
+                    404
+                );
+            }
+
+            $notification->delete();
+
+            return ResponseFormatter::success(
+                null,
+                'Notifikasi berhasil dihapus'
+            );
+
+        } catch (Exception $e) {
+            Log::error('Error deleting notification:', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return ResponseFormatter::error(
+                null,
+                'Gagal menghapus notifikasi: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+    /**
+     * Create inbox notification (helper method to be called from other controllers)
+     */
+    public static function createInboxNotification(
+        User $user,
+        string $type,
+        string $title,
+        string $message,
+        array $data = []
+    ): void {
+        try {
+            Notification::createNotification(
+                $user->id,
+                $type,
+                $title,
+                $message,
+                $data
+            );
+        } catch (Exception $e) {
+            Log::error('Error creating inbox notification:', [
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

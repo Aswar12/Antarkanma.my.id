@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Exception;
 
 class ChatController extends Controller
@@ -69,9 +70,13 @@ class ChatController extends Controller
                             $data['merchant_id'] = $order->merchant_id;
                         }
                     } elseif ($user->roles === 'USER') {
-                        // Customer initiating chat → recipient depends on context
-                        $recipientId = $order->user->id;
-                        $recipientType = 'USER';
+                        // Customer initiating chat → recipient is MERCHANT (not customer!)
+                        // Get merchant from order
+                        $merchant = \App\Models\Merchant::find($order->merchant_id);
+                        if ($merchant) {
+                            $recipientId = $merchant->owner_id;
+                            $recipientType = 'MERCHANT';
+                        }
                     }
                 }
             }
@@ -292,9 +297,12 @@ class ChatController extends Controller
         try {
             $user = $request->user();
 
-            $chats = Chat::with(['recipient:id,name,profile_photo_path', 'latestMessage'])
-                ->where('user_id', $user->id)
-                ->orWhere('recipient_id', $user->id)
+            // Get chats where user is either the initiator or recipient
+            $chats = Chat::with(['recipient', 'latestMessage', 'order'])
+                ->where(function($query) use ($user) {
+                    $query->where('user_id', $user->id)
+                          ->orWhere('recipient_id', $user->id);
+                })
                 ->whereNull('deleted_at')
                 ->withCount(['messages' => function($query) use ($user) {
                     $query->where('sender_id', '!=', $user->id)->whereNull('read_at');
@@ -303,20 +311,40 @@ class ChatController extends Controller
                 ->paginate(50);
 
             $chatsData = collect($chats->items())->map(function($chat) use ($user) {
-                $otherPartyId = ($chat->user_id === $user->id) 
-                    ? $chat->recipient_id 
+                // Determine the other party (not current user)
+                $otherPartyId = ($chat->user_id === $user->id)
+                    ? $chat->recipient_id
                     : $chat->user_id;
-                
-                $otherParty = \App\Models\User::find($otherPartyId);
-                
+
                 $recipientName = 'Unknown';
                 $recipientAvatar = null;
-                
-                if ($otherParty) {
-                    $recipientName = $otherParty->name;
-                    $recipientAvatar = $otherParty->profile_photo_path;
+                $recipientType = $chat->recipient_type ?? 'USER';
+
+                // Get other party info based on recipient type
+                if ($recipientType === 'MERCHANT') {
+                    // Load merchant with logo
+                    $merchant = null;
+                    if ($chat->order_id) {
+                        // Get merchant from order
+                        $merchant = \App\Models\Merchant::find($chat->order->merchant_id);
+                    } else {
+                        // Try to find merchant by recipient_id (merchant owner)
+                        $merchant = \App\Models\Merchant::where('owner_id', $otherPartyId)->first();
+                    }
+                    
+                    if ($merchant) {
+                        $recipientName = $merchant->name;
+                        $recipientAvatar = $merchant->logo_url;
+                    }
+                } else {
+                    // For USER or COURIER, use user profile photo
+                    $otherParty = \App\Models\User::find($otherPartyId);
+                    if ($otherParty) {
+                        $recipientName = $otherParty->name;
+                        $recipientAvatar = $otherParty->profile_photo_url;
+                    }
                 }
-                
+
                 $orderId = $chat->order_id;
                 if (!$orderId && $chat->transaction_id) {
                     $transaction = \App\Models\Transaction::find($chat->transaction_id);
@@ -324,17 +352,13 @@ class ChatController extends Controller
                         $orderId = $transaction->orders()->first()->id;
                     }
                 }
-                
+
                 return [
                     'id' => $chat->id,
                     'recipient_id' => $otherPartyId,
                     'recipient_name' => $recipientName,
-                    'recipient_type' => $chat->recipient_type ?? 'USER',
-                    'recipient_avatar' => $recipientAvatar
-                        ? (filter_var($recipientAvatar, FILTER_VALIDATE_URL)
-                            ? $recipientAvatar
-                            : url($recipientAvatar))
-                        : null,
+                    'recipient_type' => $recipientType,
+                    'recipient_avatar' => $recipientAvatar,
                     'order_id' => $orderId,
                     'transaction_id' => $chat->transaction_id,
                     'last_message' => $chat->latestMessage?->message ?? null,
@@ -396,13 +420,9 @@ class ChatController extends Controller
 
             $otherPartyId = ($chat->user_id === $user->id) ? $chat->recipient_id : $chat->user_id;
             $otherParty = \App\Models\User::find($otherPartyId);
-            
-            $otherPartyAvatar = $otherParty?->profile_photo_path;
-            if ($otherPartyAvatar) {
-                $otherPartyAvatar = filter_var($otherPartyAvatar, FILTER_VALIDATE_URL) 
-                    ? $otherPartyAvatar 
-                    : url($otherPartyAvatar);
-            }
+
+            // Use profile_photo_url accessor which handles disk properly
+            $otherPartyAvatar = $otherParty?->profile_photo_url;
 
             return response()->json([
                 'success' => true,
@@ -504,13 +524,34 @@ class ChatController extends Controller
     }
 
     /**
-     * Send a message
+     * Send a message (supports text, image upload via multipart, and location)
      */
-    public function sendMessage(SendMessageRequest $request, int $chatId)
+    public function sendMessage(Request $request, int $chatId)
     {
         try {
             $user = $request->user();
-            $data = $request->validated();
+            
+            // Validate request
+            $validator = Validator::make($request->all(), [
+                'message' => 'nullable|string|max:1000',
+                'attachment' => 'nullable|file|image|max:10240', // Max 10MB
+                'type' => 'nullable|in:TEXT,IMAGE,LOCATION',
+                'latitude' => 'nullable|numeric|between:-90,90',
+                'longitude' => 'nullable|numeric|between:-180,180',
+                'location_accuracy' => 'nullable|numeric|min:0',
+                'location_address' => 'nullable|string|max:255',
+                'location_name' => 'nullable|string|max:100',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => $validator->errors()->first()
+                    ]
+                ], 422);
+            }
 
             $chat = Chat::where('id', $chatId)
                 ->where(function($query) use ($user) {
@@ -529,34 +570,65 @@ class ChatController extends Controller
                 ], 404);
             }
 
+            $data = $validator->validated();
             $attachmentUrl = null;
-            $messageType = 'TEXT';
+            $messageType = $data['type'] ?? 'TEXT';
+            $messageText = $data['message'] ?? '';
 
-            if (isset($data['attachment'])) {
+            // Handle image upload via multipart
+            if ($request->hasFile('attachment')) {
                 try {
-                    $imageData = base64_decode($data['attachment']);
-                    $filename = 'chat_' . $chat->id . '_' . time() . '_' . uniqid() . '.jpg';
-                    Storage::disk('public')->put('chat/' . $filename, $imageData);
-                    $attachmentUrl = Storage::disk('public')->url('chat/' . $filename);
+                    $image = $request->file('attachment');
+                    $filename = 'chat_' . $chat->id . '_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+                    $path = $image->storeAs('chat', $filename, 'public');
+                    $attachmentUrl = Storage::disk('public')->url($path);
                     $messageType = 'IMAGE';
                 } catch (Exception $e) {
                     Log::error('Failed to save attachment: ' . $e->getMessage());
+                    return response()->json([
+                        'success' => false,
+                        'error' => [
+                            'code' => 'UPLOAD_ERROR',
+                            'message' => 'Gagal mengupload gambar: ' . $e->getMessage()
+                        ]
+                    ], 500);
                 }
             }
 
-            $message = ChatMessage::create([
+            // Create message
+            $messageData = [
                 'chat_id' => $chat->id,
                 'sender_id' => $user->id,
-                'message' => $data['message'],
+                'message' => $messageText,
                 'attachment_url' => $attachmentUrl,
                 'type' => $messageType,
-            ]);
+            ];
+
+            // Add location data if present
+            if (isset($data['latitude']) && isset($data['longitude'])) {
+                $messageData['latitude'] = $data['latitude'];
+                $messageData['longitude'] = $data['longitude'];
+                $messageData['location_accuracy'] = $data['location_accuracy'] ?? null;
+                $messageData['location_address'] = $data['location_address'] ?? null;
+                $messageData['location_name'] = $data['location_name'] ?? null;
+                $messageType = 'LOCATION';
+                $messageData['type'] = 'LOCATION';
+            }
+
+            $message = ChatMessage::create($messageData);
 
             $chat->update([
                 'last_message_at' => now(),
             ]);
 
-            $this->notifyRecipient($chat, $user, $data['message']);
+            // Send notification
+            $notificationMessage = $messageType === 'IMAGE' 
+                ? '📷 Mengirim gambar' 
+                : ($messageType === 'LOCATION' 
+                    ? '📍 Mengirim lokasi' 
+                    : $messageText);
+            
+            $this->notifyRecipient($chat, $user, $notificationMessage);
 
             return response()->json([
                 'success' => true,
@@ -566,6 +638,8 @@ class ChatController extends Controller
                     'message' => $message->message,
                     'type' => $message->type,
                     'attachment_url' => $message->attachment_url,
+                    'location_data' => $message->location_data,
+                    'google_maps_url' => $message->google_maps_url,
                     'created_at' => $message->created_at->toISOString(),
                 ]
             ], 201);
@@ -578,6 +652,100 @@ class ChatController extends Controller
                 'error' => [
                     'code' => 'SERVER_ERROR',
                     'message' => 'Gagal mengirim pesan: ' . $e->getMessage()
+                ]
+            ], 500);
+        }
+    }
+
+    /**
+     * Share location via chat
+     */
+    public function shareLocation(Request $request, int $chatId)
+    {
+        try {
+            $user = $request->user();
+
+            // Validate request
+            $validator = Validator::make($request->all(), [
+                'latitude' => 'required|numeric|between:-90,90',
+                'longitude' => 'required|numeric|between:-180,180',
+                'location_accuracy' => 'nullable|numeric|min:0',
+                'location_address' => 'nullable|string|max:255',
+                'location_name' => 'nullable|string|max:100',
+                'message' => 'nullable|string|max:1000',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => $validator->errors()->first()
+                    ]
+                ], 422);
+            }
+
+            $chat = Chat::where('id', $chatId)
+                ->where(function($query) use ($user) {
+                    $query->where('user_id', $user->id)
+                          ->orWhere('recipient_id', $user->id);
+                })
+                ->first();
+
+            if (!$chat) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'NOT_FOUND',
+                        'message' => 'Chat tidak ditemukan'
+                    ]
+                ], 404);
+            }
+
+            $data = $validator->validated();
+
+            // Create location message
+            $message = ChatMessage::create([
+                'chat_id' => $chat->id,
+                'sender_id' => $user->id,
+                'message' => $data['message'] ?? '📍 Berbagi lokasi',
+                'type' => 'LOCATION',
+                'latitude' => $data['latitude'],
+                'longitude' => $data['longitude'],
+                'location_accuracy' => $data['location_accuracy'] ?? null,
+                'location_address' => $data['location_address'] ?? null,
+                'location_name' => $data['location_name'] ?? null,
+            ]);
+
+            $chat->update([
+                'last_message_at' => now(),
+            ]);
+
+            // Send notification
+            $locationLabel = $data['location_name'] ?? 'Lokasi';
+            $this->notifyRecipient($chat, $user, "📍 {$locationLabel}");
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lokasi terkirim',
+                'data' => [
+                    'message_id' => $message->id,
+                    'message' => $message->message,
+                    'type' => $message->type,
+                    'location_data' => $message->location_data,
+                    'google_maps_url' => $message->google_maps_url,
+                    'created_at' => $message->created_at->toISOString(),
+                ]
+            ], 201);
+
+        } catch (Exception $e) {
+            Log::error('ChatController::shareLocation error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'SERVER_ERROR',
+                    'message' => 'Gagal berbagi lokasi: ' . $e->getMessage()
                 ]
             ], 500);
         }

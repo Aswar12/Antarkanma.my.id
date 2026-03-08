@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ProductGallery extends Model
 {
@@ -38,29 +39,50 @@ class ProductGallery extends Model
 
     public function getUrlAttribute($value): string
     {
+        // If empty, return placeholder
+        if (empty($value)) {
+            return asset('images/default-product.png');
+        }
+
         // If the URL is already a full URL (starts with http/https), return as is
         if (filter_var($value, FILTER_VALIDATE_URL)) {
             return $value;
         }
 
-        // Generate URL using S3 disk
-        return Storage::disk('s3')->url($value);
+        // For paths like 'products/filename.jpg' - convert to full URL
+        if (strpos($value, 'products/') === 0 || strpos($value, 'merchants/') === 0) {
+            return asset('storage/' . $value);
+        }
+
+        // Fallback: treat as relative path
+        return asset('storage/' . $value);
     }
 
     public function setUrlAttribute($value)
     {
-        // If it's already a full URL, extract just the path
+        // If empty, just set as is
+        if (empty($value)) {
+            $this->attributes['url'] = $value;
+            return;
+        }
+
+        // If it's already a full URL with /storage/, extract just the path
         if (filter_var($value, FILTER_VALIDATE_URL)) {
             $parsedUrl = parse_url($value);
-            $path = ltrim($parsedUrl['path'], '/');
+            $path = ltrim($parsedUrl['path'] ?? '', '/');
             
-            // Remove bucket name if present
-            $bucket = config('filesystems.disks.s3.bucket');
-            $path = str_replace($bucket . '/', '', $path);
-            
-            $value = $path;
+            // If it's a local storage URL (e.g., http://localhost/storage/...), store just the path
+            if (strpos($path, 'storage/') === 0) {
+                $path = str_replace('storage/', '', $path);
+                $value = $path;
+            } else {
+                // For S3 URLs, remove bucket name if present
+                $bucket = config('filesystems.disks.s3.bucket') ?? 'antarkanma';
+                $path = str_replace($bucket . '/', '', $path);
+                $value = $path;
+            }
         }
-        
+
         $this->attributes['url'] = trim(str_replace('"', '', $value));
     }
 

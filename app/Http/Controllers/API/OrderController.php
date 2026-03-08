@@ -129,6 +129,12 @@ class OrderController extends Controller
                 return $item->quantity * $item->price;
             });
 
+            // Add flag for kitchen ticket printing availability
+            // Can print if order is not canceled and has been approved by merchant
+            $orderArray['can_print_kitchen_ticket'] = 
+                $order->order_status !== Order::STATUS_CANCELED &&
+                $order->merchant_approval === Order::MERCHANT_APPROVED;
+
             // Remove redundant data
             unset($orderArray['orderItems']);
             unset($orderArray['user_id']);
@@ -210,6 +216,18 @@ class OrderController extends Controller
                                 ],
                                 'Pesanan Siap',
                                 'Pesanan #' . $order->id . ' sudah siap dan akan segera diambil oleh kurir'
+                            );
+
+                            // Save to Database Inbox
+                            \App\Http\Controllers\API\NotificationController::createInboxNotification(
+                                $order->transaction->user,
+                                'order_ready',
+                                'Pesanan Siap',
+                                'Pesanan #' . $order->id . ' sudah siap dan akan segera diambil oleh kurir',
+                                [
+                                    'order_id' => $order->id,
+                                    'transaction_id' => $order->transaction->id
+                                ]
                             );
                         }
                     }
@@ -392,30 +410,56 @@ class OrderController extends Controller
                                     ? 'Pesanan #' . $order->id . ' telah disetujui dan sedang diproses'
                                     : 'Pesanan #' . $order->id . ' ditolak: ' . $request->reason
                             );
-                        }
-                    }
 
-                    // Notify courier if assigned
-                    if ($order->transaction && $order->transaction->courier && $order->transaction->courier->user) {
-                        $courierTokens = $order->transaction->courier->user->fcmTokens()
-                            ->where('is_active', true)
-                            ->pluck('token')
-                            ->toArray();
-
-                        if (!empty($courierTokens)) {
-                            $this->firebaseService->sendToUser(
-                                $courierTokens,
+                            // Save to Database Inbox
+                            \App\Http\Controllers\API\NotificationController::createInboxNotification(
+                                $order->transaction->user,
+                                $request->is_approved ? 'order_approved' : 'order_rejected',
+                                $request->is_approved ? 'Pesanan Disetujui' : 'Pesanan Ditolak',
+                                $request->is_approved
+                                    ? 'Pesanan #' . $order->id . ' telah disetujui dan sedang diproses'
+                                    : 'Pesanan #' . $order->id . ' ditolak: ' . $request->reason,
                                 [
-                                    'type' => $request->is_approved ? 'merchant_approved_order' : 'merchant_rejected_order',
                                     'order_id' => $order->id,
                                     'transaction_id' => $order->transaction->id,
                                     'reason' => $request->reason ?? null
-                                ],
-                                'Status Pesanan Diperbarui',
-                                $request->is_approved
-                                    ? 'Pesanan #' . $order->id . ' telah disetujui oleh merchant'
-                                    : 'Pesanan #' . $order->id . ' telah ditolak oleh merchant'
+                                ]
                             );
+                        }
+                    }
+
+                    // Notify all active couriers to trigger order discovery if approved
+                    if ($request->is_approved) {
+                        $courierTokens = \App\Models\User::where('roles', 'COURIER')
+                            ->whereHas('courier', function($q) {
+                                $q->where('is_active', true);
+                            })
+                            ->with('fcmTokens')
+                            ->get()
+                            ->flatMap(function($courier) {
+                                return $courier->fcmTokens()
+                                    ->where('is_active', true)
+                                    ->pluck('token');
+                            })
+                            ->toArray();
+                        
+                        if (!empty($courierTokens)) {
+                            // Fetch merchant name if loaded, otherwise empty or fallback
+                            $merchantName = $order->merchant ? $order->merchant->name : 'Merchant';
+
+                            $this->firebaseService->sendToUsers(
+                                $courierTokens,
+                                [
+                                    'type' => 'new_order_available',
+                                    'transaction_id' => $order->transaction->id,
+                                    'order_id' => $order->id,
+                                    'merchant_name' => $merchantName,
+                                    'total_amount' => $order->transaction->total_amount,
+                                ],
+                                'Pesanan Baru Tersedia!',
+                                "Ada pesanan baru dari {$merchantName} menunggu kurir."
+                            );
+                            Log::info("Notification new_order_available sent to " . count($courierTokens) . " courier devices");
                         }
                     }
                 } catch (\Exception $e) {
@@ -652,7 +696,7 @@ class OrderController extends Controller
     {
         try {
             $perPage = $request->input('per_page', 10);
-            $status = $request->input('status');
+            $status = $request->input('order_status', $request->input('status'));
             $startDate = $request->input('start_date');
             $endDate = $request->input('end_date');
             $search = $request->input('search');
@@ -787,6 +831,12 @@ class OrderController extends Controller
                     return $item->quantity * $item->price;
                 });
 
+                // Add flag for kitchen ticket printing availability
+                // Can print if order is not canceled and has been approved by merchant
+                $orderArray['can_print_kitchen_ticket'] = 
+                    $order->order_status !== Order::STATUS_CANCELED &&
+                    $order->merchant_approval === Order::MERCHANT_APPROVED;
+
                 // Remove redundant data
                 unset($orderArray['orderItems']);
                 unset($orderArray['user_id']);
@@ -874,5 +924,107 @@ class OrderController extends Controller
                 500
             );
         }
+    }
+
+    /**
+     * Print kitchen ticket for order - similar to POS/kasir print functionality
+     * Returns formatted ticket data for printing
+     */
+    public function printKitchenTicket(Request $request, $orderId)
+    {
+        try {
+            $order = Order::with([
+                'orderItems.product',
+                'orderItems.variant',
+                'transaction',
+                'transaction.user',
+                'transaction.userLocation',
+                'merchant'
+            ])->findOrFail($orderId);
+
+            // Verify merchant ownership
+            $merchantId = $this->getMerchantId($request);
+            if (!$merchantId) {
+                return ResponseFormatter::error('Merchant not found', 404);
+            }
+
+            if ($order->merchant_id !== $merchantId) {
+                return ResponseFormatter::error(
+                    null,
+                    'Unauthorized: Order does not belong to this merchant',
+                    403
+                );
+            }
+
+            // Format order items for kitchen ticket
+            $ticketItems = collect($order->orderItems)->map(function ($item) {
+                return [
+                    'product_name' => $item->product->name,
+                    'variant_name' => $item->variant?->name,
+                    'quantity' => $item->quantity,
+                    'notes' => $item->customer_note,
+                    'price' => $item->price,
+                    'subtotal' => $item->quantity * $item->price,
+                ];
+            });
+
+            // Build ticket data
+            $ticketData = [
+                'ticket_number' => 'ORD-' . str_pad($order->id, 6, '0', STR_PAD_LEFT),
+                'order_date' => $order->created_at->format('d M Y, H:i'),
+                'order_type' => 'Online Order',
+                'status' => $order->order_status,
+                'merchant' => [
+                    'name' => $order->merchant->name,
+                    'address' => $order->merchant->address,
+                    'phone' => $order->merchant->phone ?? '',
+                ],
+                'customer' => [
+                    'name' => $order->transaction->user->name,
+                    'phone' => $order->transaction->user->phone_number,
+                ],
+                'delivery_address' => $order->transaction->userLocation ? [
+                    'customer_name' => $order->transaction->userLocation->customer_name,
+                    'address' => $order->transaction->userLocation->address,
+                    'city' => $order->transaction->userLocation->city,
+                    'district' => $order->transaction->userLocation->district,
+                    'postal_code' => $order->transaction->userLocation->postal_code,
+                    'phone' => $order->transaction->userLocation->phone_number,
+                    'notes' => $order->transaction->userLocation->notes,
+                ] : null,
+                'items' => $ticketItems,
+                'subtotal' => $ticketItems->sum('subtotal'),
+                'shipping_fee' => $order->transaction->shipping_price ?? 0,
+                'total' => $order->total_amount,
+                'payment_method' => $order->transaction->payment_method,
+                'payment_status' => $order->transaction->payment_status,
+                'notes' => $order->customer_note,
+                'print_time' => now()->format('Y-m-d H:i:s'),
+            ];
+
+            return ResponseFormatter::success(
+                $ticketData,
+                'Kitchen ticket ready for printing'
+            );
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Failed to generate kitchen ticket: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+    /**
+     * Get merchant ID for authenticated user
+     */
+    private function getMerchantId(Request $request): ?int
+    {
+        $user = $request->user();
+        if (!$user) return null;
+
+        $merchant = \App\Models\Merchant::where('owner_id', $user->id)->first();
+        return $merchant?->id;
     }
 }

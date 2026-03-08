@@ -86,4 +86,28 @@ class Courier extends Model
         $this->wallet_balance += $amount;
         return $this->save();
     }
+
+    /**
+     * Get reviews for this courier
+     */
+    public function reviews()
+    {
+        return $this->hasMany(CourierReview::class, 'courier_id');
+    }
+
+    /**
+     * Get average rating for this courier
+     */
+    public function getAverageRatingAttribute()
+    {
+        return $this->reviews()->avg('rating') ?? 0;
+    }
+
+    /**
+     * Get total review count for this courier
+     */
+    public function getTotalReviewsAttribute()
+    {
+        return $this->reviews()->count();
+    }
 }

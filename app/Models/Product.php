@@ -104,4 +104,9 @@ class Product extends Model
     {
         return $query->where('status', 'ACTIVE');
     }
+
+    public function wishlistedBy()
+    {
+        return $this->belongsToMany(User::class, 'wishlists')->withTimestamps();
+    }
 }

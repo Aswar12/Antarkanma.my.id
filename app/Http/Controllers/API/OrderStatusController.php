@@ -12,6 +12,7 @@ use App\Services\FirebaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\ResponseFormatter;
+use App\Http\Controllers\API\NotificationController;
 
 class OrderStatusController extends Controller
 {
@@ -79,6 +80,19 @@ class OrderStatusController extends Controller
                     ],
                     'Pesanan Diproses',
                     $message
+                );
+
+                // Save to Database Inbox
+                NotificationController::createInboxNotification(
+                    $order->user,
+                    'order_processing',
+                    'Pesanan Diproses',
+                    $message,
+                    [
+                        'order_id' => $order->id,
+                        'transaction_id' => $order->transaction->id,
+                        'payment_method' => $order->transaction->payment_method
+                    ]
                 );
             }
 
@@ -169,6 +183,18 @@ class OrderStatusController extends Controller
                         'Pesanan Siap',
                         'Pesanan Anda sudah siap dan akan segera diambil oleh kurir'
                     );
+
+                    // Save to Database Inbox
+                    NotificationController::createInboxNotification(
+                        $order->transaction->user,
+                        'order_ready_pickup',
+                        'Pesanan Siap',
+                        'Pesanan Anda sudah siap dan akan segera diambil oleh kurir',
+                        [
+                            'order_id' => $order->id,
+                            'transaction_id' => $order->transaction->id
+                        ]
+                    );
                 }
             }
 
@@ -235,6 +261,19 @@ class OrderStatusController extends Controller
                     ],
                     'Pesanan Selesai',
                     $message
+                );
+
+                // Save to Database Inbox
+                NotificationController::createInboxNotification(
+                    $order->user,
+                    'order_completed',
+                    'Pesanan Selesai',
+                    $message,
+                    [
+                        'order_id' => $order->id,
+                        'transaction_id' => $order->transaction->id,
+                        'payment_method' => $order->transaction->payment_method
+                    ]
                 );
             }
 
@@ -303,6 +342,20 @@ class OrderStatusController extends Controller
                     ],
                     'Pesanan Dibatalkan',
                     $message
+                );
+
+                // Save to Database Inbox
+                NotificationController::createInboxNotification(
+                    $order->user,
+                    'order_canceled',
+                    'Pesanan Dibatalkan',
+                    $message,
+                    [
+                        'order_id' => $order->id,
+                        'transaction_id' => $order->transaction->id,
+                        'refund_needed' => $order->transaction->payment_method === 'ONLINE' &&
+                                         $order->transaction->payment_status === 'COMPLETED'
+                    ]
                 );
             }
 
