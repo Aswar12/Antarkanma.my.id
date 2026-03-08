@@ -6,22 +6,19 @@ use App\Filament\Resources\MerchantResource\Pages;
 use App\Filament\Resources\MerchantResource\RelationManagers;
 use App\Models\Merchant;
 use App\Models\User;
-use Illuminate\Support\Facades\Storage;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Tables\Columns\ImageColumn;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\TimePicker;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Toggle;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Support\Facades\DB;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\TimePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Toggle;
 use Filament\Tables\Actions\Action;
 
 class MerchantResource extends Resource
@@ -90,6 +87,21 @@ class MerchantResource extends Resource
                         Forms\Components\Textarea::make('description')
                             ->label('Deskripsi')
                             ->columnSpanFull(),
+
+                        FileUpload::make('logo')
+                            ->label('Logo Merchant')
+                            ->image()
+                            ->disk('public')
+                            ->directory('merchants/logos')
+                            ->visibility('public')
+                            ->imageCropAspectRatio('1:1')
+                            ->maxSize(2048)
+                            ->imagePreviewHeight('50')
+                            ->loadingIndicatorPosition('left')
+                            ->panelLayout('compact')
+                            ->removeUploadedFileButtonPosition('right')
+                            ->uploadButtonPosition('right')
+                            ->helperText('Upload logo merchant (max 2MB).'),
                     ]),
 
                 Section::make('Operating Hours')
@@ -140,6 +152,24 @@ class MerchantResource extends Resource
                         ]),
                     ]),
 
+                Section::make('QRIS Payment')
+                    ->description('Upload QRIS for customer payment')
+                    ->schema([
+                        FileUpload::make('qris_url')
+                            ->label('QRIS Code')
+                            ->image()
+                            ->disk('public')
+                            ->directory('merchants/qris')
+                            ->visibility('public')
+                            ->maxSize(2048)
+                            ->imagePreviewHeight('50')
+                            ->loadingIndicatorPosition('left')
+                            ->panelLayout('compact')
+                            ->removeUploadedFileButtonPosition('right')
+                            ->uploadButtonPosition('right')
+                            ->helperText('Upload QRIS code untuk pembayaran customer'),
+                    ]),
+
             ]);
     }
 
@@ -147,11 +177,17 @@ class MerchantResource extends Resource
     {
         return $table
             ->columns([
-                ImageColumn::make('logo_url')
+                Tables\Columns\ImageColumn::make('logo')
                     ->label('Logo')
                     ->circular()
-                    ->size(100)
+                    ->size(50)
                     ->defaultImageUrl(url('/images/default-merchant.png')),
+
+                Tables\Columns\ImageColumn::make('qris_url_full')
+                    ->label('QRIS')
+                    ->circular()
+                    ->size(100)
+                    ->placeholder('Belum ada QRIS'),
 
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nama Merchant')
@@ -194,6 +230,7 @@ class MerchantResource extends Resource
                     ]),
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Action::make('toggleStatus')
                     ->label(fn (Merchant $record): string => $record->status === 'active' ? 'Deactivate' : 'Activate')
@@ -244,6 +281,7 @@ class MerchantResource extends Resource
         return [
             'index' => Pages\ListMerchants::route('/'),
             'create' => Pages\CreateMerchant::route('/create'),
+            'view' => Pages\ViewMerchant::route('/{record}'),
             'edit' => Pages\EditMerchant::route('/{record}/edit'),
         ];
     }

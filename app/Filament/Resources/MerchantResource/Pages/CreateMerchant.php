@@ -9,4 +9,15 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateMerchant extends CreateRecord
 {
     protected static string $resource = MerchantResource::class;
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        // Handle logo upload - Filament returns array for file uploads
+        if (isset($data['logo']) && is_array($data['logo']) && !empty($data['logo'])) {
+            // Get the first uploaded file (Filament stores as array)
+            $data['logo'] = $data['logo'][0];
+        }
+
+        return $data;
+    }
 }

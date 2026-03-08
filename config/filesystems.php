@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'default' => env('FILESYSTEM_DISK', 's3'),
+    'default' => env('FILESYSTEM_DISK', 'public'),
 
     'disks' => [
         'local' => [
@@ -13,7 +13,7 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => '/storage',
+            'url' => env('APP_URL').'/storage',
             'visibility' => 'public',
             'throw' => false,
         ],

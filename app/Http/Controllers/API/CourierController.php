@@ -254,6 +254,15 @@ class CourierController extends Controller
                             'Kurir Ditemukan',
                             'Kurir telah menerima pesanan Anda dan sedang menuju merchant.'
                         );
+
+                        // Save to Database Inbox
+                        \App\Http\Controllers\API\NotificationController::createInboxNotification(
+                            $transaction->user,
+                            'courier_found',
+                            'Kurir Ditemukan',
+                            'Kurir telah menerima pesanan Anda dan sedang menuju merchant.',
+                            ['transaction_id' => $transaction->id]
+                        );
                     }
                 }
             } catch (\Exception $e) {
@@ -338,6 +347,15 @@ class CourierController extends Controller
                             ['type' => 'courier_at_merchant', 'transaction_id' => $transaction->id],
                             'Kurir di Merchant',
                             'Kurir sedang mengambil pesanan Anda di merchant.'
+                        );
+
+                        // Save to Database Inbox
+                        \App\Http\Controllers\API\NotificationController::createInboxNotification(
+                            $transaction->user,
+                            'courier_at_merchant',
+                            'Kurir di Merchant',
+                            'Kurir sedang mengambil pesanan Anda di merchant.',
+                            ['transaction_id' => $transaction->id]
                         );
                     }
                 }
@@ -429,6 +447,15 @@ class CourierController extends Controller
                             'Pesanan Diambil',
                             $message
                         );
+
+                        // Save to Database Inbox
+                        \App\Http\Controllers\API\NotificationController::createInboxNotification(
+                            $transaction->user,
+                            'order_picked_up',
+                            'Pesanan Diambil',
+                            $message,
+                            ['order_id' => $order->id, 'transaction_id' => $transaction->id]
+                        );
                     }
                 }
             } catch (\Exception $e) {
@@ -493,6 +520,15 @@ class CourierController extends Controller
                             ['type' => 'courier_arrived_at_customer', 'transaction_id' => $transaction->id],
                             'Kurir Sudah Tiba! 🎉',
                             'Kurir sudah tiba di lokasi Anda. Segera ambil pesanan Anda.'
+                        );
+
+                        // Save to Database Inbox
+                        \App\Http\Controllers\API\NotificationController::createInboxNotification(
+                            $transaction->user,
+                            'courier_arrived_at_customer',
+                            'Kurir Sudah Tiba! 🎉',
+                            'Kurir sudah tiba di lokasi Anda. Segera ambil pesanan Anda.',
+                            ['transaction_id' => $transaction->id]
                         );
                     }
                 }
@@ -575,6 +611,15 @@ class CourierController extends Controller
                             ['type' => 'order_completed', 'order_id' => $order->id, 'transaction_id' => $transaction->id, 'transaction_completed' => $transactionCompleted],
                             $title,
                             $body
+                        );
+
+                        // Save to Database Inbox
+                        \App\Http\Controllers\API\NotificationController::createInboxNotification(
+                            $transaction->user,
+                            'order_completed',
+                            $title,
+                            $body,
+                            ['order_id' => $order->id, 'transaction_id' => $transaction->id, 'transaction_completed' => $transactionCompleted]
                         );
                     }
                 }

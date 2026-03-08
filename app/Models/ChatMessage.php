@@ -17,6 +17,11 @@ class ChatMessage extends Model
         'attachment_url',
         'type',
         'read_at',
+        'latitude',
+        'longitude',
+        'location_accuracy',
+        'location_address',
+        'location_name',
     ];
 
     protected $casts = [
@@ -24,6 +29,9 @@ class ChatMessage extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
+        'latitude' => 'decimal:8',
+        'longitude' => 'decimal:8',
+        'location_accuracy' => 'decimal:2',
     ];
 
     public function chat()
@@ -59,6 +67,41 @@ class ChatMessage extends Model
     public function isText()
     {
         return $this->type === 'TEXT';
+    }
+
+    public function isLocation()
+    {
+        return $this->type === 'LOCATION';
+    }
+
+    /**
+     * Get location data as array
+     */
+    public function getLocationDataAttribute()
+    {
+        if (!$this->isLocation()) {
+            return null;
+        }
+
+        return [
+            'latitude' => (float) $this->latitude,
+            'longitude' => (float) $this->longitude,
+            'accuracy' => (float) $this->location_accuracy,
+            'address' => $this->location_address,
+            'name' => $this->location_name,
+        ];
+    }
+
+    /**
+     * Get Google Maps URL for this location
+     */
+    public function getGoogleMapsUrlAttribute()
+    {
+        if (!$this->latitude || !$this->longitude) {
+            return null;
+        }
+
+        return "https://www.google.com/maps?q={$this->latitude},{$this->longitude}";
     }
 
     /**

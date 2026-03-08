@@ -259,17 +259,27 @@ class UserController extends Controller
             if ($request->hasFile('photo')) {
                 // Delete old photo if exists
                 if ($user->profile_photo_path) {
-                    Storage::disk('s3')->delete($user->profile_photo_path);
+                    // Check if using S3 or local storage
+                    if (config('filesystems.default') === 's3' && config('aws.key')) {
+                        Storage::disk('s3')->delete($user->profile_photo_path);
+                    } else {
+                        Storage::disk('public')->delete($user->profile_photo_path);
+                    }
                 }
 
                 // Generate filename
                 $filename = 'user-' . $user->id . '-' . Str::random(8) . '.' . $request->file('photo')->getClientOriginalExtension();
 
-                // Store new photo in S3
+                // Use local storage for development, S3 for production
+                $disk = config('filesystems.default') === 's3' && config('aws.key') ? 's3' : 'public';
+                
+                // Store new photo
                 $path = $request->file('photo')->storeAs(
                     'profile-photos',
                     $filename,
-                    ['disk' => 's3', 'visibility' => 'public']
+                    $disk === 's3' 
+                        ? ['disk' => 's3', 'visibility' => 'public']
+                        : ['disk' => 'public', 'visibility' => 'public']
                 );
 
                 // Update user profile photo
@@ -277,17 +287,39 @@ class UserController extends Controller
                     'profile_photo_path' => $path
                 ]);
 
-                // Reload user data
+                // Reload user with relationships
                 $user = User::find($user->id);
+                
+                // Load relationships based on user role
+                if ($user->roles === 'MERCHANT') {
+                    $user->load('merchant');
+                } elseif ($user->roles === 'COURIER') {
+                    $user->load('courier');
+                }
+
+                // Prepare user data with courier_id for easy access
+                $userData = $user->toArray();
+                if ($user->roles === 'COURIER' && $user->courier) {
+                    $userData['courier_id'] = $user->courier->id;
+                    $userData['courier'] = $user->courier;
+                }
+
+                // Get URL based on disk
+                $url = $disk === 's3'
+                    ? Storage::disk('s3')->url($path)
+                    : asset('storage/' . $path);
 
                 return ResponseFormatter::success([
                     'path' => $path,
-                    'url' => Storage::disk('s3')->url($path)
+                    'url' => $url,
+                    'user' => $userData // Return full user data with new photo
                 ], 'Foto profile berhasil diupload');
             }
 
             return ResponseFormatter::error('No photo uploaded', 'Gagal mengupload foto', 400);
         } catch (Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Profile Photo Upload Error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error($e->getTraceAsString());
             return ResponseFormatter::error($e->getMessage(), 'Gagal mengupload foto', 500);
         }
     }

@@ -10,6 +10,7 @@ use App\Http\Controllers\API\MerchantController;
 use App\Http\Controllers\API\ProductCategoryController;
 use App\Http\Controllers\API\ProductGalleryController;
 use App\Http\Controllers\API\OrderController;
+use App\Http\Controllers\API\OrderItemController;
 use App\Http\Controllers\API\OrderStatusController;
 use App\Http\Controllers\API\CourierController;
 use App\Http\Controllers\API\TransactionController;
@@ -21,12 +22,14 @@ use App\Http\Controllers\API\NotificationController;
 // S3TestController removed — test routes commented out
 use App\Http\Controllers\API\NotificationTestController;
 use App\Http\Controllers\API\ProductReviewController;
+use App\Http\Controllers\TransactionReviewController;
 use App\Http\Controllers\API\WalletTopupController;
 use App\Http\Controllers\API\QrisController;
 use App\Http\Controllers\API\AnalyticsController;
 use App\Http\Controllers\API\MerchantAnalyticsController;
 use App\Http\Controllers\API\CourierAnalyticsController;
 use App\Http\Controllers\API\ExportController;
+use App\Http\Controllers\API\WishlistController;
 
 Route::get('/health', function () {
     try {
@@ -57,9 +60,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/fcm/token', [FcmController::class, 'storeOrUpdateToken']);
     Route::delete('/fcm/token', [FcmController::class, 'removeToken']);
     Route::post('/fcm/topic/subscribe', [FcmController::class, 'subscribeTopic']);
+    
+    // Notification Inbox Routes
+    Route::get('/notifications', [NotificationController::class, 'getInbox']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'getUnreadCount']);
+    Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{id}', [NotificationController::class, 'deleteNotification']);
     Route::post('/notifications/test/merchant', [NotificationController::class, 'testMerchantNotification']);
 
+    // Wishlist Routes
+    Route::get('/wishlist', [WishlistController::class, 'index']);
+    Route::post('/wishlist/toggle', [WishlistController::class, 'toggle']);
+    Route::post('/wishlist/check', [WishlistController::class, 'check']);
+
     // Product Review Routes
+    Route::get('products/{id}/reviews', [ProductReviewController::class, 'getByProduct']);
     Route::post('reviews', [ProductReviewController::class, 'store']);
     Route::put('reviews/{id}', [ProductReviewController::class, 'update']);
     Route::delete('reviews/{id}', [ProductReviewController::class, 'destroy']);
@@ -162,6 +178,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('merchants/orders/{orderId}/approve', [OrderController::class, 'approveOrder']);
     Route::put('merchants/orders/{orderId}/reject', [OrderController::class, 'rejectOrder']);
     Route::put('merchants/orders/{orderId}/ready', [OrderController::class, 'markAsReady']);
+    
+    // Kitchen Ticket Print route (for merchant online orders)
+    Route::get('orders/{orderId}/print-kitchen-ticket', [OrderController::class, 'printKitchenTicket']);
 
     // Courier Transaction Routes
     Route::prefix('courier')->group(function () {
@@ -218,6 +237,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/merchants/{merchantId}/transaction-summary', [TransactionController::class, 'getTransactionSummaryByMerchant']);
     Route::get('/merchants/{merchantId}/transactions', [TransactionController::class, 'getByMerchant']);
 
+    // Transaction Review Routes
+    Route::post('/transactions/{id}/review', [TransactionReviewController::class, 'submitReview']);
+    Route::get('/transactions/{id}/review-status', [TransactionReviewController::class, 'getReviewStatus']);
+    Route::get('/merchants/{id}/reviews', [TransactionReviewController::class, 'getMerchantReviews']);
+    Route::get('/couriers/{id}/reviews', [TransactionReviewController::class, 'getCourierReviews']);
+
     Route::get('/user-locations', [UserLocationController::class, 'index']);
     Route::post('/user-locations', [UserLocationController::class, 'store']);
     Route::get('/user-locations/{id}', [UserLocationController::class, 'show']);
@@ -235,6 +260,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/chat/{chatId}', [App\Http\Controllers\API\ChatController::class, 'getChatDetail']);
         Route::get('/chat/{chatId}/messages', [App\Http\Controllers\API\ChatController::class, 'getMessages']);
         Route::post('/chat/{chatId}/send', [App\Http\Controllers\API\ChatController::class, 'sendMessage']);
+        Route::post('/chat/{chatId}/share-location', [App\Http\Controllers\API\ChatController::class, 'shareLocation']);
         Route::put('/chat/{chatId}/read', [App\Http\Controllers\API\ChatController::class, 'markAsRead']);
         Route::post('/chat/{chatId}/close', [App\Http\Controllers\API\ChatController::class, 'closeChat']);
         Route::delete('/chat/{chatId}', [App\Http\Controllers\API\ChatController::class, 'deleteChat']);
@@ -268,6 +294,26 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/sales', [MerchantAnalyticsController::class, 'sales']);
         Route::get('/top-products', [MerchantAnalyticsController::class, 'topProducts']);
         Route::get('/peak-hours', [MerchantAnalyticsController::class, 'peakHours']);
+    });
+
+    // POS Routes
+    Route::prefix('merchant/pos')->group(function () {
+        Route::get('/products', [App\Http\Controllers\API\PosController::class, 'getProducts']);
+        Route::post('/transactions', [App\Http\Controllers\API\PosController::class, 'createTransaction']);
+        Route::get('/transactions', [App\Http\Controllers\API\PosController::class, 'getTransactions']);
+        Route::get('/transactions/{id}', [App\Http\Controllers\API\PosController::class, 'getTransaction']);
+        Route::post('/transactions/{id}/void', [App\Http\Controllers\API\PosController::class, 'voidTransaction']);
+        Route::get('/daily-summary', [App\Http\Controllers\API\PosController::class, 'getDailySummary']);
+    });
+
+    // Merchant Finance Routes
+    Route::prefix('merchant/finance')->group(function () {
+        Route::get('/overview', [App\Http\Controllers\API\MerchantFinanceController::class, 'getOverview']);
+        Route::get('/income', [App\Http\Controllers\API\MerchantFinanceController::class, 'getIncomeBreakdown']);
+        Route::get('/expenses', [App\Http\Controllers\API\MerchantFinanceController::class, 'getExpenses']);
+        Route::post('/expenses', [App\Http\Controllers\API\MerchantFinanceController::class, 'createExpense']);
+        Route::put('/expenses/{id}', [App\Http\Controllers\API\MerchantFinanceController::class, 'updateExpense']);
+        Route::delete('/expenses/{id}', [App\Http\Controllers\API\MerchantFinanceController::class, 'deleteExpense']);
     });
 });
 

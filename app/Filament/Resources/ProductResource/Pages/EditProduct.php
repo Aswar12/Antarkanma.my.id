@@ -18,6 +18,17 @@ class EditProduct extends EditRecord
         ];
     }
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // Handle galleries upload - Filament returns array for file uploads
+        if (isset($data['galleries']) && is_array($data['galleries']) && !empty($data['galleries'])) {
+            // Get the first uploaded file if only one, or keep array for multiple
+            $data['galleries'] = $data['galleries'];
+        }
+
+        return $data;
+    }
+
     protected function afterFill(): void
     {
         // Get all galleries that are still in public storage

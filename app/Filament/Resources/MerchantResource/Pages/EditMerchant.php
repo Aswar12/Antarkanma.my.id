@@ -16,4 +16,15 @@ class EditMerchant extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // Handle logo upload - Filament returns array for file uploads
+        if (isset($data['logo']) && is_array($data['logo']) && !empty($data['logo'])) {
+            // Get the first uploaded file (Filament stores as array)
+            $data['logo'] = $data['logo'][0];
+        }
+
+        return $data;
+    }
 }

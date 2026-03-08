@@ -28,7 +28,8 @@ class User extends Authenticatable implements FilamentUser
      */
     protected function profilePhotoDisk()
     {
-        return 's3';
+        // Use the configured filesystem disk (public for local, s3 for production)
+        return config('filesystems.default', 'public');
     }
 
     protected $fillable = [
@@ -118,5 +119,15 @@ class User extends Authenticatable implements FilamentUser
     public function loyaltyPoints()
     {
         return $this->hasMany(LoyaltyPoint::class);
+    }
+
+    public function wishlists()
+    {
+        return $this->hasMany(Wishlist::class);
+    }
+
+    public function wishlistProducts()
+    {
+        return $this->belongsToMany(Product::class, 'wishlists')->withTimestamps();
     }
 }
