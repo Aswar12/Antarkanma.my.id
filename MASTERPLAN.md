@@ -1,760 +1,461 @@
-# AntarkanMa — MASTERPLAN
+# 📋 AntarkanMa — MASTERPLAN
 
-> **⚠️ RULE: Setiap AI agent (Opus, Qwen, Claude, dll) yang mengerjakan kode di project ini WAJIB mengupdate file ini setelah menyelesaikan pekerjaan apapun. Lihat `.agents/workflows/update-masterplan.md` untuk instruksi lengkap.**
+> **⚠️ RULE:** Setiap AI agent WAJIB update file ini setelah menyelesaikan task. Lihat [`.agents/workflows/update-masterplan.md`](.agents/workflows/update-masterplan.md)
+>
+> **📚 Dokumentasi Lengkap:** [`docs/AntarkanMa/README.md`](docs/AntarkanMa/README.md)
+> **🧪 Test Data:** [`docs/TEST_DATA.md`](docs/TEST_DATA.md)
+> **📦 Archive:** [`docs/ARCHIVE.md`](docs/ARCHIVE.md)
+> **🚀 AI Startup:** [`docs/QUICKSTART.md`](docs/QUICKSTART.md)
 
-**Last Updated:** 8 Maret 2026 - Chat Media, Review System, Notifications, POS & Wishlist Complete
-**Project Status:** 99% MVP (All core backend features complete)
+---
+
+## 🎯 Status Project
+
+**Last Updated:** 12 Maret 2026 (Order ID Copy-to-Clipboard ✅ + Cart Sync Verified ✅ + Stock Management Removed)
+**Status:** 99% MVP Complete ✅
 **Target Soft Launch:** Mei 2026
 
----
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Backend (Laravel) | ✅ 100% | All endpoints complete + Dual QRIS + Cart Sync |
+| Merchant App | ⚠️ **85%** | **Audit complete** - 2 critical gaps (stock removed) |
+| Courier App | ✅ **98%** | **Audit complete** - External Navigation + Order ID Copy! |
+| Customer App | ✅ **96%** | **Cart Sync Verified!** - Cross-device sync ready + Order ID Copy |
+| Admin Panel | ✅ **100%** | Cart Analytics page added |
+| Documentation | ✅ 100% | Dual QRIS docs added |
+| Testing | ⚠️ 5% | Needs work |
 
-## 🔑 Test Accounts
-
-**Password untuk SEMUA akun:** `antarkanma123`
-
-### Akun Utama (Dibuat Manual)
-
-| Name | Email | Role | Password | Description |
-|------|-------|------|----------|-------------|
-| Admin AntarkanMa | antarkanma@gmail.com | ADMIN | antarkanma123 | Administrator |
-| aswar | aswarthedoctor@gmail.com | USER | antarkanma123 | Customer/User account |
-| koneksi rasa | koneksi@rasa.com | MERCHANT | antarkanma123 | Merchant account |
-| kuri antarkanma | kurir@antarkanma.com | COURIER | antarkanma123 | Courier account |
-
-### Akun User Lainnya (56 akun)
-
-| ID | Name | Email |
-|----|------|-------|
-| 13 | Mathias Brekke | aylin49@example.net |
-| 14 | Hunter Parisian | georgette78@example.org |
-| 15 | Kaitlin Satterfield | ettie99@example.org |
-| 16 | Dr. Quinten Nolan V | maybelle.pacocha@example.com |
-| 17 | Rodrick Stehr | brooke.ziemann@example.com |
-| 18 | Mrs. Oleta Boyer | earnestine30@example.com |
-| 19 | Mr. Oliver Lindgren Jr. | emerson.haag@example.com |
-| 20 | Lexus Larkin DVM | kavon58@example.net |
-| 21 | Humberto Zboncak Jr. | lebsack.cordie@example.net |
-| 22 | Marion Streich | nolan.germaine@example.net |
-| 23 | Mr. Monte Legros | uleffler@example.org |
-| 24 | Rex Feil V | ohaley@example.org |
-| 25 | Bradley Padberg II | gbartoletti@example.net |
-| 26 | Jerel Brekke III | squigley@example.com |
-| 27 | Dena Smith | cody.mitchell@example.net |
-| 28 | Dr. Margaret Brown V | acronin@example.org |
-| 29 | Miss Carlie Kohler | rick.marquardt@example.org |
-| 30 | Kasey Rice | pearl69@example.com |
-| 31 | Mrs. Idella Conn Sr. | beau.yundt@example.net |
-| 32 | Ms. Idella Hermiston I | charley.konopelski@example.net |
-| 33 | Damien Schroeder | jcrona@example.com |
-| 34 | Christiana Brakus | juana.schamberger@example.org |
-| 35 | Ada Hyatt | kuhic.eldon@example.net |
-| 36 | Dr. Frederick Pollich | rrunolfsson@example.org |
-| 37 | Blaze Gorczany | branson08@example.org |
-| 38 | Prof. Tanner Oberbrunner Jr. | reta91@example.com |
-| 39 | Jordyn Hodkiewicz | juston.padberg@example.com |
-| 40 | Aubrey Carroll | jacobs.reymundo@example.org |
-| 41 | Miss Mossie Carter | deja.dickens@example.com |
-| 42 | Dr. Camden Haag V | larissa.bins@example.com |
-| 43 | Miss Noemi Shanahan | akeem98@example.com |
-| 44 | Ewell Satterfield | liza15@example.com |
-| 45 | Paris Ferry | paltenwerth@example.com |
-| 46 | Eugene Fadel | terrance.upton@example.net |
-| 47 | Doug Cruickshank | augustine.hermann@example.net |
-| 48 | Vance Lynch | bashirian.kenya@example.net |
-| 49 | Vincenza Cremin | habshire@example.org |
-| 50 | Felicity Kunze | sigmund53@example.com |
-| 51 | Hilbert O'Hara | qstrosin@example.net |
-| 52 | Aida Hamill DDS | alec.brown@example.org |
-| 53 | Moses Cruickshank | sheridan71@example.net |
-| 54 | Mrs. Elyse Kuhlman | gusikowski.lon@example.com |
-| 55 | Mrs. Libby Fay | rollin.hammes@example.org |
-| 56 | Dr. Wayne McClure DVM | cremin.agustin@example.net |
-| 57 | Mr. Conor Kuhn | jesse81@example.net |
-| 58 | Jerrod Reichel | vpredovic@example.org |
-| 59 | Fiona Sipes | kelton24@example.net |
-| 60 | Prof. Jayden Dicki | nichole10@example.net |
-| 61 | Mr. Rodrick Fritsch DVM | qcruickshank@example.com |
-| 62 | Ms. Ottilie Will | roma01@example.net |
-| 63 | Lina Franecki | lyla74@example.org |
-| 64 | Aaron Kling | arice@example.com |
-| 65 | Mrs. Kayli Rogahn | ferry.jadon@example.com |
-| 66 | Anna Morissette | scottie48@example.net |
-| 67 | Juwan Cassin DDS | turner.stacey@example.org |
-
-### Akun Merchant
-
-| ID | Name | Email |
-|----|------|-------|
-| 68 | Owner Toko Elektronik Segeri | tokoelektroniksegeri3707@example.com |
-
-**Total:** 59 akun (57 USER, 2 MERCHANT, 1 COURIER)
+> **📊 Customer App Audit:** See `docs/CUSTOMER-APP-AUDIT.md`
+> **📊 Merchant App Audit:** See `docs/MERCHANT-APP-AUDIT.md`
+> **📊 Courier App Audit:** See `docs/COURIER-APP-AUDIT.md`
+> **📊 Consolidated Summary:** See `docs/AUDIT-SUMMARY-ALL-APPS.md`
 
 ---
 
-## 🏪 Merchants & Products
+## 🔥 PRIORITAS MINGGU INI
 
-### Merchant: Koneksi Rasa
-- **Owner:** koneksi rasa (koneksi@rasa.com)
-- **Password:** antarkanma123
-- **Address:** Jl. Teknologi No. 123, Jakarta
-- **Logo:** `public/merchants/logos/koneksi-rasa.png`
-- **Products:** 8 produk elektronik
+*Fokus: 8-14 Maret 2026*
 
-| ID | Product Name | Price |
-|----|--------------|-------|
-| 2 | Smart TV LED 43" | Rp 3.500.000 |
-| 3 | Kulkas 2 Pintu | Rp 2.800.000 |
-| 4 | Mesin Cuci Front Loading | Rp 4.200.000 |
-| 5 | AC Split 1 PK | Rp 3.100.000 |
-| 6 | Rice Digital 1.8L | Rp 850.000 |
-| 7 | Microwave Oven | Rp 1.200.000 |
-| 8 | Blender Multifungsi | Rp 450.000 |
-| 9 | Laptop Gaming 15" | Rp 12.500.000 |
+### **🆕 SERVICE FEE CONFIGURATION & TOP MERCHANTS (NEW!)**
 
----
+| ID | Task | App | Priority | Status |
+|----|------|-----|----------|--------|
+| **SF-11** | Migration: Create service_fee_settings table | Backend | 🔴 High | ✅ DONE |
+| **SF-12** | Model: ServiceFeeSetting with helper methods | Backend | 🔴 High | ✅ DONE |
+| **SF-13** | Admin Panel: ServiceFeeSetting Filament Resource | Backend | 🔴 High | ✅ DONE |
+| **SF-14** | Seeder: Initial service fee setting | Backend | 🔴 High | ✅ DONE |
+| **TM-14** | API: Top merchants endpoint with statistics | Backend | 🟡 Medium | ✅ DONE |
+| **TM-15** | Route: /api/merchants/top endpoint | Backend | 🟡 Medium | ✅ DONE |
 
-## 📱 Customer App - Merchant Image Fix
+> **📚 Features Implemented:**
+> 
+> **1. Configurable Service Fee:**
+> - Admin dapat ubah service fee kapan saja via Admin Panel
+> - Default: Rp 500 per transaksi
+> - Audit trail: Siapa yang ubah, kapan, dan notes
+> - Table: `service_fee_settings`
+> - Model: `ServiceFeeSetting` with `getCurrentServiceFee()` helper
+> - Admin Panel: `/admin/service-fee-settings`
+>
+> **2. Top Merchants Statistics:**
+> - Endpoint: `GET /api/merchants/top?period=week|month|all_time&limit=10`
+> - Ranking berdasarkan jumlah order (PAID only)
+> - Stats: total_orders, total_revenue, average_rating
+> - Badge: 🥇 #1, 🥈 #2, 🥉 #3, Top N
+> - Cache: 5 menit untuk performance
+>
+> **💡 Usage Example:**
+> ```bash
+> # Get top merchants this week
+> GET /api/merchants/top?period=week&limit=10
+> 
+> # Get top merchants this month
+> GET /api/merchants/top?period=month&limit=5
+> 
+> # Get all-time top merchants
+> GET /api/merchants/top?period=all_time&limit=20
+> ```
+>
+> **📊 Response Example:**
+> ```json
+> {
+>   "code": 200,
+>   "message": "Top merchants by orders (week) retrieved successfully",
+>   "data": [
+>     {
+>       "id": 1,
+>       "name": "Koneksi Rasa",
+>       "rank": 1,
+>       "badge": "🥇 #1 Top Merchant",
+>       "total_orders": 45,
+>       "total_revenue": 2250000,
+>       "average_rating": 4.8,
+>       "total_products": 12,
+>       "logo": "https://...",
+>       "address": "...",
+>       "latitude": -5.123,
+>       "longitude": 119.456
+>     }
+>   ]
+> }
+> ```
 
-**Problem:** Gambar merchant gepeng (stretch) saat ditampilkan di homepage dan detail page karena orientasi foto tidak konsisten (portrait vs landscape).
+### **🆕 SERVICE FEE IMPLEMENTATION**
 
-**Solution:**
-- [x] Updated `CachedImageView` widget - Added `alignment` and `placeholderWidget` parameters
-- [x] Updated `MerchantCard` widget (homepage) - Better image handling with center alignment
-- [x] Updated `MerchantDetailSection` widget - Hero image with loading indicator and proper BoxFit.cover
-- [x] All merchant images now use `BoxFit.cover` with `Alignment.center` for consistent display
+| ID | Task | App | Priority | Status |
+|----|------|-----|----------|--------|
+| **SF-01** | Migration: Add service_fee fields to orders | Backend | 🔴 High | ✅ **DONE** |
+| **SF-02** | Create withdrawals table | Backend | 🔴 High | ✅ **DONE** |
+| **SF-03** | Create wallet_transactions table | Backend | 🔴 High | ✅ **DONE** |
+| **SF-04** | Update OsrmService calculation | Backend | 🔴 High | ✅ **DONE** |
+| **SF-05** | Update TransactionController | Backend | 🔴 High | ✅ **DONE** |
+| **SF-06** | Create WithdrawalController | Backend | 🔴 High | ✅ **DONE** |
+| **SF-07** | Auto fee deduction on completeOrder | Backend | 🔴 High | ✅ **DONE** |
+| **SF-08** | Customer App: Checkout UI update | Customer | 🔴 High | ✅ **DONE** |
+| **SF-09** | Courier App: Order detail UI update | Courier | 🔴 High | ✅ **DONE** |
+| **SF-10** | Admin Panel: WithdrawalResource | Backend | 🔴 High | ✅ **DONE** |
+| **SF-11** | Courier App: Withdrawal page | Courier | 🔴 High | ✅ **DONE** |
 
----
+> **📚 Documentation:** [`docs/AntarkanMa/business/service-fee-model.md`](docs/AntarkanMa/business/service-fee-model.md)
+>
+> **💰 Revenue Model (Updated 12 Mar 2026):**
+>
+> | Source | Amount | Who Pays | Notes |
+> |--------|--------|----------|-------|
+> | **Service Fee** | Rp 500/**transaksi** | Customer | **NEW: Sekali per transaksi, bukan per order!** |
+> | **Platform Fee** | 10% dari base ongkir | Courier | Auto-deducted per order |
+> | **Merchant Commission** | 0% | Merchant | **GRATIS** - No commission |
+> | **Withdrawal Fee** | Rp 1.000 | Courier | Per withdrawal request |
+>
+> **💡 Multi-Merchant Savings:**
+> - Single merchant: Service Fee Rp 500
+> - 3 merchants in 1 transaction: Service Fee Rp 500 saja! (HEMAT Rp 1.000!)
+> - Customer hanya bayar SEKALI, tidak peduli berapa merchant
+>
+> **💸 Withdrawal Rules:**
+> - Minimum Withdraw: **Rp 50.000**
+> - Processing: Manual via Admin (24h SLA)
+> - Payment Method: Bank transfer
+> - Status Flow: PENDING → APPROVED → PROCESSING → COMPLETED
+>
+> **📊 Example Transaction:**
+>
+> **Single Merchant:**
+> ```
+> Customer Pays: Rp 57.500
+> ├─ Makanan: Rp 50.000 → Merchant (100%)
+> ├─ Base Ongkir: Rp 7.000
+> │   ├─ Courier Net: Rp 6.300 (after 10% platform fee)
+> │   └─ Platform: Rp 700 (10% fee)
+> └─ Service Fee: Rp 500 → Platform
+>
+> Platform Revenue: Rp 1.200/transaction (Rp 700 + Rp 500)
+> ```
+>
+> **Multi-Merchant (3 merchants in 1 transaction):**
+> ```
+> Customer Pays: Rp 84.500
+> ├─ Merchant 1: Rp 30.000 → Merchant 1 (100%)
+> ├─ Merchant 2: Rp 25.000 → Merchant 2 (100%)
+> ├─ Merchant 3: Rp 20.000 → Merchant 3 (100%)
+> ├─ Base Ongkir: Rp 9.000 (optimized route)
+> │   ├─ Courier Net: Rp 8.100 (after 10% platform fee)
+> │   └─ Platform: Rp 900 (10% fee)
+> └─ Service Fee: Rp 500 → Platform (ONLY ONCE!)
+>
+> Platform Revenue: Rp 1.400/transaction (Rp 900 + Rp 500)
+> 💡 Customer HEMAT Rp 1.000 vs 3 separate transactions!
+> ```
 
-## 🏢 Admin Panel - Merchant Logo Upload
+> **✅ Service Fee Implementation Complete (11 Maret 2026, Updated 12 Maret 2026):**
+>
+> **Backend:**
+> - ✅ WithdrawalResource with admin approval workflow (approve, reject, mark processing, mark completed)
+> - ✅ WithdrawalController with API endpoints (index, store, show)
+> - ✅ Auto fee deduction on order complete (COD & Online payments)
+> - ✅ Wallet transaction logging for all movements
+> - ✅ Configurable service fee via ServiceFeeSetting model
+>
+> **Courier App:**
+> - ✅ Order detail page with fee breakdown (Base Ongkir, Platform Fee, Courier Earning)
+> - ✅ Withdrawal page with bank account form
+> - ✅ Updated withdrawal API to use new endpoints
+>
+> **Customer App:**
+> - ✅ Checkout page with service fee breakdown
+> - ✅ Service fee info card explaining the Rp 500 fee
+>
+> **API Endpoints:**
+> ```bash
+> GET  /api/courier/wallet/withdrawals       # Get withdrawal history
+> POST /api/courier/wallet/withdrawals       # Submit withdrawal request
+> GET  /api/courier/wallet/withdrawals/{id}  # Get withdrawal detail
+> ```
+>
+> **Admin Panel:**
+> - Access: `/admin/withdrawals`
+> - Features: View, Approve, Reject, Mark Processing, Mark Completed
+> - Navigation badge shows pending withdrawal count
 
-**Problem:** Tidak ada opsi upload logo merchant di Filament admin panel.
+### **🆕 DUAL QRIS PAYMENT SYSTEM (NEW!)**
 
-**Solution:**
-- [x] Added `FileUpload` field to `MerchantResource` form - Logo upload with crop (1:1 aspect ratio)
-- [x] Updated `Merchant` model - `storeLogo()` method support local (public disk) and S3 storage
-- [x] Updated `MerchantResource\Pages\EditMerchant` - `mutateFormDataBeforeSave()` hook
-- [x] Updated `MerchantResource\Pages\CreateMerchant` - `mutateFormDataBeforeCreate()` hook
-- [x] Updated table column to display logo correctly
-- [x] Logo stored in `storage/app/public/merchants/logos/`
-- [x] Auto crop 1:1 aspect ratio untuk consistency
+| ID | Task | App | Priority | Status |
+|----|------|-----|----------|--------|
+| **DQ-01** | Migration: Add dual QRIS fields | Backend | 🔴 High | ✅ DONE |
+| **DQ-02** | Update Transaction model | Backend | 🔴 High | ✅ DONE |
+| **DQ-03** | Update TransactionController | Backend | 🔴 High | ✅ DONE |
+| **DQ-04** | Create PaymentController | Backend | 🔴 High | ✅ DONE |
+| **DQ-05** | Update CourierController | Backend | 🔴 High | ✅ DONE |
+| **DQ-06** | Add API routes | Backend | 🔴 High | ✅ DONE |
+| **DQ-07** | Update feature checklist | Docs | 🔴 High | ✅ DONE |
+| **DQ-08** | Create documentation | Docs | 🔴 High | ✅ DONE |
+| **DQ-09** | Customer App: Dual QRIS UI | Customer | ⏳ Pending |
+| **DQ-10** | Customer App: Upload payment proof | Customer | ⏳ Pending |
 
-**Features:**
-- Upload logo saat create/edit merchant
-- ✅ Auto crop 1:1 (square) - Gambar otomatis di-crop persegi
-- Max size 2MB
-- Preview logo di table list
-- Support local storage (development) dan S3 (production)
+> **📚 Documentation:** [`docs/AntarkanMa/business/dual-qris-payment-system.md`](docs/AntarkanMa/business/dual-qris-payment-system.md)
+>
+> **💡 Konsep:** Customer bayar terpisah via 2 QRIS:
+> - **QRIS Merchant:** Untuk makanan (langsung ke merchant)
+> - **QRIS Platform:** Untuk ongkir + service fee (langsung ke platform)
+>
+> **✅ Keuntungan:**
+> - NO payment gateway cost (save Rp 900k/bulan!)
+> - NO settlement ribet (merchant dapat langsung)
+> - Platform TIDAK pegang uang merchant
+> - Customer bayar 2x TAPI digital & tracked
+>
+> **📊 Payment Flow:**
+> ```
+> Customer → Merchant QRIS: Rp 50.000 (direct)
+> Customer → Platform QRIS: Rp 7.500 (direct)
+> Platform → Courier wallet: +Rp 6.300 (auto-credit)
+> Platform keep: Rp 700 (fee revenue)
+> ```
 
----
+### **Existing Priorities**
 
-## 🐛 Bug Fixes
+| ID | Task | App | Priority | Status |
+|----|------|-----|----------|--------|
+| **CA-02** | Cart sync API | Backend + Customer | 🔴 High | ✅ **VERIFIED** - Complete |
+| **MA-01** | QRIS upload implementation | Merchant | 🔴 High | ✅ **VERIFIED** - Complete |
+| ~~MA-02~~ | ~~Stock management fix~~ | Backend + Merchant | 🔴 High | ❌ **REMOVED** - Not implementing |
+| **CoA-01** | Delivery proof capture | Courier | 🔴 High | ⏳ Pending |
+| **CoA-02** | External navigation | Courier | 🟡 Medium | ✅ **DONE** |
+| **CA-03** | Error boundary handling | Mobile | 🟡 Medium | ⏳ Pending |
+| **F-07** | Final E2E testing | All | 🟡 Medium | ⏳ Pending |
+| **UX-01** | Order ID copy-to-clipboard | All Apps | 🟢 Low | ✅ **DONE** |
 
-### File Upload Error - TypeError: array given
-**Problem:** Upload gambar di Merchant dan Product edit menyebabkan error:
-```
-TypeError: Argument #1 ($file) must be of type TemporaryUploadedFile|string, array given
-```
+> **Note:**
+> - CA = Customer App Audit (docs/CUSTOMER-APP-AUDIT.md)
+> - MA = Merchant App Audit (docs/MERCHANT-APP-AUDIT.md)
+> - CoA = Courier App Audit (docs/COURIER-APP-AUDIT.md)
 
-**Root Cause:** Filament v3 mengembalikan array untuk file uploads, tapi code mengharapkan single file object.
+> **✅ CA-02 Cart Sync Complete:**
+> - Backend: CartSyncController with 6 endpoints (get, sync, update, remove, clear, checkout)
+> - Model: CartSync with user/product/merchant relationships
+> - Migration: cart_syncs table with proper indexes
+> - Customer App: CartController integrated with CartSyncService
+> - Features: Cross-device sync, auto-sync on add/remove, server-side persistence
+> - API: `/api/cart/*` routes complete
+> - Admin: CartAnalytics page for abandoned cart tracking
 
-**Solution:**
-- [x] Updated `MerchantResource` - Removed `imageEditor()` (beta feature causing issues)
-- [x] Updated `MerchantResource` - Changed QRIS upload from S3 to public disk (consistency)
-- [x] Updated `ProductResource` - Added type check in `afterStateUpdated()` callback
-- [x] Updated `EditMerchant` - `mutateFormDataBeforeSave()` handle array properly
-- [x] Updated `EditProduct` - `mutateFormDataBeforeSave()` handle array properly
-- [x] Updated `CreateMerchant` - `mutateFormDataBeforeCreate()` handle array properly
+> **❌ MA-02 Stock Management - Removed:**
+> - Decision: Tidak akan implement stock management untuk merchant
+> - Reason: Fokus pada simplicity, merchant akan manage stock secara manual
+> - Updated: 12 Maret 2026
 
-### Product Upload di Merchant Relation Manager Error
-**Problem:** Upload foto product di halaman edit merchant (Relation Manager) menyebabkan error.
+> **✅ CoA-02 External Navigation Complete:**
+> - Added Google Maps navigation button to Courier App
+> - Navigate to customer location from order card
+> - Navigate to merchant location from pick-up section
+> - Uses `url_launcher` package (already in pubspec.yaml)
+> - Opens Google Maps app with turn-by-turn directions
+> - File: `mobile/courier/lib/app/modules/courier/views/order_page.dart`
 
-**Root Cause:** 
-- Field name `galleries.*.image` tidak kompatibel dengan struktur database
-- Menggunakan S3 disk padahal development menggunakan local storage
-
-**Solution:**
-- [x] Changed field from `galleries.*.image` to `galleries` (direct relationship)
-- [x] Changed disk from `s3` to `public` (consistency with development)
-- [x] Added `afterStateUpdated()` hook to create gallery records properly
-- [x] Added type check for `TemporaryUploadedFile`
-- [x] Updated table column from `galleries.0.image` to `galleries.0.url`
-
-### Product Gallery Images Tidak Muncul (404 Error)
-**Problem:** 
-- Upload gambar product berhasil di admin panel
-- Tapi gambar 404 Not Found saat diakses di browser
-- URL: `https://antarkanma.test/storage/products/xxx.png` → 404
-
-**Root Cause:**
-1. **Double directory nesting:** File ter-upload ke `storage/app/public/products/products/` bukan `storage/app/public/products/`
-2. **Conflict:** `directory('products')` + `getUploadedFileNameForStorageUsing()` yang return `products/filename` = double "products"
-3. **File tidak ditemukan:** URL benar tapi file fisik ada di folder nested
-
-**Solution:**
-- [x] Replaced `afterStateUpdated()` with `saveUploadedFileUsing()` hook
-- [x] Removed `getUploadedFileNameForStorageUsing()` (causing conflict)
-- [x] Keep `directory('products')` for correct storage path
-- [x] Manually handle file storage and gallery creation in `saveUploadedFileUsing()`
-- [x] Moved existing files from nested folder to correct location
-- [x] Updated database URLs to point to correct files
-
-**How It Works Now:**
-```php
-->saveUploadedFileUsing(function ($record, $file) {
-    $filename = uniqid() . '.' . $file->getClientOriginalExtension();
-    $path = 'products/' . $filename;
-    
-    $file->storeAs('products', $filename, 'public'); // ✅ Store in products/
-    
-    $record->galleries()->create(['url' => $path]);
-    
-    return $path;
-})
-```
-
-**Files Changed:**
-- `app/Filament/Resources/MerchantResource/RelationManagers/ProductsRelationManager.php`
-- `app/Filament/Resources/ProductResource.php`
-
-**Testing:**
-✅ Upload product image → File stored at: `storage/app/public/products/abc123.png`
-✅ Database stores: `products/abc123.png`
-✅ URL: `http://localhost:8000/storage/products/abc123.png` → ✅ 200 OK
-✅ Customer app displays images correctly
-
----
-
-## 🐛 Bug Fixes
-
-### Flutter Type Error - CachedImageView
-**Problem:** 
-```
-The argument type 'AlignmentGeometry' can't be assigned to the parameter type 'Alignment'.
-```
-
-**Root Cause:** 
-`CachedNetworkImage.alignment` parameter requires `Alignment` type, not `AlignmentGeometry`.
-
-**Solution:**
-- [x] Changed `CachedImageView.alignment` type from `AlignmentGeometry` to `Alignment`
-
-**Files Changed:**
-- `mobile/customer/lib/app/widgets/cached_image_view.dart`
-
----
-
-## 🗺️ Admin Panel - Map Picker untuk Merchant Location
-
-**Problem:** Input koordinat latitude/longitude manual sulit dan tidak user-friendly.
-
-**Solution:**
-- [x] Created custom Filament form field `MapPicker`
-- [x] Integrated OpenStreetMap dengan Leaflet.js
-- [x] Interactive map dengan draggable marker
-- [x] Search box untuk cari lokasi dengan Nominatim API
-- [x] "Lokasi Saya" button untuk GPS current location
-- [x] Manual input fields untuk latitude/longitude
-- [x] Real-time coordinate display
-- [x] Click on map to set coordinates
-
-**Features:**
-1. **Interactive Map:**
-   - OpenStreetMap tiles
-   - Draggable marker untuk set koordinat
-   - Click on map untuk set koordinat
-   - Zoom in/out controls
-
-2. **Search Location:**
-   - Search box dengan autocomplete
-   - Nominatim OpenStreetMap API
-   - Auto-fly to location saat search result ditemukan
-
-3. **GPS Location:**
-   - "Lokasi Saya" button
-   - Browser geolocation API
-   - Auto-center map ke current location
-
-4. **Manual Input:**
-   - Latitude/longitude input fields
-   - Sync dengan map marker position
-   - Real-time update
-
-**Files Created:**
-- `app/Forms/Components/MapPicker.php` - Custom Filament field
-- `resources/views/forms/components/map-picker.blade.php` - Map picker view
-- `resources/views/components/map-picker.blade.php` - Component (unused)
-
-**Files Modified:**
-- `app/Filament/Resources/MerchantResource.php` - Added MapPicker to form
-- `app/Filament/Resources/MerchantResource/Pages/EditMerchant.php` - Handle location data
-- `app/Filament/Resources/MerchantResource/Pages/CreateMerchant.php` - Handle location data
-
-**Usage:**
-```php
-MapPicker::make('location')
-    ->label('Lokasi di Peta')
-    ->defaultCoordinates(-0.789275, 113.921327)
-    ->required()
-```
-
-**Data Flow:**
-1. User klik/drag marker di map → Update latitude/longitude
-2. Search location → Fly to location & update coordinates
-3. Click "Lokasi Saya" → Get GPS coordinates & update map
-4. Manual input → Update marker position
-5. Save → `mutateFormDataBeforeSave()` convert `location` array to `latitude` & `longitude` fields
-
-**Redesigned:**
-- ✅ **Map Picker** - Now uses same style as dashboard map widget (MerchantLocationsMap)
-  - Same custom marker design (blue circle with white border, 32px)
-  - Same OpenStreetMap tile layer
-  - Consistent marker hover effects
-  - Removed dark mode tile (use same as dashboard)
-
----
-
-## 🖼️ Image Upload Preview
-
-**Problem:** User tidak bisa melihat preview gambar sebelum upload.
-
-**Solution:**
-- [x] Added `imagePreviewHeight('150')` to all file upload fields
-- [x] Configured `panelLayout` for better preview display
-- [x] Added `loadingIndicatorPosition` for better UX
-- [x] Positioned upload/remove buttons for easy access
-
-**Features:**
-1. **Merchant Logo Upload:**
-   - Preview height: 150px
-   - Panel aspect ratio: 1:1 (square)
-   - Panel layout: compact
-   - Auto-crop to 1:1 on upload
-
-2. **Product Gallery Upload:**
-   - Preview height: 150px
-   - Panel layout: grid (multiple images)
-   - Multiple file upload support
-   - Live preview before save
-
-**Files Modified:**
-- `app/Filament/Resources/MerchantResource.php` - Logo upload preview
-- `app/Filament/Resources/ProductResource.php` - Gallery upload preview
-
----
-
-## 🐛 Bug Fixes
-
-### Map Picker - Multiple Root Elements Error
-**Problem:** 
-```
-Livewire only supports one HTML element per component.
-Multiple root elements detected
-```
-
-**Root Cause:**
-`afterFill()` method menyebabkan Livewire detect multiple root elements karena memanggil `$this->form->fill()` yang me-render ulang component.
-
-**Solution:**
-- [x] Replaced `afterFill()` with `mutateFormDataBeforeFill()`
-- [x] Transform data BEFORE form fill, not after
-- [x] Removed direct form manipulation
-
-**Before (Error):**
-```php
-protected function afterFill(): void
-{
-    $this->form->fill([...]); // ❌ Causes multiple root elements
-}
-```
-
-**After (Fixed):**
-```php
-protected function mutateFormDataBeforeFill(array $data): array
-{
-    $data['location'] = [...]; // ✅ Transform data before render
-    return $data;
-}
-```
-
-### Image Upload Too Large
-**Problem:** Preview gambar hampir memenuhi seluruh layar.
-
-**Solution:**
-- [x] Reduced `imagePreviewHeight` from `150px` to `120px`
-- [x] Changed `panelAspectRatio` from `1:1` to `4:3` (wider, less tall)
-- [x] Kept `panelLayout('compact')` for smaller footprint
-
-**Files Modified:**
-- `app/Filament/Resources/MerchantResource/Pages/EditMerchant.php`
-- `app/Filament/Resources/MerchantResource.php`
+> **✅ UX-01 Order ID Copy-to-Clipboard Complete:**
+> - **Merchant App:** Order detail page - tap order ID to copy
+> - **Courier App:** Order card header - tap order ID to copy
+> - **Customer App:** Order card header - tap order ID to copy
+> - Features:
+>   - Visual feedback with snackbar/toast notification
+>   - Copy icon displayed next to order ID
+>   - Consistent UX across all 3 apps
+>   - Files modified:
+>     - `mobile/merchant/.../order_detail_page.dart`
+>     - `mobile/courier/.../order_page.dart`
+>     - `mobile/customer/.../order_card.dart`
 
 ---
 
-## 🗺️ Map Picker - Container Bounds Fix
+## 🆕 **TABLE MANAGEMENT & SELF CHECKOUT** (NEW!)
 
-**Problem:** Map "keluar" dari border component, tidak seperti map di dashboard yang rapi dalam container.
+> **📚 Context:** Hybrid system untuk handle 2 tipe merchant:
+> - **PAY_FIRST**: Bayar di awal (Fast Food, Cafe) → Auto-release table
+> - **PAY_LAST**: Bayar di akhir (Restaurant) → Manual release table
+> 
+> **⏱️ Duration Function:** Buffer time estimasi customer selesai makan (bukan limit/usir customer). 
+> Default 60 menit = rata-rata makan 45 min + buffer 15 min.
+> Prevents: (1) Release terlalu cepat → konflik 2 customer, (2) Release terlalu lama → loss revenue
 
-**Root Cause:**
-1. Missing proper container styling with ring/shadow
-2. Z-index controls tidak konsisten
-3. Map tiles overflow dari container rounded corners
+### **📊 Feature Overview**
 
-**Solution:**
-- [x] Added proper container with `overflow-hidden rounded-xl`
-- [x] Added ring styling like Filament widgets: `ring-1 ring-gray-950/5`
-- [x] Fixed z-index: Map `z-0`, Controls `z-[100]`
-- [x] Disabled scroll wheel zoom (`scrollWheelZoom: false`)
-- [x] Added `map.invalidateSize()` after init for proper bounds
-- [x] Rounded corners for map tiles and panes
-- [x] Consistent styling with dashboard map widget
+| Feature | Description | Priority | Status |
+|---------|-------------|----------|--------|
+| **Merchant Config** | Settings: PAY_FIRST vs PAY_LAST | 🔴 High | ⏳ Pending |
+| **Table Status** | AVAILABLE → OCCUPIED → RELEASED | 🔴 High | ⏳ Pending |
+| **Auto-Release Timer** | PAY_FIRST: Auto after duration | 🟡 Medium | ⏳ Pending |
+| **Manual Release** | PAY_LAST: Staff release button | 🔴 High | ⏳ Pending |
+| **Extend Duration** | +15, +30 min untuk PAY_LAST | 🟡 Medium | ⏳ Pending |
+| **Self Checkout** | QR code → customer bayar sendiri | 🟡 Medium | ⏳ Pending |
+| **Duration Settings** | Config per merchant (30-120 min) | 🟡 Medium | ⏳ Pending |
 
-**Container Structure:**
-```html
-<div class="relative overflow-hidden rounded-xl bg-white shadow-sm ring-1">
-    <!-- Map Container (z-0) -->
-    <div x-ref="map" class="relative z-0"></div>
-    
-    <!-- Controls (z-[100]) -->
-    <div class="absolute z-[100]">Search</div>
-    <div class="absolute z-[100]">Coordinates</div>
-    <div class="absolute z-[100]">Locate Button</div>
-</div>
-```
+### **Implementation Tasks**
 
-**CSS Fixes:**
-```css
-.leaflet-container {
-    z-index: 0;
-    border-radius: 0.75rem;
-}
+| ID | Task | App | Priority | Status | Est. Time |
+|----|------|-----|----------|--------|-----------|
+| **TM-01** | Migration: Add merchant config fields | Backend | 🔴 High | ⏳ Pending | 2 jam |
+| **TM-02** | Migration: Add table tracking fields | Backend | 🔴 High | ⏳ Pending | 2 jam |
+| **TM-03** | Create TableManagementService | Backend | 🔴 High | ⏳ Pending | 4 jam |
+| **TM-04** | Update PosTransactionController | Backend | 🔴 High | ⏳ Pending | 3 jam |
+| **TM-05** | Add scheduler for auto-release | Backend | 🟡 Medium | ⏳ Pending | 2 jam |
+| **TM-06** | Merchant App: Table settings UI | Merchant | 🔴 High | ⏳ Pending | 4 jam |
+| **TM-07** | Merchant App: Table management UI | Merchant | 🔴 High | ⏳ Pending | 6 jam |
+| **TM-08** | Merchant App: Release/Extend buttons | Merchant | 🔴 High | ⏳ Pending | 3 jam |
+| **TM-09** | Customer App: Self checkout UI | Customer | 🟡 Medium | ⏳ Pending | 6 jam |
+| **TM-10** | Generate QR code per table | Backend | 🟡 Medium | ⏳ Pending | 3 jam |
+| **TM-11** | Activity log for table release | Backend | 🟡 Medium | ⏳ Pending | 2 jam |
+| **TM-12** | Notification: Table ready to release | Merchant | 🟡 Medium | ⏳ Pending | 3 jam |
 
-.leaflet-pane {
-    border-radius: 0.75rem;
-}
-
-.map-tiles {
-    border-radius: 0.75rem;
-}
-```
-
-**Features:**
-- ✅ Map stays within rounded container
-- ✅ Controls properly layered above map
-- ✅ Same visual style as dashboard widget
-- ✅ No overflow issues
-- ✅ Scroll wheel zoom disabled (better UX)
-
-**Files Modified:**
-- `resources/views/forms/components/map-picker.blade.php`
+**Total Estimated Time:** ~40 jam (~1 week)
 
 ---
 
-## ✅ SELESAI
+## 📋 BACKLOG (Prioritas Menurun)
 
-### Backend
-- [x] Hapus debug file `db-query.php` dari root
-- [x] Bersihkan 3 duplicate routes di `api.php`
-- [x] Rate limiting `throttle:60,1` pada chat routes
-- [x] Hapus unused `S3TestController` import
-- [x] Hapus unused `order_model.dart` import di merchant_home_page
-- [x] OrderItem routes ditambahkan (`orders/{id}/items`, `order-items/{id}`)
-- [x] **OrderItemController enhanced** - Added order status validation, stock checking, auto recalculate total
-- [x] **Order model** - Added `recalculateTotal()` and `canBeModified()` methods
-- [x] **Product stock validation** - Prevent overselling on order item create/update
-- [x] **Variant pricing** - Correct price handling for product variants in order items
-- [x] **Chat system** - Complete ChatController with 6 methods, FCM integration
-- [x] **Manual Order (Jastip)** - ManualOrderController for non-registered merchants
-- [x] **Wallet Topup** - WalletTopupController + admin approval workflow
-- [x] **QRIS Payment** - QrisController for QRIS code management
-- [x] **Analytics Dashboard** - 7 widgets (Sales, Revenue, Top X, Peak Hours)
-- [x] **App Settings** - AppSetting model + Filament page for QRIS/bank info
-- [x] **Test coverage** - ChatTest (9 tests), ManualOrderTest (6 tests)
-- [x] **Route fix** - Added `/merchants/{id}/orders` alias untuk Flutter compatibility
-- [x] **Courier notifications** - Added FCM broadcast to all active couriers when new order created
-- [x] **Kitchen Ticket Print** - Added print functionality for merchant online orders (similar to POS/kasir)
-  - [x] New endpoint: `GET /api/orders/{orderId}/print-kitchen-ticket`
-  - [x] Added `can_print_kitchen_ticket` flag to order API responses
-  - [x] Ticket includes: order info, customer details, items list, delivery address, payment info
-- [x] **Profile Photo Upload Fix** - Fixed S3 storage issue for local development
-  - [x] Changed default filesystem from `s3` to `public` (local storage)
-  - [x] Updated `User::profilePhotoDisk()` to use config instead of hardcoded `s3`
-  - [x] Updated `UserController::updatePhoto()` to return full user data with new photo URL
-  - [x] Updated `APP_URL` to `http://localhost:8000` for Flutter compatibility
-  - [x] Photos now stored in `storage/app/public/profile-photos/`
-  - [x] URLs now use local storage: `http://localhost:8000/storage/profile-photos/...`
-- [x] **Chat Profile Photo Fix** - Fixed missing profile photos in chat list
-  - [x] Fixed `ChatController::getChatList()` - Use `profile_photo_url` accessor instead of raw `profile_photo_path`
-  - [x] Fixed `ChatController::getChatDetail()` - Same fix for avatar URL
-  - [x] Fixed query builder grouping in `getChatList()` - Proper `where()` with closure for `orWhere`
-  - [x] Avatar URLs now properly generated using Laravel accessor (handles local/S3 storage automatically)
-  - [x] Fixed `ChatController::initiate()` - Customer (USER) chatting with order now correctly sets recipient to MERCHANT owner (not customer themselves)
-  - [x] Fixed `ChatController::getChatList()` - Properly determine other party based on who is initiator vs recipient
-  - [x] Fixed `ChatController::getChatList()` - Display **merchant logo** for MERCHANT recipient type, **user profile photo** for USER/COURIER
-  - [x] Updated `Merchant::getLogoUrlAttribute()` - Use configured filesystem disk instead of hardcoded S3
-- [x] **Chat Image Upload & Share Location** - Complete chat media sharing features
-  - [x] Migration: `add_location_fields_to_chat_messages_table` (latitude, longitude, accuracy, address, name)
-  - [x] Updated `ChatMessage` model with location fields, casts, and accessors (`location_data`, `google_maps_url`)
-  - [x] Updated `ChatController::sendMessage()` to support multipart image upload (max 10MB)
-  - [x] New endpoint: `POST /api/chat/{chatId}/share-location` for GPS location sharing
-  - [x] GPS validation: latitude (-90 to 90), longitude (-180 to 180), accuracy in meters
-  - [x] FCM notifications for image and location messages
-  - [x] Test coverage: ChatFeatureTest (6 tests, all passing)
-
-### Courier App (Flutter)
-- [x] **Route fix** - Added `/chat` route for bottom navigation (fixed Home→Profile→Chat bug)
-- [x] **Routes updated** - Added ChatListPage route in app_pages.dart
-- [x] **Bottom navigation** - Fixed navigation between Home, Orders, Chat, Profile tabs
-- [x] **Interactive Map** - Widget InteractiveMap dengan flutter_map, real-time tracking, polyline route
-- [x] **Map View Page** - Full-screen map view dengan kontrol zoom, traffic toggle, location buttons
-- [x] **Chat Image Upload & Share Location** - Complete media sharing features
-  - [x] Updated `ChatMessage` model with image and location fields (attachmentUrl, latitude, longitude, locationAccuracy, locationAddress, locationName)
-  - [x] Added helpers: `isImage`, `isLocation`, `isText`, `googleMapsUrl`
-  - [x] Updated `ChatRepository::sendMessage()` to support multipart image upload
-  - [x] Added `ChatRepository::shareLocation()` method for GPS location sharing
-  - [x] Updated `ChatController` with `sendImage()`, `shareLocation()`, `showAttachmentOptions()` methods
-  - [x] Added Geolocator permission handling and high-accuracy GPS location
-  - [x] Created attachment bottom sheet UI (Gambar + Lokasi options)
-  - [x] Updated chat message bubble to display images with loading/error states
-  - [x] Created location message widget with map preview and "Buka di Maps" button
-  - [x] Added url_launcher integration for opening Google Maps
-
-### Customer App
-- [x] 5 repository: merchant, product, order, user, courier
-- [x] `loading_indicator.dart` widget
-- [x] Tombol "Beri Ulasan" pada order COMPLETED/DELIVERED → ReviewPage
-- [x] **C-08: Chat Merchant dari merchant detail page** - Verified implementation complete:
-  - [x] "Chat Penjual" button on merchant detail page
-  - [x] Navigation to `/chat` with merchantId parameter
-  - [x] ChatController `_startDirectMerchantChat()` method
-  - [x] ChatRepository `initiateDirectMerchantChat()` API call
-  - [x] Backend ChatController handles `merchant_id` parameter
-- [x] **Home AppBar UI Optimization** - Redesigned for better UX:
-  - [x] Changed from navyColor to backgroundColor2 (light theme)
-  - [x] Reduced padding (height8 top/bottom) for compact look
-  - [x] Updated location icon with primaryOrange tint and lighter background
-  - [x] Smaller, cleaner typography (font10 label, font12 address)
-  - [x] Notification badge: 12x12px (was 8x8px) with alertColor
-  - [x] Added 2px border around badge for better visibility
-  - [x] Rounded button background for notification icon
-  - [x] Consistent color scheme with Order Page header
-- [x] **UI Consistency: Home & Order AppBar Match POS/Kasir** - Unified design:
-  - [x] **Home AppBar**: Navy blue (`navyColor`) with 30px rounded corners
-  - [x] **Home AppBar**: Navy shadow effect (`navyColor.withOpacity(0.3)`)
-  - [x] **Home AppBar**: Notification badge 14x14px with `primaryOrange`
-  - [x] **Home AppBar**: White text with orange accent labels
-  - [x] **Order Page AppBar**: Changed from light to navy blue theme
-  - [x] **Order Page AppBar**: Added rounded corners (30px radius)
-  - [x] **Order Page AppBar**: Orange tab indicator (was `logoColorSecondary`)
-  - [x] **Order Page AppBar**: White text with semi-bold weight
-  - [x] **Both headers**: Match POS/Kasir design exactly (premium navy style)
-- [x] **Chat Image Upload & Share Location** - Complete media sharing features
-  - [x] Updated `ChatMessage` model with image and location fields
-  - [x] Updated `ChatRepository` with multipart image upload and shareLocation methods
-  - [x] Updated `ChatController` with sendImage(), shareLocation(), showAttachmentOptions()
-  - [x] Added Geolocator permission handling and high-accuracy GPS
-  - [x] Created attachment bottom sheet UI (Gambar + Lokasi)
-  - [x] Updated chat message bubble to display images with loading/error states
-  - [x] Created location message widget with map preview and "Buka di Maps" button
-  - [x] Added url_launcher integration for opening Google Maps
-
-### Merchant App
-- [x] 5 repository: merchant, product, order, user, courier
-- [x] Fix semua lint errors (type mismatch)
-- [x] Hapus dev artifacts (feature_plan.md, commit_message.txt)
-- [x] **M-05: Notification Inbox** - Complete inbox UI dengan notification bell, badge, dan list
-- [x] **Merchant Home Header UI Consistency** - Match POS/Kasir design:
-  - [x] Header height: 120px (was 140px) - more compact
-  - [x] Bottom corners: 32px radius (was 20px) - matches POS
-  - [x] Navy shadow: Enhanced blur (20px) and offset (0, 8)
-  - [x] Notification icon: `notifications_outlined` (was `notifications_none`)
-  - [x] Notification badge: 16x16px circle with 2.5px border
-  - [x] Badge text: Larger font (10px) for better visibility
-  - [x] Store name: Larger font (font16) for better readability
-  - [x] "MERCHANT" label: Brighter orange (0.8 opacity)
-  - [x] Text label diatur agar seragam dengan aplikasi lain
-- [x] **Merchant Features Update** - Improved ux dengan berbagai penyempurnaan fitur
-  - [x] Tambahan fitur klik nomor telepon langsung untuk driver panggilan darurat menggunakan url_launcher
-  - [x] Optimize logic _fetchActiveOrders() supaya pesanan aktif tidak termuat triple
-  - [x] Profil pelanggan dan penerima pesan muncul di Daftar Pesanan maupun Daftar Chat (dilengkapi handler placeholder jika profil gagal termuat)
-  - [x] Cleanup elemen AppBar dengan menghilangkan tool refresh karena telah disubsidi sistem pull-to-refresh
-  - [x] Redesign halaman Profil Toko (menghilangkan text header, mengganti background box dengan gaya Container yang mulus dan soft shadow, sudut rounded dinamis)
-  - [x] Fix UI Tumpang Tindih (Overflow/Overlap) di Halaman Profil Toko yang disebabkan oleh elemen Stack absolut
-  - [x] Overhaul UI Profil Toko dengan tema "Super Keren" menggunakan CustomScrollView, SliverAppBar transparan, Gradasi modern, Glassmorphism, dan ornamen Floating Component yang dinamis di-scroll.
-- [x] **Optimasi Notifikasi & Chat (FCM)** - Mengganti polling (Timer.periodic/Stream.periodic) dengan push notification (FCM) pada `NotificationController`, `ChatController`, `ChatListController` untuk efisiensi baterai dan real-time update tanpa delay.
-- [x] **Chat Image Upload & Share Location** - Complete media sharing features
-  - [x] Updated `ChatMessage` model with image and location fields
-  - [x] Updated `ChatRepository` with multipart image upload and shareLocation methods
-  - [x] Updated `ChatController` with sendImage(), shareLocation(), showAttachmentOptions()
-  - [x] Added Geolocator permission handling and high-accuracy GPS
-  - [x] Created attachment bottom sheet UI (Gambar + Lokasi)
-  - [x] Updated chat message bubble to display images with loading/error states
-  - [x] Created location message widget with map preview and "Buka di Maps" button
-  - [x] Added url_launcher integration for opening Google Maps
-
-### Courier App
-- [x] Toggle Online/Offline → API `PUT /couriers/{id}`
-- [x] Tombol "Tarik Dana" → bottom sheet withdraw
-- [x] Riwayat Pengantaran page + route + navigation
-
-- [x] **Courier app wallet balance fix** - Updated UserModel to handle `wallet_balance` and enabled periodic profile refresh in MainController.
-- [x] **Optimasi Real-time (FCM)** - Mengganti polling di `MainController`, `ChatController`, `ChatListController` menjadi fully event-driven dengan Firebase Cloud Messaging.
-- [x] **Cleanup** - Hapus .md redundan: ACTION_ITEMS, AUDIT_SUMMARY, DEEP_CODE_ANALYSIS, REPOSITORY_LAYER_AUDIT, UPDATE_AUDIT_REPORT
-
-### Review System (B-04)
-- [x] Migration: `merchant_reviews` (user_id, merchant_id, order_id, transaction_id, rating, comment)
-- [x] Migration: `courier_reviews` (user_id, courier_id, transaction_id, rating, note)
-- [x] Model: `MerchantReview.php`, `CourierReview.php` dengan relationships lengkap
-- [x] Relation: `reviews()` di `Merchant.php` dan `Courier.php` + average rating attributes
-- [x] Controller: `TransactionReviewController.php` (submitReview, getReviewStatus, getMerchantReviews, getCourierReviews)
-- [x] Routes: 4 route baru di `api.php` (`POST /transactions/{id}/review`, `GET /transactions/{id}/review-status`, `GET /merchants/{id}/reviews`, `GET /couriers/{id}/reviews`)
-- [x] Filament resources untuk admin manage reviews
-- [x] **FIX**: Added missing route `GET /api/products/{id}/reviews` untuk product detail page
-
-### Customer App (Flutter) - Review Feature
-- [x] `ReviewProvider` - API provider untuk submit dan get reviews
-- [x] `ReviewRepository` - Repository layer untuk review operations
-- [x] `ReviewPage` - UI untuk submit review (courier, merchant, product)
-- [x] Dependency injection - Register ReviewProvider di MainBinding
-- [x] Integrasi dengan Transaction API - Endpoint `/transactions/{id}/review`
-- [x] **UI Redesign** - Modern design dengan:
-  - Header navy blue (#000033)
-  - Order info card dengan icon dan order number
-  - Courier rating section dengan tag pills (Cepat, Ramah, Sopan, dll)
-  - Merchant/Food rating section dengan tag pills (Enak, Porsi Pas, dll)
-  - General comment textarea dengan photo upload button
-  - Fixed bottom submit button dengan shadow
-  - Star rating interaktif (40px, primary color)
-  - Tag cloud dengan toggle selection
-  - Smooth shadows dan borders
-- [x] **Optimasi Real-time (FCM)** - Polling logic dihilangkan dari `HomePageController`, `NotificationController`, `ChatController`, dan `ChatListController`. Controllers kini di-refresh melalui event navigasi dan FCM dari `NotificationService`.
-
----
-
-## 🔴 PRIORITAS 1 — Harus Sekarang
-
-### [B-04] ~~Pisahkan MerchantReview & CourierReview~~ SELESAI
-~~Flutter mengirim ke `POST /transactions/{id}/review` tapi route belum ada.~~
-- [x] Migration: `merchant_reviews` (user_id, merchant_id, order_id, transaction_id, rating, comment)
-- [x] Migration: `courier_reviews` (user_id, courier_id, transaction_id, rating, note)
-- [x] Model: `MerchantReview.php`, `CourierReview.php`
-- [x] Relation: `reviews()` di `Merchant.php` dan `Courier.php`
-- [x] Controller: `TransactionReviewController.php` (submitReview, getReviewStatus, getMerchantReviews, getCourierReviews)
-- [x] Routes: 4 route baru di `api.php`
-
-### [S-05] ~~Hapus File Debug dari Root~~ SELESAI
-- [x] Hapus 3 file debug: `test_chat_avatar.php`, `tmp_query.php`, `tmp_query_all.php`
-- [x] Hapus `audit_report.md.resolved`
-- [x] Verified no other debug files exist (`check_*.php`, `delete_*.php`, `test_*.php`)
-
-### [Ku-03] ~~Ganti Peta Statis di Courier Home~~ SELESAI
-- [x] Buat widget `InteractiveMap` dengan `flutter_map` + OpenStreetMap
-- [x] Tampilkan rute merchant → customer dengan polyline
-- [x] Real-time courier location tracking dengan Geolocator
-- [x] Marker untuk: lokasi courier (biru), merchant (orange), customer (hijau)
-- [x] Full-screen map view page dengan kontrol zoom dan fit bounds
-- [x] Integrasi di Home Page courier dengan tombol "Lihat Peta"
-- [x] Route baru: `/map-view` untuk detail peta full-screen
-
-### [M-05] ~~Inbox Notifikasi Merchant~~ SELESAI
-- [x] **Backend**: Model `Notification.php` dengan scopes dan helper methods
-- [x] **Backend**: Migration `create_notifications_table` dengan indexing
-- [x] **Backend**: API endpoints (GET /notifications, PUT /notifications/{id}/read, dll)
-- [x] **Backend**: Integration dengan TransactionController untuk auto-create inbox notification
-- [x] **Backend**: Helper method `createInboxNotification()` untuk reuse di controllers lain
-- [x] **Mobile**: Model `NotificationModel` dengan JSON serialization
-- [x] **Mobile**: Repository `NotificationRepository` untuk API calls
-- [x] **Mobile**: Controller `NotificationController` dengan state management (GetX)
-- [x] **Mobile**: UI `NotificationInboxPage` dengan list, empty state, dan actions
-- [x] **Mobile**: Widget `NotificationListTile` dengan icon, badge, dan time formatting
-- [x] **Mobile**: Notification bell di merchant home header dengan unread badge
-- [x] **Mobile**: Route `/notifications/inbox` untuk inbox page
-- [x] **Features**: Unread count badge, mark as read, mark all as read, delete notification
-- [x] **Features**: Auto-refresh setiap 30 detik, pull-to-refresh
-- [x] **Features**: Notification types: new_order, order_ready, transaction_approved, chat_message, system
-
-### [B-05] ~~Image Upload di Chat (multipart)~~ SELESAI
-- [x] **Backend**: Update `ChatController::sendMessage()` untuk handle multipart image upload
-- [x] **Backend**: Storage configuration menggunakan `public` disk (local storage)
-- [x] **Backend**: Message model support untuk `message_type` (TEXT/IMAGE/LOCATION)
-- [x] **Backend**: API endpoint `/api/chat/{chatId}/send` support multipart form data
-- [x] **Backend**: Validation untuk image upload (max 10MB)
-- [x] **Backend**: Test coverage (6 tests passing)
-- [x] **Mobile (Courier)**: Updated ChatMessage model with attachmentUrl support
-- [x] **Mobile (Courier)**: Updated ChatRepository with multipart image upload
-- [x] **Mobile (Courier)**: Added sendImage() method with loading indicator
-- [x] **Mobile (Courier)**: Image display in chat bubble with loading/error states
-- [x] **Mobile (Customer)**: Same features implemented
-- [x] **Mobile (Merchant)**: Same features implemented
-
-### [B-06] ~~Share Location di Chat (Super Accurate GPS)~~ SELESAI (All Apps)
-- [x] **Backend**: Migration `add_location_fields_to_chat_messages_table` (latitude, longitude, accuracy, address, name)
-- [x] **Backend**: Update `ChatMessage` model dengan location attributes, casts, dan accessors
-- [x] **Backend**: Added `location_data` dan `google_maps_url` accessors
-- [x] **Backend**: New endpoint `POST /api/chat/{chatId}/share-location`
-- [x] **Backend**: Validation untuk GPS coordinates (latitude: -90 to 90, longitude: -180 to 180)
-- [x] **Backend**: FCM notification untuk location messages
-- [x] **Backend**: Test coverage (6 tests passing)
-- [x] **Mobile (Courier)**: Updated ChatMessage model with location fields
-- [x] **Mobile (Courier)**: Added shareLocation() method with Geolocator high-accuracy GPS
-- [x] **Mobile (Courier)**: Location permission handling (denied, deniedForever)
-- [x] **Mobile (Courier)**: Confirmation dialog before sending location
-- [x] **Mobile (Courier)**: Location message widget with accuracy, address, and map link
-- [x] **Mobile (Courier)**: url_launcher integration to open Google Maps
-- [x] **Mobile (Customer)**: Same features implemented
-- [x] **Mobile (Merchant)**: Same features implemented
-
----
-
-## 🟠 PRIORITAS 2 — Fitur Penting
+### PRIORITAS 2 — Penting
 
 | ID | Fitur | App | Status |
 |----|-------|-----|--------|
-| ~~C-08~~ | ~~Chat Merchant dari merchant detail page~~ | ~~Customer~~ | ✅ **SELESAI** (Verified) |
-| ~~M-05~~ | ~~Inbox Notifikasi~~ | ~~Merchant~~ | ✅ **SELESAI** |
-| ~~B-05~~ | ~~Image upload di chat (multipart)~~ | ~~Backend~~ | ✅ **SELESAI** |
-| ~~B-06~~ | ~~Share location di chat (super accurate GPS)~~ | ~~Backend + Mobile~~ | ✅ **SELESAI** (Backend) |
-| Ku-05 | Chat dari halaman delivery aktif | Courier | Belum |
-| ~~T-01~~ | ~~Chat polling otomatis / WebSocket~~ | ~~Semua~~ | ✅ **SELESAI (FCM)** |
-| T-02 | Pagination chat messages | Semua | Belum |
+| ~~T-03~~ | ~~Chat message bug fixes~~ | All | ✅ **SELESAI** |
+| ~~C-10~~ | ~~Image upload compression~~ | Backend | ✅ **SELESAI** |
+| ~~Ku-05~~ | ~~Chat dari delivery page~~ | Courier | ✅ **SELESAI** |
+| ~~T-02~~ | ~~Chat pagination~~ | All | ✅ **SELESAI** |
+| ~~B-06~~ | ~~Share location GPS~~ | All | ✅ **SELESAI** |
+| ~~MA-05~~ | ~~Login/Register error handling~~ | Merchant | ✅ **SELESAI** |
+| ~~CA-06~~ | ~~Login/Register error handling~~ | Customer | ✅ **SELESAI** |
+| ~~CoA-06~~ | ~~Login/Register error handling~~ | Courier | ✅ **SELESAI** |
+| ~~CA-07~~ | ~~Address selection back button UI~~ | Customer | ✅ **SELESAI** |
+| ~~CA-08~~ | ~~Order page UI redesign~~ | Customer | ✅ **SELESAI** |
+| ~~CA-09~~ | ~~Courier chat button logic~~ | Customer | ✅ **SELESAI** |
+| ~~CA-10~~ | ~~Order buttons spacing & layout~~ | Customer | ✅ **SELESAI** |
+| ~~CA-11~~ | ~~Merchant & Product image aspect ratio~~ | Customer | ✅ **SELESAI** |
+| ~~CA-12~~ | ~~Merchant carousel image fit cover~~ | Customer | ✅ **SELESAI** |
+| ~~CA-13~~ | ~~Add "Lihat Semua" for products & merchants~~ | Customer | ✅ **SELESAI** |
+| C-11 | Error boundary handling | Mobile | ⏳ Pending |
+| F-08 | Offline mode support | Mobile | ⏳ Pending |
+
+### PRIORITAS 3 — Sebelum Launch
+
+- [ ] **Testing Infrastructure** — PHPUnit setup (40 jam)
+- [ ] **Security Hardening** — Rate limiting, 2FA admin (20 jam)
+- [ ] **Redis Cache** — Product caching (10 jam)
+- [ ] **DB Indexing** — Performance optimization (2 jam)
+
+### PRIORITAS 4 — Post-Launch
+
+- [ ] Unit test Flutter apps
+- [ ] Deep linking notifications
+- [ ] Multi-language support (i18n)
+- [ ] AI delivery optimization
+- [ ] Promo code / referral system
 
 ---
 
-## 🟡 PRIORITAS 3 — Sebelum Launch
+## 🧪 Quick Test Info
 
-| Fitur | Estimasi |
-|-------|----------|
-| Testing infrastructure (PHPUnit) | 40 jam |
-| Security (policies, rate limiting, 2FA admin) | 20 jam |
-| Payment gateway (Midtrans/Xendit) | 25 jam |
-| Cache (Redis) | 10 jam |
-| Database indexing | 2 jam |
-| Error handling standardization | 15 jam |
+**Password semua akun:** `antarkanma123`
 
----
+| Role | Email | App |
+|------|-------|-----|
+| Customer | aswarthedoctor@gmail.com | Customer App |
+| Merchant | koneksi@rasa.com | Merchant App |
+| Courier | kurir@antarkanma.com | Courier App |
+| Admin | antarkanma@gmail.com | Web Admin |
 
-## 🟢 PRIORITAS 4 — Post-Launch
-
-- Unit test Flutter apps
-- Deep linking notifikasi
-- i18n / multi-language
-- AI delivery optimization
-- Promo code / referral
-- Live tracking GPS
+📚 **Lengkap:** [`docs/TEST_DATA.md`](docs/TEST_DATA.md)
 
 ---
 
-## 📂 Arsitektur
+## 🤖 AI Agent Workflow
+
+### Sebelum Coding:
+1. ✅ Baca file ini (prioritas minggu ini)
+2. ✅ Cek `docs/AntarkanMa/ai-memory-context.md`
+3. ✅ Pilih task dari tabel di atas
+
+### Setelah Coding:
+1. ✅ Update status task di tabel
+2. ✅ Pindahkan yang selesai → `docs/ARCHIVE.md`
+3. ✅ Update "Last Updated"
+4. ✅ Commit dengan message jelas
+
+### Commit Message Format:
+```bash
+✅ T-02: Chat pagination complete
+🐛 C-08: Fix chat init bug
+📝 Update MASTERPLAN.md
 ```
-Antarkanma/
-├── app/                    # Laravel Backend
-│   ├── Models/             # 21 models
-│   ├── Http/Controllers/   # 21 controllers
-│   └── Filament/           # Admin panel
-├── mobile/
-│   ├── customer/           # Flutter Customer App
-│   ├── merchant/           # Flutter Merchant App
-│   └── courier/            # Flutter Courier App
-├── routes/api.php          # 130+ API endpoints
-├── database/migrations/    # 40 migration files
-└── MASTERPLAN.md           # ← FILE INI (satu-satunya source of truth)
+
+---
+
+## 📊 Timeline
+
 ```
+Maret 2026
+├── Week 1 (1-7):   Bug fixes & stabilization
+├── Week 2 (8-14):  Testing foundation
+├── Week 3 (15-21): Security
+└── Week 4 (22-31): Pre-launch prep
+
+Mei 2026 → 🚀 Soft Launch
+```
+
+---
+
+## 🔗 Quick Links
+
+| Document | Description |
+|----------|-------------|
+| [📚 Documentation Hub](docs/AntarkanMa/README.md) | Complete documentation |
+| [📋 Feature Checklist](docs/AntarkanMa/feature-checklist.md) | **Complete feature tracking** - 17 groups, 200+ features |
+| [🧪 Test Data](docs/TEST_DATA.md) | Test accounts & scenarios |
+| [📦 Archive](docs/ARCHIVE.md) | Completed tasks history |
+| [🤖 AI Memory Context](docs/AntarkanMa/ai-memory-context.md) | AI session context |
+| [📋 Active Backlog](docs/AntarkanMa/active-backlog.md) | Detailed backlog |
+| [📈 Progress Log](docs/AntarkanMa/progress-log.md) | Development log |
+| [🚀 QUICKSTART](docs/QUICKSTART.md) | AI session startup guide |
+| [🐙 GitHub Project](https://github.com/users/Aswar12/projects/2) | **Project Board** - Track issues |
+| [📝 Create Issues](docs/GITHUB-ISSUES-CREATION.md) | Guide to create GitHub issues |
+
+---
+
+## 🐙 GitHub Project Board
+
+**Project:** [AntarkanMa](https://github.com/users/Aswar12/projects/2)
+
+### Current Status
+
+| Column | Count | Issues |
+|--------|-------|--------|
+| 🔴 **In Progress** | 1 | T-03 |
+| 🟡 **Todo** | 7 | C-10, F-07, C-11, F-08, +3 infra |
+| ✅ **Done** | 3 | T-02, Ku-05, B-06 |
+
+### Quick Actions
+- [View Project Board](https://github.com/users/Aswar12/projects/2)
+- [Create New Issue](https://github.com/Aswar12/Antarkanma.my.id/issues/new)
+- [Issue Creation Guide](docs/GITHUB-ISSUES-CREATION.md)
+
+---
+
+**💡 Tip:** Untuk detail lengkap, lihat [`docs/AntarkanMa/`](docs/AntarkanMa/)
