@@ -1,8 +1,52 @@
 # 📚 AntarkanMa Documentation Hub
 
-> **Last Updated:** 27 Februari 2026  
-> **Project Status:** 85% Complete (MVP Ready)  
-> **Target Soft Launch:** Mid Mei 2026
+> **Last Updated:** 8 Maret 2026  
+> **Project Status:** 99% MVP Complete ✅  
+> **Target Soft Launch:** Mei 2026
+
+---
+
+## 🚀 Quick Start
+
+### For AI Agents
+1. **[QUICKSTART](../QUICKSTART.md)** ← Start here every session!
+2. **[ai-memory-context](ai-memory-context.md)** — Session context
+3. **[MASTERPLAN](../MASTERPLAN.md)** — Current priorities
+
+### For Developers
+1. **[Welcome](Welcome.md)** — Entry point
+2. **[technical-specifications](technical-specifications.md)** — API reference
+3. **[mysql-setup-guide](mysql-setup-guide.md)** — Database setup
+
+### For Stakeholders
+1. **[company-profile](company/company-profile.md)** — Company overview
+2. **[business-model](company/business-model.md)** — Business strategy
+3. **[growth-roadmap](company/growth-roadmap.md)** — Future plans
+
+---
+
+## 📂 Documentation Structure (Updated)
+
+```
+Antarkanma/
+├── MASTERPLAN.md           ← Prioritas aktif (<150 baris)
+├── docs/
+│   ├── QUICKSTART.md       ← ⭐ NEW! Panduan cepat AI
+│   ├── TEST_DATA.md        ← ⭐ NEW! Test accounts & data
+│   ├── ARCHIVE.md          ← ⭐ NEW! History completed tasks
+│   └── AntarkanMa/         ← Complete documentation (40+ files)
+│       ├── README.md       ← This file (documentation hub)
+│       ├── ai-memory-context.md
+│       ├── active-backlog.md
+│       ├── progress-log.md
+│       ├── api/
+│       ├── architecture/
+│       ├── business/
+│       ├── company/
+│       ├── deployment/
+│       ├── features/
+│       └── ... (40+ files)
+```
 
 Welcome to the complete documentation for **AntarkanMa** — a delivery platform connecting customers, merchants, and couriers.
 

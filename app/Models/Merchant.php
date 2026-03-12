@@ -14,6 +14,10 @@ class Merchant extends Model
     /** @use HasFactory<\Database\Factories\MerchantFactory> */
     use HasFactory;
 
+    // ─── Constants ────────────────────────────────────────
+    const PAY_FIRST = 'PAY_FIRST';
+    const PAY_LAST  = 'PAY_LAST';
+
     protected $fillable = [
         'owner_id',
         'name',
@@ -28,7 +32,10 @@ class Merchant extends Model
         'opening_time',
         'closing_time',
         'operating_days',
-        'extended_until'
+        'extended_until',
+        'payment_flow',
+        'auto_release_table',
+        'default_dine_duration',
     ];
 
     protected $casts = [
@@ -37,7 +44,9 @@ class Merchant extends Model
         'extended_until' => 'datetime',
         'operating_days' => 'array',
         'latitude' => 'decimal:8',
-        'longitude' => 'decimal:8'
+        'longitude' => 'decimal:8',
+        'auto_release_table' => 'boolean',
+        'default_dine_duration' => 'integer',
     ];
 
     protected $appends = ['logo_url', 'qris_url_full'];
@@ -86,8 +95,15 @@ class Merchant extends Model
             return $this->qris_url;
         }
 
-        // Return the full S3 URL
-        return "https://is3.cloudhost.id/antarkanma/" . $this->qris_url;
+        // Use configured disk (public for local, s3 for production)
+        $disk = config('filesystems.default', 'public');
+
+        if ($disk === 's3' && config('aws.key')) {
+            // Use S3
+            return Storage::disk('s3')->url($this->qris_url);
+        } else {
+            return asset('storage/' . $this->qris_url);
+        }
     }
 
     /**
@@ -180,7 +196,7 @@ class Merchant extends Model
     }
 
     /**
-     * Store the QRIS file in S3 storage
+     * Store the QRIS file in storage
      *
      * @param \Illuminate\Http\UploadedFile $file
      * @return string|null The URL of the stored QRIS, or null if storage failed
@@ -196,50 +212,73 @@ class Merchant extends Model
             // Delete old QRIS if exists
             if ($this->qris_url) {
                 try {
-                    Storage::disk('s3')->delete($this->qris_url);
+                    $disk = config('filesystems.default', 'public');
+                    if ($disk === 's3' && config('aws.key')) {
+                        Storage::disk('s3')->delete($this->qris_url);
+                    } else {
+                        Storage::disk('public')->delete($this->qris_url);
+                    }
                 } catch (\Exception $e) {
                     // Log error but continue with new upload
                     \Log::warning('Failed to delete old QRIS: ' . $e->getMessage());
                 }
             }
 
-            // Generate unique filename with merchant ID and timestamp
-            $extension = $file->getClientOriginalExtension();
-            $filename = 'merchant-' . $this->id . '-qris-' . time() . '.' . $extension;
-            $path = 'merchants/qris/' . $filename;
+            // Use configured disk
+            $disk = config('filesystems.default', 'public');
+            
+            if ($disk === 's3' && config('aws.key')) {
+                // Store in S3
+                $extension = $file->getClientOriginalExtension();
+                $filename = 'merchant-' . $this->id . '-qris-' . time() . '.' . $extension;
+                $path = 'merchants/qris/' . $filename;
 
-            // Store file directly to S3
-            $uploaded = Storage::disk('s3')->putFileAs(
-                'merchants/qris',
-                $file,
-                $filename,
-                ['visibility' => 'public']
-            );
+                $uploaded = Storage::disk('s3')->putFileAs(
+                    'merchants/qris',
+                    $file,
+                    $filename,
+                    ['visibility' => 'public']
+                );
 
-            if (!$uploaded) {
-                throw new \Exception('Failed to upload file to S3');
+                if (!$uploaded) {
+                    throw new \Exception('Failed to upload file to S3');
+                }
+
+                $this->qris_url = $path;
+                $this->save();
+
+                return Storage::disk('s3')->url($path);
+            } else {
+                // Store in local public disk
+                $extension = $file->getClientOriginalExtension();
+                $filename = 'merchant-' . $this->id . '-qris-' . time() . '.' . $extension;
+                
+                // Store file
+                $path = $file->storeAs('merchants/qris', $filename, 'public');
+
+                if (!$path) {
+                    throw new \Exception('Failed to upload file');
+                }
+
+                $this->qris_url = $path;
+                $this->save();
+
+                return asset('storage/' . $path);
             }
-
-            // Update merchant with new QRIS path
-            $this->qris_url = $path;
-            $this->save();
-
-            // Verify URL is accessible
-            $url = Storage::disk('s3')->url($path);
-            if (!$url) {
-                throw new \Exception('Failed to generate URL for uploaded file');
-            }
-
-            return $url;
 
         } catch (\Exception $e) {
             // Clean up failed upload if needed
-            try {
-                if (isset($path)) {
-                    Storage::disk('s3')->delete($path);
+            if (isset($path)) {
+                try {
+                    $disk = config('filesystems.default', 'public');
+                    if ($disk === 's3' && config('aws.key')) {
+                        Storage::disk('s3')->delete($path);
+                    } else {
+                        Storage::disk('public')->delete($path);
+                    }
+                } catch (\Exception $deleteException) {
+                    \Log::warning('Failed to cleanup failed upload: ' . $deleteException->getMessage());
                 }
-            } catch (\Exception $deleteException) {
-                \Log::warning('Failed to cleanup failed upload: ' . $deleteException->getMessage());
             }
             throw $e;
         }
@@ -300,5 +339,27 @@ class Merchant extends Model
     public function getTotalReviewsAttribute()
     {
         return $this->reviews()->count();
+    }
+
+    // ─── Table Management ─────────────────────────────────
+
+    public function tables()
+    {
+        return $this->hasMany(MerchantTable::class);
+    }
+
+    public function isPayFirst(): bool
+    {
+        return $this->payment_flow === self::PAY_FIRST;
+    }
+
+    public function isPayLast(): bool
+    {
+        return $this->payment_flow === self::PAY_LAST;
+    }
+
+    public function shouldAutoReleaseTable(): bool
+    {
+        return $this->auto_release_table && $this->isPayFirst();
     }
 }

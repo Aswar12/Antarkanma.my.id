@@ -45,6 +45,28 @@ class AppSettings extends Page implements HasForms
     protected function getFormSchema(): array
     {
         return [
+            Forms\Components\Section::make('Service Fee Settings')
+                ->description('Configure service fee charged per transaction (bukan per order!)')
+                ->schema([
+                    Forms\Components\TextInput::make('service_fee')
+                        ->label('Service Fee (Rp)')
+                        ->helperText('Default: Rp 500 per transaksi. Fee ini dikenakan SEKALI per transaksi, tidak peduli berapa merchant.')
+                        ->required()
+                        ->numeric()
+                        ->minValue(0)
+                        ->default(500)
+                        ->prefix('Rp')
+                        ->columnSpan(1),
+
+                    Forms\Components\Toggle::make('service_fee_active')
+                        ->label('Active')
+                        ->helperText('Disable to temporarily turn off service fee')
+                        ->default(true)
+                        ->columnSpan(1),
+                ])
+                ->columns(2)
+                ->collapsible(),
+
             Forms\Components\Section::make('Payment Settings')
                 ->description('Configure payment methods and QRIS')
                 ->schema([

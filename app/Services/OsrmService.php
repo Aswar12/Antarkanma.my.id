@@ -407,10 +407,20 @@ class OsrmService
         });
 
         $potentialSavings = $separateOrderTotal - $total_shipping_price;
-        $platformFee = round($total_shipping_price * 0.10);
-        $courierEarning = $total_shipping_price - $platformFee;
+        
+        // --- Service Fee Application ---
+        $base_shipping_price = $total_shipping_price; // True shipping cost
+        $service_fee = 500; // Fixed Rp 500 service fee per TRANSACTION (bukan per order!)
+        $total_shipping_price = $base_shipping_price + $service_fee; // Final shipping cost shown to user
+        // IMPORTANT: Service fee charged ONCE per transaction, regardless of number of merchants
+        
+        // Platform fee is 10% from base shipping (excluding service fee)
+        $platformFee = round($base_shipping_price * 0.10);
+        $courierEarning = $base_shipping_price - $platformFee;
 
         return [
+            'base_shipping_price' => $base_shipping_price,
+            'service_fee' => $service_fee,
             'total_shipping_price' => $total_shipping_price,
             'platform_fee' => $platformFee,
             'courier_earning' => $courierEarning,

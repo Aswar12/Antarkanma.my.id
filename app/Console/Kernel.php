@@ -24,6 +24,7 @@ class Kernel extends ConsoleKernel
         Commands\ResetAndSeedDatabase::class,
         Commands\TestS3Upload::class,
         Commands\CancelTimedOutTransactions::class,
+        Commands\AutoReleaseTablesCommand::class,
     ];
 
     /**
@@ -33,6 +34,9 @@ class Kernel extends ConsoleKernel
     {
         // Check and cancel timed out transactions every minute
         $schedule->command('transactions:cancel-timed-out')->everyMinute();
+
+        // Auto-release occupied tables every 5 minutes
+        $schedule->command('tables:auto-release')->everyFiveMinutes();
     }
 
     /**

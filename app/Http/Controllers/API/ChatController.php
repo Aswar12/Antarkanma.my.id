@@ -579,8 +579,24 @@ class ChatController extends Controller
             if ($request->hasFile('attachment')) {
                 try {
                     $image = $request->file('attachment');
-                    $filename = 'chat_' . $chat->id . '_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-                    $path = $image->storeAs('chat', $filename, 'public');
+                    $filename = 'chat_' . $chat->id . '_' . time() . '_' . uniqid() . '.jpg';
+                    
+                    // Setup ImageManager with GD driver
+                    $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+                    
+                    // Read and process image
+                    $img = $manager->read($image);
+                    
+                    // Resize to max 1200px width/height while maintaining aspect ratio
+                    $img->scaleDown(1200, 1200);
+                    
+                    // Encode to JPG with 75% quality
+                    $encoded = $img->toJpeg(75);
+                    
+                    // Save to storage
+                    $path = 'chat/' . $filename;
+                    Storage::disk('public')->put($path, (string) $encoded);
+                    
                     $attachmentUrl = Storage::disk('public')->url($path);
                     $messageType = 'IMAGE';
                 } catch (Exception $e) {

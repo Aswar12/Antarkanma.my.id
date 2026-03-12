@@ -2,6 +2,33 @@
 
 Log ini mencatat semua update dan kemajuan pekerjaan secara kronologis.
 
+## Sesi 14 — 8 Maret 2026 (Chat Stabilization & Backend Improvement)
+
+### 💬 CHAT STABILIZATION & COMPRESSION COMPLETE!
+
+### Apa yang Dikerjakan
+
+- ✅ **Memperbaiki Error Mobile App**:
+  - Menjalankan `flutter analyze` pada aplikasi Customer, Merchant, dan Courier.
+  - Memperbaiki error kompilasi pada `ChatController` di Customer App dengan menambahkan method `deleteMessage`.
+- ✅ **Image Upload Compression Backend** (C-10):
+  - Memodifikasi `sendMessage` di `ChatController` backend (Laravel).
+  - Menggunakan `intervention/image` untuk mengecilkan ukuran gambar yang diupload via Chat menjadi maksimum 1200px dengan kualitas 75% JPEG.
+  - Ini akan menghemat storage server dan bandwidth pengguna aplikasi.
+
+### File yang Diubah
+
+**Backend:**
+- `app/Http/Controllers/API/ChatController.php` (UPDATED, added intervention/image compression)
+
+**Mobile Customer:**
+- `lib/app/modules/chat/controllers/chat_controller.dart` (UPDATED, added `deleteMessage`)
+
+### Status Akhir
+
+- **Chat Error Fixes:** ✅ Complete
+- **Backend Image Compression:** ✅ Complete
+
 ---
 
 ## Sesi 13 — 27 Februari 2026 (Chat Backend Implementation)

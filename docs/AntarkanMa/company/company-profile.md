@@ -1,98 +1,60 @@
-# Profil Perusahaan Antarkanma
+# Profil Perusahaan AntarkanMa
 
-## Identitas
+## Identitas Inti (The Core Identity)
 
 | Item | Detail |
 |------|--------|
-| **Nama** | Antarkanma |
+| **Nama** | AntarkanMa |
+| **Tagline** | *"AntarkanMa: Cepat, Dekat, Bersahabat!"* (Atau: *"Lebih Dekat, Lebih Murah, Dari Kita Untuk Kita"*) |
 | **Didirikan** | Awal 2025 |
-| **Founder** | Aswar (CEO / Developer) |
-| **Co-Founder** | Ihcal |
-| **Lokasi** | Kecamatan Segeri, Ma'rang, dan Mandalle — Kabupaten Pangkep, Sulawesi Selatan |
-| **Jenis Usaha** | Layanan pengantaran on-demand (makanan, barang, ojek) |
-| **Status** | Beroperasi via WhatsApp, dalam transisi ke aplikasi mobile |
+| **Founder / CEO** | Aswar (Developer & Kurir) |
+| **Co-Founder** | Ihcal (Operasional Lapangan & Branding) |
+| **Lokasi Utama** | Kabupaten Pangkep (Kec. Segeri, Ma'rang, dan Mandalle) — Sulawesi Selatan |
+| **Fokus Industri** | Logistik Ultra-Lokal (Hyperlocal Logistics), Food Delivery, Ride Hailing, & Jasa Titip |
 
 ---
 
-## Visi
+## Visi & Misi
 
-> Menjadi platform pengantaran terbesar di Sulawesi Selatan, dimulai dari Kabupaten Pangkep.
+**Visi:** Menjadi platform pengantaran dan ekosistem bisnis lokal terbesar di Sulawesi Selatan, memberdayakan UMKM dan masyarakat sekitar.
 
-## Misi
+**Misi:**
+1. Menggantikan proses manual (WhatsApp) dengan ekosistem aplikasi terpadu (Super-App lokal).
+2. Memberikan layanan logistik dan point-of-sales (POS) yang mempermudah operasional harian merchant.
+3. Menciptakan lapangan kerja (mitra kurir) dengan skema cashflow yang saling mendukung dan transparan.
 
-1. Menggantikan sistem pemesanan manual (WhatsApp) dengan aplikasi yang efisien dan terstruktur
-2. Memberikan layanan pengantaran yang cepat, murah, dan terpercaya untuk masyarakat lokal
-3. Memberdayakan kurir lokal dengan pendapatan yang stabil dan tools yang memudahkan pekerjaan
-4. Membantu merchant/UMKM lokal memperluas jangkauan pelanggan tanpa biaya tinggi
+## DNA Perusahaan (Core Values)
 
-## Nilai Inti (Core Values)
-
-| Nilai | Artinya |
-|-------|---------|
-| **Lokal** | Milik warga lokal, untuk warga lokal |
-| **Terjangkau** | Biaya layanan rendah untuk semua pihak |
-| **Cepat** | Tidak ada waktu terbuang — efisiensi di setiap langkah |
-| **Terpercaya** | Pesanan akurat, kurir yang dikenal, layanan konsisten |
+1. **Hyperlocal:** Berakar kuat di komunitas. Kurir kenal customer, merchant kenal kurir.
+2. **Fair-Trade for Merchants:** Mengutamakan UMKM lokal dengan membebaskan potongan komisi (0% commission).
+3. **Sustainable Cashflow:** Menjaga roda operasional tetap berputar lewat transparansi biaya (Customer dan Kurir saling berkontribusi).
 
 ---
 
-## Layanan
+## Ekosistem Teknologi & Layanan (3-Pilar)
 
-| Layanan | Deskripsi | Status |
-|---------|-----------|--------|
-| **Pesan Antar Makanan** | Pesan dari merchant kuliner lokal | ✅ Aktif |
-| **Antar Barang** | Bahan baku, sayur, barang dari toko/pasar | ✅ Aktif |
-| **Jasa Ojek** | Transportasi penumpang | ✅ Aktif |
-| **Belanja Titip** | Customer titip belanja ke pasar/toko | 🔄 Informal |
+AntarkanMa diorkestrasi oleh 1 Backend Engine (Laravel 11) dan Panel Admin (Filament).
 
----
-
-## Data Operasional Saat Ini
-
-| Metrik | Angka |
-|--------|-------|
-| **Order per hari** | 60-80 |
-| **Kurir aktif** | 6 |
-| **Merchant aktif** | Puluhan |
-| **Jam sibuk** | 08:00-12:00 (makan siang), 19:00-21:30 (makan malam) |
-| **Cakupan area** | 3 kecamatan (Segeri, Ma'rang, Mandalle) |
-| **Platform saat ini** | WhatsApp (max 5 perangkat terhubung) |
-| **Metode pembayaran** | COD & Transfer |
-| **Brand awareness** | Sudah dikenal luas di area operasi |
+| App / Layanan | Fungsi Utama |
+|---------------|--------------|
+| **Customer App** | Katalog belanja intuitif, checkout transparan (rincian *Service Fee* & *Platform Fee* nyata), dan live-tracking. |
+| **Merchant App** | Dashboard UMKM. Melayani pesanan delivery, serta **Sistem Point of Sales (POS)** terintegrasi untuk menangani pesanan *Dine-in* dan antrean pelanggan. |
+| **Courier App** | Manajemen rute lokasi pelanggan, penerimaan order, perhitungan jarak otomatis, dan sistem *Wallet/Earnings* terintegrasi. |
+| **Admin Panel** | Pusat komando eksekutif; menyetujui pencairan saldo (*withdrawals*), analitik keuangan, serta **Manajemen Human Resource (HR)** (memantau performa Aswar, Ihcal, dan kurir). |
 
 ---
 
-## Keunggulan Kompetitif
+## Tim Eksekutif & Manajemen HR
 
-### vs Kompetitor Lokal (Kurir WA Independen)
-- **Tim terorganisir** — 6 kurir terkoordinasi, bukan individu lepas
-- **Brand yang sudah dikenal** — 1 tahun branding konsisten
-- **Akan segera punya app** — profesionalisme dan efisiensi jauh di atas WA
-
-### vs Startup Besar (GoFood, GrabFood, ShopeeFood)
-- **Hadir di area yang mereka tidak masuki** — kecamatan kecil bukan prioritas mereka
-- **Biaya sangat rendah** — tidak ada komisi 20-30% ke merchant
-- **Relasi personal** — kurir kenal customer, merchant kenal kurir
-- **Fleksibel** — makanan, barang, ojek, titip belanja — semua bisa
-- **Bagian dari komunitas** — bukan perusahaan asing
-
-### Positioning Statement
-> **"Antarkanma — layanan antar milik warga lokal, untuk warga lokal, dengan harga terjangkau dan layanan terpercaya."**
-
----
-
-## Tim
+Tim inti bekerja dengan prinsip efisiensi dan multi-peran:
 
 | Nama | Peran | Tanggung Jawab |
 |------|-------|----------------|
-| **Aswar** | Founder / CEO / Developer | Pengembangan aplikasi, strategi bisnis, operasional |
-| **Ihcal** | Co-Founder | Operasional lapangan, koordinasi kurir, branding |
+| **Aswar** | Founder / CEO / Developer | Pengembangan arsitektur teknologi, strategi bisnis, operasional, dan merangkap kurir lapangan. |
+| **Ihcal** | Co-Founder | Operasional lapangan, koordinasi mitra kurir, dan branding lokal. |
 
-### Kebutuhan Tim ke Depan
-- Customer support (menghandle keluhan/pertanyaan)
-- Marketing (sosial media, ekspansi merchant)
-- Tambahan developer (untuk percepat pengembangan app)
+*Human Resource (HR) Management akan diotomatisasi melalui Filament Admin Panel untuk melacak jam kerja, penyelesaian task, dan performa setiap individu (termasuk Founder dan kurir).*
 
 ---
 
-*Dokumen ini terakhir diperbarui: 16 Februari 2026*
+*Dokumen ini terakhir diperbarui: 10 Maret 2026*

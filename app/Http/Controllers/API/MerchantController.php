@@ -601,6 +601,239 @@ class MerchantController extends Controller
         }
     }
 
+    public function updateQris(Request $request, $id)
+    {
+        try {
+            $merchant = Merchant::findOrFail($id);
+
+            $request->validate([
+                'qris' => 'required|file|image|mimes:jpeg,png,jpg,gif|max:2048'
+            ]);
+
+            $file = $request->file('qris');
+            if (!$file->isValid()) {
+                return ResponseFormatter::error(
+                    null,
+                    'Invalid file upload',
+                    422
+                );
+            }
+
+            // Get image info
+            $image = getimagesize($file->getPathname());
+            if ($image === false) {
+                return ResponseFormatter::error(
+                    null,
+                    'Invalid image file',
+                    422
+                );
+            }
+
+            // Check if image needs resizing
+            list($width, $height) = $image;
+            $maxDimension = 800;
+
+            if ($width > $maxDimension || $height > $maxDimension) {
+                // Calculate new dimensions
+                $ratio = $width / $height;
+                if ($ratio > 1) {
+                    $newWidth = $maxDimension;
+                    $newHeight = $maxDimension / $ratio;
+                } else {
+                    $newHeight = $maxDimension;
+                    $newWidth = $maxDimension * $ratio;
+                }
+
+                // Create new image
+                $srcImage = imagecreatefromstring(file_get_contents($file->getPathname()));
+                $dstImage = imagecreatetruecolor($newWidth, $newHeight);
+
+                // Preserve transparency for PNG
+                if ($file->getClientMimeType() === 'image/png') {
+                    imagealphablending($dstImage, false);
+                    imagesavealpha($dstImage, true);
+                }
+
+                // Resize
+                imagecopyresampled(
+                    $dstImage, $srcImage,
+                    0, 0, 0, 0,
+                    $newWidth, $newHeight,
+                    $width, $height
+                );
+
+                // Create temporary file
+                $tempPath = tempnam(sys_get_temp_dir(), 'resized_qris_');
+
+                // Save with compression
+                if ($file->getClientMimeType() === 'image/png') {
+                    imagepng($dstImage, $tempPath, 7); // PNG compression level 7
+                } else {
+                    imagejpeg($dstImage, $tempPath, 80); // JPEG quality 80
+                }
+
+                // Clean up
+                imagedestroy($srcImage);
+                imagedestroy($dstImage);
+
+                // Create new UploadedFile instance
+                $file = new \Illuminate\Http\UploadedFile(
+                    $tempPath,
+                    $file->getClientOriginalName(),
+                    $file->getClientMimeType(),
+                    null,
+                    true
+                );
+            }
+
+            // Use the merchant model's storeQris method
+            $url = $merchant->storeQris($file);
+
+            // Clean up temp file if it exists
+            if (isset($tempPath) && file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+
+            if (!$url) {
+                return ResponseFormatter::error(
+                    null,
+                    'Failed to upload QRIS file',
+                    500
+                );
+            }
+
+            return ResponseFormatter::success(
+                $merchant,
+                'Merchant QRIS updated successfully'
+            );
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error(
+                null,
+                'Failed to update merchant QRIS: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+    /**
+     * Get top merchants by order count with statistics
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function topMerchants(Request $request)
+    {
+        try {
+            $limit = $request->input('limit', 10);
+            $period = $request->input('period', 'week'); // week, month, all_time
+
+            // Calculate date range based on period
+            $startDate = match($period) {
+                'week' => now()->startOfWeek(),
+                'month' => now()->startOfMonth(),
+                default => null // all_time
+            };
+
+            // Get merchants with order statistics
+            $cacheKey = "top_merchants:{$period}:{$limit}";
+
+            // Use cache if available (fallback to DB query)
+            $merchants = Cache::remember($cacheKey, 300, function () use ($limit, $period, $startDate) {
+                $query = Merchant::query()
+                    ->where('status', 'active')
+                    ->select([
+                        'merchants.id',
+                        'merchants.name',
+                        'merchants.address',
+                        'merchants.phone_number',
+                        'merchants.description',
+                        'merchants.logo',
+                        'merchants.latitude',
+                        'merchants.longitude',
+                        'merchants.opening_time',
+                        'merchants.closing_time',
+                        'merchants.operating_days',
+                    ])
+                    ->withCount([
+                        'products as total_products' => function($q) {
+                            $q->where('status', 'ACTIVE');
+                        }
+                    ])
+                    ->withCount([
+                        'orders as total_orders' => function($q) use ($startDate) {
+                            if ($startDate) {
+                                $q->where('created_at', '>=', $startDate);
+                            }
+                            $q->whereHas('transaction', function($tq) {
+                                $tq->where('payment_status', 'PAID');
+                            });
+                        }
+                    ])
+                    ->withSum([
+                        'orders as total_revenue' => function($q) use ($startDate) {
+                            if ($startDate) {
+                                $q->where('created_at', '>=', $startDate);
+                            }
+                            $q->whereHas('transaction', function($tq) {
+                                $tq->where('payment_status', 'PAID');
+                            });
+                        }
+                    ], 'total_amount')
+                    ->withAvg([
+                        'orders as average_rating' => function($q) {
+                            $q->whereNotNull('transaction_review');
+                        }
+                    ], 'transaction_review')
+                    ->orderByDesc('total_orders')
+                    ->limit($limit);
+                
+                $merchants = $query->get();
+
+                // Transform to add ranking and additional stats
+                $merchants->transform(function ($merchant, $index) {
+                    $merchant->rank = $index + 1;
+                    $merchant->total_orders = (int) $merchant->total_orders;
+                    $merchant->total_revenue = (float) $merchant->total_revenue;
+                    $merchant->average_rating = round((float) $merchant->average_rating, 1);
+
+                    // Add badge for top merchants
+                    if ($index === 0) {
+                        $merchant->badge = '🥇 #1 Top Merchant';
+                    } elseif ($index === 1) {
+                        $merchant->badge = '🥈 #2 Top Merchant';
+                    } elseif ($index === 2) {
+                        $merchant->badge = '🥉 #3 Top Merchant';
+                    } else {
+                        $merchant->badge = 'Top ' . ($index + 1) . ' Merchant';
+                    }
+
+                    return $merchant;
+                });
+
+                return $merchants;
+            });
+
+            return ResponseFormatter::success(
+                $merchants,
+                'Top merchants by orders (' . $period . ') retrieved successfully'
+            );
+
+        } catch (\Exception $e) {
+            Log::error('Error getting top merchants: ' . $e->getMessage(), [
+                'period' => $period,
+                'limit' => $limit,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return ResponseFormatter::error(
+                null,
+                'Failed to retrieve top merchants',
+                500
+            );
+        }
+    }
+
     public function getByOwnerId($id)
     {
         $merchants = Merchant::query()

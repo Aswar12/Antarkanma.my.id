@@ -30,6 +30,9 @@ use App\Http\Controllers\API\MerchantAnalyticsController;
 use App\Http\Controllers\API\CourierAnalyticsController;
 use App\Http\Controllers\API\ExportController;
 use App\Http\Controllers\API\WishlistController;
+use App\Http\Controllers\API\PaymentController;
+use App\Http\Controllers\API\WithdrawalController;
+use App\Http\Controllers\API\CartSyncController;
 
 Route::get('/health', function () {
     try {
@@ -74,6 +77,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle']);
     Route::post('/wishlist/check', [WishlistController::class, 'check']);
 
+    // Cart Sync Routes
+    Route::prefix('cart')->group(function () {
+        Route::get('/', [CartSyncController::class, 'getCart']);
+        Route::post('/sync', [CartSyncController::class, 'syncCart']);
+        Route::put('/items/{itemId}', [CartSyncController::class, 'updateItem']);
+        Route::post('/remove', [CartSyncController::class, 'removeFromCart']);
+        Route::post('/clear', [CartSyncController::class, 'clearCart']);
+        Route::post('/mark-checked-out', [CartSyncController::class, 'markAsCheckedOut']);
+    });
+
     // Product Review Routes
     Route::get('products/{id}/reviews', [ProductReviewController::class, 'getByProduct']);
     Route::post('reviews', [ProductReviewController::class, 'store']);
@@ -111,8 +124,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/merchant/{id}/extend', [MerchantController::class, 'extendOperatingHours']);
     Route::put('/merchant/{id}/products/availability', [MerchantController::class, 'updateProductAvailability']);
     Route::post('/merchant/{id}/logo', [MerchantController::class, 'updateLogo']);
+    Route::post('/merchant/{id}/qris', [MerchantController::class, 'updateQris']);
     Route::delete('/merchant/{id}', [MerchantController::class, 'delete']);
     Route::get('/merchant/list', [MerchantController::class, 'list']);
+    Route::get('/merchants/top', [MerchantController::class, 'topMerchants']);
     Route::get('/merchants/owner/{id}', [MerchantController::class, 'getByOwnerId']);
 
     Route::post('products', [ProductController::class, 'create']);
@@ -201,13 +216,17 @@ Route::middleware('auth:sanctum')->group(function () {
         // Wallet Routes (New Topup System)
         Route::prefix('wallet')->group(function () {
             Route::get('/balance', [CourierController::class, 'getWalletBalance']);
-            Route::post('/withdraw', [CourierController::class, 'withdraw']);
             
+            // Withdrawal routes
+            Route::get('/withdrawals', [WithdrawalController::class, 'index']);
+            Route::post('/withdrawals', [WithdrawalController::class, 'store']);
+            Route::get('/withdrawals/{id}', [WithdrawalController::class, 'show']);
+
             // Topup routes
             Route::post('/topups', [WalletTopupController::class, 'submitTopup']);
             Route::get('/topups', [WalletTopupController::class, 'getTopupHistory']);
             Route::get('/topups/{id}', [WalletTopupController::class, 'getTopupDetail']);
-            
+
             // QRIS routes (Public - no auth required)
             Route::get('/qris', [QrisController::class, 'getQrisCode']);
             Route::get('/qris/download', [QrisController::class, 'downloadQrisCode']);
@@ -236,6 +255,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/transactions/{id}/cancel', [TransactionController::class, 'cancel']);
     Route::get('/merchants/{merchantId}/transaction-summary', [TransactionController::class, 'getTransactionSummaryByMerchant']);
     Route::get('/merchants/{merchantId}/transactions', [TransactionController::class, 'getByMerchant']);
+
+    // Payment Verification Routes (Dual QRIS)
+    Route::post('/payments/verify-qris', [PaymentController::class, 'verifyQrisPayment']);
+    Route::get('/transactions/{id}/payment-status', [PaymentController::class, 'getPaymentStatus']);
+    
+    // Merchant Payment Confirmation (Fraud Prevention)
+    Route::post('/transactions/{id}/merchant-confirm-payment', [PaymentController::class, 'merchantConfirmPayment']);
 
     // Transaction Review Routes
     Route::post('/transactions/{id}/review', [TransactionReviewController::class, 'submitReview']);
@@ -277,6 +303,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/peak-hours', [AnalyticsController::class, 'peakHours']);
         Route::get('/revenue', [AnalyticsController::class, 'revenueBreakdown']);
         Route::get('/customers', [AnalyticsController::class, 'customerBehavior']);
+        Route::get('/cart/abandoned', [CartSyncController::class, 'getCartAnalytics']);
     });
 
     // Export Routes
@@ -303,7 +330,25 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/transactions', [App\Http\Controllers\API\PosController::class, 'getTransactions']);
         Route::get('/transactions/{id}', [App\Http\Controllers\API\PosController::class, 'getTransaction']);
         Route::post('/transactions/{id}/void', [App\Http\Controllers\API\PosController::class, 'voidTransaction']);
+        Route::put('/transactions/{id}/status', [App\Http\Controllers\API\PosController::class, 'updateTransactionStatus']);
         Route::get('/daily-summary', [App\Http\Controllers\API\PosController::class, 'getDailySummary']);
+
+        // Table Management
+        Route::get('/tables', [App\Http\Controllers\API\PosController::class, 'getTables']);
+        Route::post('/tables', [App\Http\Controllers\API\PosController::class, 'createTable']);
+        Route::put('/tables/{id}', [App\Http\Controllers\API\PosController::class, 'updateTable']);
+        Route::delete('/tables/{id}', [App\Http\Controllers\API\PosController::class, 'deleteTable']);
+
+        // Queue Management
+        Route::get('/queue', [App\Http\Controllers\API\PosController::class, 'getActiveQueue']);
+
+        // Advanced Table Management
+        Route::post('/transactions/{id}/food-completed', [App\Http\Controllers\API\PosController::class, 'markFoodCompleted']);
+        Route::post('/tables/{id}/release', [App\Http\Controllers\API\PosController::class, 'releaseTableEndpoint']);
+        Route::post('/transactions/{id}/extend', [App\Http\Controllers\API\PosController::class, 'extendDuration']);
+        Route::get('/tables/ready-to-release', [App\Http\Controllers\API\PosController::class, 'getTablesReadyToRelease']);
+        Route::get('/merchant-config', [App\Http\Controllers\API\PosController::class, 'getMerchantConfig']);
+        Route::put('/merchant-config', [App\Http\Controllers\API\PosController::class, 'updateMerchantConfig']);
     });
 
     // Merchant Finance Routes
@@ -317,12 +362,16 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
-// Public routes
-Route::post('register', [UserController::class, 'register']);
-Route::post('register/merchant', [MerchantController::class, 'register']);
+// Public Auth Routes (Rate Limited)
+Route::middleware('throttle:60,1')->group(function () {
+    Route::post('register', [UserController::class, 'register']);
+    Route::post('register/merchant', [MerchantController::class, 'register']);
+    Route::post('login', [UserController::class, 'login']);
+});
+
+// Other Public routes
 Route::get('products', [ProductController::class, 'index']);
 Route::get('products/category/{categoryId}', [ProductController::class, 'getByCategory']);
-Route::post('/login', [UserController::class, 'login']);
 Route::get('/categories', [ProductCategoryController::class, 'list']);
 Route::get('/categories/{id}', [ProductCategoryController::class, 'get']);
 // Shipping routes

@@ -84,7 +84,7 @@ class TransactionController extends Controller
             // Basic validation
             $validator = Validator::make($request->all(), [
                 'user_location_id' => 'required|exists:user_locations,id',
-                'payment_method' => 'required|in:MANUAL,ONLINE',
+                'payment_method' => 'required|in:COD,QRIS_DUAL,QRIS_PLATFORM,MANUAL,ONLINE',
                 'items' => 'required|array|min:1',
                 'items.*.product_id' => 'required|exists:products,id',
                 'items.*.variant_id' => 'nullable|exists:product_variants,id',
@@ -146,7 +146,17 @@ class TransactionController extends Controller
 
             $total_price = $items->sum('subtotal');
             $total_shipping_price = $shippingCalculation['data']['total_shipping_price'];
+            $base_shipping_price = $shippingCalculation['data']['base_shipping_price'] ?? $total_shipping_price;
+            $service_fee = $shippingCalculation['data']['service_fee'] ?? 500; // Default Rp 500 per TRANSACTION
+            // IMPORTANT: Service fee is charged ONCE per transaction, not per order
+            $platform_fee = $base_shipping_price * 0.10; // 10% of base shipping
+            $courier_earning = $base_shipping_price - $platform_fee;
             $shippingDetails = $shippingCalculation['data']['merchant_deliveries'];
+
+            // Dual QRIS: Split payment amounts
+            $merchant_amount = $total_price; // Customer pays merchant directly via QRIS
+            $platform_amount = $base_shipping_price + $service_fee; // Customer pays platform via QRIS
+            $grand_total = $merchant_amount + $platform_amount;
 
             // Group items by merchant
             $itemsByMerchant = $items->groupBy('merchant_id');
@@ -172,14 +182,53 @@ class TransactionController extends Controller
                 'user_id' => Auth::id(),
                 'user_location_id' => $request->user_location_id,
                 'total_price' => $total_price,
+                'merchant_amount' => $merchant_amount,
+                'platform_amount' => $platform_amount,
+                'grand_total' => $grand_total,
                 'shipping_price' => $total_shipping_price,
+                'base_shipping_price' => $base_shipping_price,
+                'service_fee' => $service_fee,
+                'platform_fee' => $platform_fee,
+                'courier_earning' => $courier_earning,
                 'status' => Transaction::STATUS_PENDING,
                 'payment_method' => $request->payment_method,
                 'payment_status' => Transaction::PAYMENT_STATUS_PENDING,
                 'courier_approval' => Transaction::COURIER_PENDING,
                 'timeout_at' => now()->addMinutes(120), // Set 2 hours timeout (Hybrid System)
-                'base_merchant_id' => $baseMerchant['merchant_id']
+                'base_merchant_id' => $baseMerchant['merchant_id'],
             ];
+            
+            // ─────────────────────────────────────────────────
+            // MULTI-MERCHANT DETECTION
+            // ─────────────────────────────────────────────────
+            $merchantCount = $itemsByMerchant->keys()->count();
+            
+            if ($merchantCount > 1) {
+                // Multi-merchant order
+                Log::info('Multi-merchant order detected', [
+                    'merchant_count' => $merchantCount,
+                    'merchants' => $itemsByMerchant->keys()->toArray(),
+                ]);
+                
+                // For MVP: Recommend separate transactions
+                // Future: Use PLATFORM_QRIS single payment
+                
+                // Add warning to response
+                $multiMerchantWarning = 'Pesanan Anda terdiri dari ' . $merchantCount . ' merchant berbeda. ' .
+                                        'Untuk saat ini, silahkan buat pesanan terpisah untuk setiap merchant ' .
+                                        'agar pembayaran lebih mudah (2x scan per merchant). ' .
+                                        'Fitur pembayaran tunggal untuk multi-merchant akan segera hadir!';
+            } else {
+                $multiMerchantWarning = null;
+            }
+            
+            // Add QRIS URLs for dual payment
+            if ($request->payment_method === 'QRIS_DUAL') {
+                // Get merchant QRIS URL
+                $baseMerchantModel = Merchant::find($baseMerchant['merchant_id']);
+                $transactionData['merchant_qris_url'] = $baseMerchantModel->qris_url;
+                $transactionData['platform_qris_url'] = config('services.platform.qris_url'); // Platform QRIS
+            }
 
             Log::info('Creating Transaction:', $transactionData);
             $transaction = Transaction::create($transactionData);
@@ -289,10 +338,56 @@ class TransactionController extends Controller
             $responseData = $transaction->toArray();
             $responseData['shipping_details'] = [
                 'total_shipping_price' => $total_shipping_price,
+                'base_shipping_price' => $base_shipping_price,
+                'service_fee' => $service_fee,
+                'platform_fee' => $platform_fee,
+                'courier_earning' => $courier_earning,
                 'merchant_deliveries' => collect($shippingDetails)->map(function($detail, $merchantId) {
                     return array_merge(['merchant_id' => $merchantId], $detail);
                 })->values()->toArray()
             ];
+            
+            // Add dual QRIS payment info
+            if ($transaction->payment_method === 'QRIS_DUAL') {
+                $responseData['payment_info'] = [
+                    'payment_type' => 'DUAL_QRIS',
+                    'payments' => [
+                        [
+                            'type' => 'MERCHANT_QRIS',
+                            'amount' => $merchant_amount,
+                            'description' => 'Pembayaran makanan ke merchant',
+                            'qris_url' => $transaction->merchant_qris_url,
+                            'merchant_name' => $baseMerchantModel->name,
+                        ],
+                        [
+                            'type' => 'PLATFORM_QRIS',
+                            'amount' => $platform_amount,
+                            'description' => 'Ongkir + Service Fee ke platform',
+                            'qris_url' => $transaction->platform_qris_url,
+                            'breakdown' => [
+                                'base_ongkir' => $base_shipping_price,
+                                'service_fee' => $service_fee,
+                            ]
+                        ],
+                    ],
+                    'instructions' => [
+                        '1. Scan QRIS Merchant untuk bayar makanan sebesar Rp ' . number_format($merchant_amount, 0, ',', '.'),
+                        '2. Scan QRIS Platform untuk bayar ongkir sebesar Rp ' . number_format($platform_amount, 0, ',', '.'),
+                        '3. Upload bukti pembayaran kedua QRIS di halaman detail transaksi',
+                        '4. Pesanan akan diproses setelah kedua pembayaran terkonfirmasi',
+                    ],
+                    'grand_total' => $grand_total,
+                ];
+            } elseif ($transaction->payment_method === 'COD') {
+                $responseData['payment_info'] = [
+                    'payment_type' => 'COD',
+                    'amount_due' => $grand_total,
+                    'instructions' => [
+                        'Bayar Rp ' . number_format($grand_total, 0, ',', '.') . ' saat pesanan tiba di lokasi Anda',
+                        'Pastikan menyiapkan uang pas atau uang kecil untuk memudahkan kurir',
+                    ],
+                ];
+            }
 
             Log::info('Final shipping details:', [
                 'total_shipping_price' => $total_shipping_price,
@@ -314,6 +409,12 @@ class TransactionController extends Controller
 
             // Keep shipping calculation in cache for courier assignment
             // Cache will be cleared when transaction is completed or canceled
+            
+            // Add multi-merchant warning if applicable
+            if ($multiMerchantWarning) {
+                $responseData['multi_merchant_warning'] = $multiMerchantWarning;
+                $responseData['recommendation'] = 'Buat pesanan terpisah untuk setiap merchant untuk pembayaran yang lebih mudah.';
+            }
 
             return ResponseFormatter::success($responseData, 'Transaction created successfully');
         } catch (Exception $e) {

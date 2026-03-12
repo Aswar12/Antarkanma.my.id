@@ -29,6 +29,10 @@ class PosTransaction extends Model
         'table_number',
         'delivery_id',
         'created_by',
+        'food_completed_at',
+        'auto_release_at',
+        'table_released_at',
+        'released_by',
     ];
 
     protected $casts = [
@@ -40,6 +44,9 @@ class PosTransaction extends Model
         'change_amount' => 'decimal:2',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'food_completed_at' => 'datetime',
+        'auto_release_at' => 'datetime',
+        'table_released_at' => 'datetime',
     ];
 
     // ─── Relationships ─────────────────────────────────────────
@@ -62,6 +69,16 @@ class PosTransaction extends Model
     public function delivery()
     {
         return $this->belongsTo(Delivery::class);
+    }
+
+    public function releasedByUser()
+    {
+        return $this->belongsTo(User::class, 'released_by');
+    }
+
+    public function table()
+    {
+        return $this->hasOne(MerchantTable::class, 'current_pos_transaction_id');
     }
 
     // ─── Scopes ────────────────────────────────────────────────
@@ -174,5 +191,71 @@ class PosTransaction extends Model
             'TRANSFER' => 'Transfer',
             default => $this->payment_method,
         };
+    }
+
+    // ─── Table Management Methods ──────────────────────────
+
+    /**
+     * Mark food as completed and schedule auto-release if applicable
+     */
+    public function markFoodCompleted(): void
+    {
+        $this->update(['food_completed_at' => Carbon::now()]);
+
+        $merchant = $this->merchant;
+        if ($merchant && $merchant->shouldAutoReleaseTable()) {
+            $this->scheduleAutoRelease($merchant->default_dine_duration);
+        }
+    }
+
+    /**
+     * Schedule auto-release at food_completed_at + duration minutes
+     */
+    public function scheduleAutoRelease(int $durationMinutes): void
+    {
+        $baseTime = $this->food_completed_at ?? Carbon::now();
+        $this->update([
+            'auto_release_at' => Carbon::parse($baseTime)->addMinutes($durationMinutes),
+        ]);
+    }
+
+    /**
+     * Release the table (manual or auto)
+     */
+    public function releaseTable(?int $userId = null): void
+    {
+        $this->update([
+            'table_released_at' => Carbon::now(),
+            'released_by' => $userId,
+        ]);
+
+        // Release the physical table
+        $table = MerchantTable::where('current_pos_transaction_id', $this->id)->first();
+        if ($table) {
+            $table->release();
+        }
+    }
+
+    /**
+     * Check if table is ready for auto-release
+     */
+    public function isReadyForAutoRelease(): bool
+    {
+        return $this->auto_release_at
+            && Carbon::now()->gte($this->auto_release_at)
+            && !$this->table_released_at;
+    }
+
+    /**
+     * Extend the auto-release time
+     */
+    public function extendDuration(int $additionalMinutes): void
+    {
+        if ($this->auto_release_at) {
+            $this->update([
+                'auto_release_at' => Carbon::parse($this->auto_release_at)
+                    ->addMinutes($additionalMinutes),
+            ]);
+        }
     }
 }

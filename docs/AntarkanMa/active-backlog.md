@@ -2,7 +2,7 @@
 
 Status: `⬜ Belum` `🔄 Sedang` `✅ Selesai` `⏸️ Ditunda`
 
-_Terakhir diperbarui: 27 Februari 2026, 23:45 WITA_
+_Terakhir diperbarui: 10 Maret 2026, 15:30 WITA_
 
 ---
 
@@ -50,12 +50,22 @@ _Terakhir diperbarui: 27 Februari 2026, 23:45 WITA_
 |---|---|---|---|
 | B1 | Automated testing — API auth endpoints | ⬜ | |
 | B2 | Automated testing — order & transaction | ⬜ | |
-| B3 | Merchant fee Rp 1.000/order implementation | ⬜ | Formula sudah di docs |
+| ~~B3~~ | ~~Merchant fee Rp 1.000/order implementation~~ | ✅ **REPLACED** | ~~Formula sudah di docs~~ → **See SF-04 to SF-10 in MASTERPLAN.md** |
 | B4 | Standardisasi error handling semua controller | ⬜ | |
 | B5 | Input validation review (Form Requests) | ⬜ | |
 | B6 | Courier transfer order ke kurir lain | ⬜ | Jika kurir tidak bisa lanjut |
 | B7 | Auto-cancel timeout via cron job | ⏸️ | Dimatikan sementara untuk hybrid flow |
 | B8 | SLA reminder: notif ulang ke merchant jika 5 menit belum approve | ⬜ | |
+
+> **⚠️ Update 10 Mar 2026:** B3 diganti dengan **Service Fee Model** baru. Lihat [`docs/AntarkanMa/business/service-fee-model.md`](service-fee-model.md)
+> 
+> **Revenue Model Baru:**
+> - Service Fee: Rp 500/transaksi (Customer)
+> - Platform Fee: 10% dari base ongkir (Courier)
+> - Merchant Commission: 0% (GRATIS)
+> - Withdrawal Fee: Rp 1.000
+> 
+> **Implementation tasks:** SF-04, SF-05, SF-06, SF-07, SF-10 (see MASTERPLAN.md)
 
 ---
 

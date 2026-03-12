@@ -197,6 +197,15 @@ class CourierController extends Controller
                 return ResponseFormatter::error(null, 'Unauthorized: User is not registered as a courier', 403);
             }
 
+            // Validasi: Kurir harus memiliki saldo dompet (wallet_balance) >= minimum_balance
+            if ($courier->wallet_balance < $courier->minimum_balance) {
+                return ResponseFormatter::error(
+                    null,
+                    'Saldo wallet tidak mencukupi untuk mengambil order ini. Minimal saldo: Rp ' . number_format($courier->minimum_balance, 0, ',', '.'),
+                    422
+                );
+            }
+
             DB::beginTransaction();
 
             // Set courier_id dan approval status di Transaction
@@ -576,12 +585,25 @@ class CourierController extends Controller
                 );
             }
 
+            // Validasi: delivery proof image required (optional, can be disabled via config)
+            $validated = $request->validate([
+                'delivery_proof_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120', // Max 5MB
+            ]);
+
             DB::beginTransaction();
 
             $order->order_status = Order::STATUS_COMPLETED;
             $order->save();
 
             $transaction = $order->transaction;
+
+            // Handle delivery proof image upload
+            if ($request->hasFile('delivery_proof_image')) {
+                $imagePath = $request->file('delivery_proof_image')->store('delivery-proofs', 'public');
+                $transaction->delivery_proof_image = $imagePath;
+                $transaction->delivery_proof_at = now();
+                $transaction->save();
+            }
 
             // Cek apakah SEMUA order sudah COMPLETED atau CANCELED
             $allDone = $transaction->allOrdersCompleted();
@@ -593,7 +615,75 @@ class CourierController extends Controller
                 $transaction->save();
                 $transactionCompleted = true;
 
-                Log::info("Transaction #{$transaction->id} auto-completed: all orders finished.");
+                // ──────────────────────────────────────────────────────────────
+                // HANDLE PAYMENT BASED ON PAYMENT METHOD
+                // ──────────────────────────────────────────────────────────────
+                
+                if ($transaction->payment_method === 'QRIS_DUAL' || $transaction->payment_method === 'QRIS_PLATFORM') {
+                    // ONLINE PAYMENT: Wallet sudah di-credit saat payment verified
+                    // Tidak perlu credit lagi, hanya log saja
+                    
+                    Log::info("Transaction #{$transaction->id} completed (ONLINE payment). Courier earning already credited.");
+                    
+                } elseif ($transaction->payment_method === 'COD') {
+                    // COD: Auto-deduct fee dari wallet kurir
+                    
+                    $platformFee = $transaction->platform_fee ?? 0;
+                    $serviceFee = $transaction->service_fee ?? 0;
+                    $totalFee = $platformFee + $serviceFee;
+                    
+                    $balanceBefore = $courier->wallet_balance;
+                    
+                    // Deduct fee dari wallet
+                    if ($courier->wallet_balance < $totalFee) {
+                        // Saldo tidak cukup - allow minus (kurir berutang)
+                        $courier->wallet_balance -= $totalFee;
+                        $status = 'FEE_PAID_WITH_DEBT';
+                    } else {
+                        $courier->wallet_balance -= $totalFee;
+                        $status = 'FEE_PAID';
+                    }
+                    
+                    $courier->save();
+                    
+                    // Log wallet transaction untuk fee payment
+                    WalletTransaction::create([
+                        'courier_id' => $courier->id,
+                        'transaction_id' => $transaction->id,
+                        'type' => 'FEE_PAYMENT',
+                        'amount' => -$totalFee,
+                        'fee' => $totalFee,
+                        'balance_before' => $balanceBefore,
+                        'balance_after' => $courier->wallet_balance,
+                        'description' => 'Pembayaran fee order COD #' . $transaction->id . 
+                                         '. Ongkir Rp ' . number_format($transaction->base_shipping_price, 0, ',', '.') . 
+                                         ' sudah diterima kurir (COD).',
+                    ]);
+                    
+                    Log::info("Transaction #{$transaction->id} completed (COD). Fee Rp {$totalFee} deducted from courier wallet.");
+                    
+                } else {
+                    // MANUAL/ONLINE (legacy): Credit courier wallet
+                    $baseOngkir = $transaction->base_shipping_price ?? $transaction->shipping_price;
+                    $platformFee = $transaction->platform_fee ?? ($baseOngkir * 0.10);
+                    $courierEarning = $baseOngkir - $platformFee;
+
+                    $balanceBefore = $courier->wallet_balance;
+                    $courier->wallet_balance += $courierEarning;
+                    $courier->save();
+
+                    WalletTransaction::create([
+                        'courier_id' => $courier->id,
+                        'transaction_id' => $transaction->id,
+                        'type' => 'EARNING',
+                        'amount' => $courierEarning,
+                        'balance_before' => $balanceBefore,
+                        'balance_after' => $courier->wallet_balance,
+                        'description' => 'Ongkir order #' . $transaction->id,
+                    ]);
+
+                    Log::info("Transaction #{$transaction->id} completed. Courier #{$courier->id} earned {$courierEarning}");
+                }
             }
 
             // Notifikasi
@@ -836,7 +926,7 @@ class CourierController extends Controller
             }
 
             $validated = $request->validate([
-                'amount' => 'required|numeric|min:10000', // Minimum withdrawal Rp 10.000
+                'amount' => 'required|numeric|min:50000', // Minimum withdrawal Rp 50.000
             ]);
 
             $courier = Courier::where('user_id', $request->user()->id)->first();
@@ -850,35 +940,38 @@ class CourierController extends Controller
             }
 
             $amount = $validated['amount'];
+            $adminFee = 1000;
+            $totalDeduction = $amount + $adminFee;
 
-            if ($courier->wallet_balance < $amount) {
-                return ResponseFormatter::error(null, 'Saldo tidak mencukupi untuk penarikan ini.', 422);
+            if ($courier->wallet_balance < $totalDeduction) {
+                return ResponseFormatter::error(null, 'Saldo tidak mencukupi untuk penarikan dan biaya admin (Rp 1.000).', 422);
             }
 
-            // Check minimum balance requirement
+            // Check minimum balance requirement (e.g. 10.000)
             $minimumBalance = $courier->minimum_balance ?? 0;
-            if (($courier->wallet_balance - $amount) < $minimumBalance) {
+            if (($courier->wallet_balance - $totalDeduction) < $minimumBalance) {
                 return ResponseFormatter::error(
                     null, 
-                    'Penarikan gagal. Pastikan sisa saldo minimal Rp ' . number_format($minimumBalance, 0, ',', '.'), 
+                    'Penarikan gagal. Pastikan sisa saldo (setelah penarikan + admin) minimal Rp ' . number_format($minimumBalance, 0, ',', '.'), 
                     422
                 );
             }
 
             DB::beginTransaction();
 
-            // Deduct from wallet balance
-            $courier->wallet_balance -= $amount;
+            // Deduct from wallet balance (withdraw amount + admin fee)
+            $courier->wallet_balance -= $totalDeduction;
             $courier->save();
 
             // Create withdrawal record (you can create a withdrawals table if needed)
-            // For now, we'll just log it
+            // For now, we'll just log it as transaction
             \App\Models\Transaction::create([
                 'courier_id' => $courier->id,
                 'status' => 'withdrawal',
-                'total_price' => -$amount, // Negative for withdrawal
+                'total_price' => -$totalDeduction, // Negative for withdrawal
                 'payment_method' => 'bank_transfer',
                 'payment_status' => 'pending',
+                'note' => 'Withdrawal Admin Fee: 1000'
             ]);
 
             DB::commit();
@@ -886,7 +979,8 @@ class CourierController extends Controller
             return ResponseFormatter::success([
                 'new_balance' => $courier->wallet_balance,
                 'withdrawal_amount' => $amount,
-            ], 'Penarikan berhasil diproses. Dana akan ditransfer dalam 1-3 hari kerja.');
+                'admin_fee' => $adminFee,
+            ], 'Penarikan berhasil diproses. Saldo dipotong Rp '.number_format($totalDeduction, 0, ',', '.').' (termasuk biaya admin). Dana akan ditransfer dalam 1-3 hari kerja.');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return ResponseFormatter::error(null, 'Validasi gagal: ' . $e->getMessage(), 422);

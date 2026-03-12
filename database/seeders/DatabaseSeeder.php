@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             KoneksiRasaSeeder::class,
             KoneksiRasaProductSeeder::class, // Products for Koneksi Rasa merchant
             AntarKanMaCourierSeeder::class,
+            ServiceFeeSettingSeeder::class,
         ]);
     }
 }

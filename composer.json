@@ -16,8 +16,9 @@
         "laravel/tinker": "^2.9",
         "league/flysystem-aws-s3-v3": "^3.0",
         "livewire/livewire": "^3.0",
-        "predis/predis": "^2.3",
-        "spatie/browsershot": "^5.0"
+        "predis/predis": "^3.4",
+        "spatie/browsershot": "^5.0",
+        "stephenjude/filament-two-factor-authentication": "^2.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

@@ -8,9 +8,12 @@ use App\Models\PosTransaction;
 use App\Models\PosTransactionItem;
 use App\Models\Product;
 use App\Models\Merchant;
+use App\Models\MerchantTable;
+use App\Services\TableManagementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
 
 class PosController extends Controller
 {
@@ -126,10 +129,20 @@ class PosController extends Controller
                 'amount_paid' => $amountPaid,
                 'change_amount' => $changeAmount,
                 'notes' => $request->notes,
-                'status' => 'COMPLETED',
+                'status' => 'PENDING',
                 'table_number' => $request->table_number,
                 'created_by' => $request->user()->id,
             ]);
+
+            // Auto-occupy table for DINE_IN orders
+            if ($request->order_type === 'DINE_IN' && $request->table_number) {
+                $table = MerchantTable::where('merchant_id', $merchantId)
+                    ->where('table_number', $request->table_number)
+                    ->first();
+                if ($table && $table->isAvailable()) {
+                    $table->occupy($transaction->id);
+                }
+            }
 
             // Create items
             foreach ($request->items as $item) {
@@ -255,6 +268,16 @@ class PosController extends Controller
 
             $transaction->update(['status' => 'VOIDED']);
 
+            // Release table if this was a DINE_IN order
+            if ($transaction->order_type === 'DINE_IN' && $transaction->table_number) {
+                $table = MerchantTable::where('merchant_id', $merchantId)
+                    ->where('current_pos_transaction_id', $transaction->id)
+                    ->first();
+                if ($table) {
+                    $table->release();
+                }
+            }
+
             return ResponseFormatter::success($transaction, 'Transaction voided successfully');
         } catch (\Exception $e) {
             return ResponseFormatter::error('Failed to void transaction: ' . $e->getMessage(), 500);
@@ -306,6 +329,404 @@ class PosController extends Controller
             return ResponseFormatter::success($summary, 'Daily summary retrieved successfully');
         } catch (\Exception $e) {
             return ResponseFormatter::error('Failed to retrieve daily summary: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // ─── Table Management ──────────────────────────────────
+
+    /**
+     * Get all tables for merchant
+     */
+    public function getTables(Request $request)
+    {
+        try {
+            $merchantId = $this->getMerchantId($request);
+            if (!$merchantId) {
+                return ResponseFormatter::error('Merchant not found', 404);
+            }
+
+            $tables = MerchantTable::where('merchant_id', $merchantId)
+                ->with('currentTransaction')
+                ->orderBy('table_number')
+                ->get();
+
+            return ResponseFormatter::success($tables, 'Tables retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Failed to retrieve tables: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Create a new table
+     */
+    public function createTable(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'table_number' => 'required|string|max:20',
+            'capacity' => 'nullable|integer|min:1|max:50',
+        ]);
+
+        if ($validator->fails()) {
+            return ResponseFormatter::error($validator->errors()->first(), 422);
+        }
+
+        try {
+            $merchantId = $this->getMerchantId($request);
+            if (!$merchantId) {
+                return ResponseFormatter::error('Merchant not found', 404);
+            }
+
+            // Check duplicate
+            $exists = MerchantTable::where('merchant_id', $merchantId)
+                ->where('table_number', $request->table_number)
+                ->exists();
+            if ($exists) {
+                return ResponseFormatter::error('Nomor meja sudah ada', 422);
+            }
+
+            $table = MerchantTable::create([
+                'merchant_id' => $merchantId,
+                'table_number' => $request->table_number,
+                'capacity' => $request->input('capacity', 4),
+            ]);
+
+            return ResponseFormatter::success($table, 'Table created successfully');
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Failed to create table: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Update table status or details
+     */
+    public function updateTable(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'table_number' => 'nullable|string|max:20',
+            'capacity' => 'nullable|integer|min:1|max:50',
+            'status' => 'nullable|in:AVAILABLE,OCCUPIED,RESERVED',
+        ]);
+
+        if ($validator->fails()) {
+            return ResponseFormatter::error($validator->errors()->first(), 422);
+        }
+
+        try {
+            $merchantId = $this->getMerchantId($request);
+            if (!$merchantId) {
+                return ResponseFormatter::error('Merchant not found', 404);
+            }
+
+            $table = MerchantTable::where('merchant_id', $merchantId)->find($id);
+            if (!$table) {
+                return ResponseFormatter::error('Table not found', 404);
+            }
+
+            $data = array_filter($request->only('table_number', 'capacity', 'status'), fn ($v) => $v !== null);
+
+            // If releasing manually, clear transaction link
+            if (isset($data['status']) && $data['status'] === 'AVAILABLE') {
+                $data['current_pos_transaction_id'] = null;
+            }
+
+            $table->update($data);
+
+            return ResponseFormatter::success($table->fresh(), 'Table updated successfully');
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Failed to update table: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Delete a table
+     */
+    public function deleteTable(Request $request, $id)
+    {
+        try {
+            $merchantId = $this->getMerchantId($request);
+            if (!$merchantId) {
+                return ResponseFormatter::error('Merchant not found', 404);
+            }
+
+            $table = MerchantTable::where('merchant_id', $merchantId)->find($id);
+            if (!$table) {
+                return ResponseFormatter::error('Table not found', 404);
+            }
+
+            if ($table->status === MerchantTable::STATUS_OCCUPIED) {
+                return ResponseFormatter::error('Tidak bisa hapus meja yang sedang terisi', 422);
+            }
+
+            $table->delete();
+
+            return ResponseFormatter::success(null, 'Table deleted successfully');
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Failed to delete table: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // ─── Queue Management ─────────────────────────────────
+
+    /**
+     * Get active POS queue (today's PENDING/PROCESSING orders)
+     */
+    public function getActiveQueue(Request $request)
+    {
+        try {
+            $merchantId = $this->getMerchantId($request);
+            if (!$merchantId) {
+                return ResponseFormatter::error('Merchant not found', 404);
+            }
+
+            $queue = PosTransaction::where('merchant_id', $merchantId)
+                ->whereDate('created_at', Carbon::today())
+                ->whereIn('status', ['PENDING', 'PROCESSING'])
+                ->with('items')
+                ->orderBy('created_at', 'asc')
+                ->get()
+                ->map(function ($tx, $index) {
+                    $tx->queue_number = $index + 1;
+                    return $tx;
+                });
+
+            return ResponseFormatter::success($queue, 'Active queue retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Failed to retrieve queue: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Update POS transaction status (for queue management)
+     */
+    public function updateTransactionStatus(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'status' => 'required|in:PENDING,PROCESSING,COMPLETED,VOIDED',
+        ]);
+
+        if ($validator->fails()) {
+            return ResponseFormatter::error($validator->errors()->first(), 422);
+        }
+
+        try {
+            $merchantId = $this->getMerchantId($request);
+            if (!$merchantId) {
+                return ResponseFormatter::error('Merchant not found', 404);
+            }
+
+            $transaction = PosTransaction::where('merchant_id', $merchantId)->find($id);
+            if (!$transaction) {
+                return ResponseFormatter::error('Transaction not found', 404);
+            }
+
+            $newStatus = $request->status;
+            $transaction->update(['status' => $newStatus]);
+
+            // Release table when DINE_IN order is completed or voided
+            if (in_array($newStatus, ['COMPLETED', 'VOIDED']) && $transaction->order_type === 'DINE_IN' && $transaction->table_number) {
+                $table = MerchantTable::where('merchant_id', $merchantId)
+                    ->where('current_pos_transaction_id', $transaction->id)
+                    ->first();
+                if ($table) {
+                    $table->release();
+                }
+            }
+
+            return ResponseFormatter::success($transaction->fresh('items'), 'Status updated successfully');
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Failed to update status: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // ─── Advanced Table Management ──────────────────────────
+
+    /**
+     * Mark food as completed → triggers auto-release timer for PAY_FIRST
+     */
+    public function markFoodCompleted(Request $request, $id)
+    {
+        try {
+            $merchantId = $this->getMerchantId($request);
+            $transaction = PosTransaction::where('id', $id)
+                ->where('merchant_id', $merchantId)
+                ->first();
+
+            if (!$transaction) {
+                return ResponseFormatter::error('Transaction not found', 404);
+            }
+
+            $service = new TableManagementService();
+            $result = $service->markFoodCompleted($id);
+
+            if (!$result) {
+                return ResponseFormatter::error('Cannot mark food as completed', 400);
+            }
+
+            return ResponseFormatter::success(
+                $transaction->fresh()->load('items'),
+                'Food marked as completed'
+            );
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Failed: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Manually release a table (for PAY_LAST merchants)
+     */
+    public function releaseTableEndpoint(Request $request, $id)
+    {
+        try {
+            $merchantId = $this->getMerchantId($request);
+            $table = MerchantTable::where('id', $id)
+                ->where('merchant_id', $merchantId)
+                ->first();
+
+            if (!$table) {
+                return ResponseFormatter::error('Table not found', 404);
+            }
+
+            if (!$table->current_pos_transaction_id) {
+                return ResponseFormatter::error('Table is not occupied', 400);
+            }
+
+            $service = new TableManagementService();
+            $result = $service->releaseTable(
+                $table->current_pos_transaction_id,
+                $request->user()?->id
+            );
+
+            if (!$result) {
+                return ResponseFormatter::error('Cannot release table', 400);
+            }
+
+            return ResponseFormatter::success(
+                $table->fresh(),
+                'Table released successfully'
+            );
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Failed: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Extend the auto-release duration for a table
+     */
+    public function extendDuration(Request $request, $id)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'minutes' => 'required|integer|in:15,30,60',
+            ]);
+
+            if ($validator->fails()) {
+                return ResponseFormatter::error($validator->errors()->first(), 422);
+            }
+
+            $merchantId = $this->getMerchantId($request);
+            $transaction = PosTransaction::where('id', $id)
+                ->where('merchant_id', $merchantId)
+                ->first();
+
+            if (!$transaction) {
+                return ResponseFormatter::error('Transaction not found', 404);
+            }
+
+            $service = new TableManagementService();
+            $result = $service->extendDuration($id, $request->minutes);
+
+            if (!$result) {
+                return ResponseFormatter::error('Cannot extend duration', 400);
+            }
+
+            return ResponseFormatter::success(
+                $transaction->fresh(),
+                "Duration extended by {$request->minutes} minutes"
+            );
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Failed: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get tables that are approaching or past their auto-release time
+     */
+    public function getTablesReadyToRelease(Request $request)
+    {
+        try {
+            $merchantId = $this->getMerchantId($request);
+            if (!$merchantId) {
+                return ResponseFormatter::error('Merchant not found', 404);
+            }
+
+            $service = new TableManagementService();
+            $tables = $service->getTablesReadyToRelease($merchantId);
+
+            return ResponseFormatter::success($tables, 'Tables ready to release retrieved');
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Failed: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get merchant table management configuration
+     */
+    public function getMerchantConfig(Request $request)
+    {
+        try {
+            $merchantId = $this->getMerchantId($request);
+            $merchant = Merchant::find($merchantId);
+
+            if (!$merchant) {
+                return ResponseFormatter::error('Merchant not found', 404);
+            }
+
+            return ResponseFormatter::success([
+                'payment_flow' => $merchant->payment_flow,
+                'auto_release_table' => $merchant->auto_release_table,
+                'default_dine_duration' => $merchant->default_dine_duration,
+            ], 'Merchant config retrieved');
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Failed: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Update merchant table management configuration
+     */
+    public function updateMerchantConfig(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'payment_flow' => 'sometimes|in:PAY_FIRST,PAY_LAST',
+                'auto_release_table' => 'sometimes|boolean',
+                'default_dine_duration' => 'sometimes|integer|min:30|max:120',
+            ]);
+
+            if ($validator->fails()) {
+                return ResponseFormatter::error($validator->errors()->first(), 422);
+            }
+
+            $merchantId = $this->getMerchantId($request);
+            $merchant = Merchant::find($merchantId);
+
+            if (!$merchant) {
+                return ResponseFormatter::error('Merchant not found', 404);
+            }
+
+            $merchant->update($request->only([
+                'payment_flow',
+                'auto_release_table',
+                'default_dine_duration',
+            ]));
+
+            return ResponseFormatter::success([
+                'payment_flow' => $merchant->payment_flow,
+                'auto_release_table' => $merchant->auto_release_table,
+                'default_dine_duration' => $merchant->default_dine_duration,
+            ], 'Merchant config updated');
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Failed: ' . $e->getMessage(), 500);
         }
     }
 

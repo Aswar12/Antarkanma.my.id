@@ -15,7 +15,8 @@ class TopMerchantsWidget extends BaseWidget
 
     public static function canView(): bool
     {
-        return request()->routeIs('filament.admin.pages.analytics');
+        return request()->routeIs('filament.admin.pages.analytics') || 
+               str_contains(request()->path(), 'analytics');
     }
 
     public function table(Table $table): Table

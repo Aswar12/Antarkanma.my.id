@@ -64,7 +64,7 @@ class AdminPanelProvider extends PanelProvider
             ->passwordReset()
             ->maxContentWidth('full')
             ->spa()
-           
+            ->plugin(\Stephenjude\FilamentTwoFactorAuthentication\TwoFactorAuthenticationPlugin::make())
             ->sidebarCollapsibleOnDesktop()
             ->collapsibleNavigationGroups()
             ->globalSearch(false);
